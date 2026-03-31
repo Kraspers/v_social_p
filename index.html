@@ -2681,7 +2681,7 @@
     (()=>{ const i = Array.from(navBtns).findIndex(b=>b.classList.contains('active')); if(i>=0) updateSlider(i); })();
 
     // ===== STORIES =====
-    let userStories = [], currentMediaIndex = 0, storyInterval, activeStories = [], lastStoryCloseTs = 0;
+    let userStories = [], currentMediaIndex = 0, storyInterval, activeStories = [], lastStoryCloseTs = 0, storyRenderToken = 0;
     let storyTodayCount = 0;
     const STORY_DAILY_LIMIT = 30;
 
@@ -2826,7 +2826,9 @@
     }
 
     function showStory(stories) {
+        if (!stories || !stories.length) { closeStoryViewer(); return; }
         if (currentMediaIndex >= stories.length) { closeStoryViewer(); return; }
+        const token = ++storyRenderToken;
         const s = stories[currentMediaIndex];
         const img = document.getElementById('story-media');
         const vid = document.getElementById('story-video');
@@ -2841,7 +2843,12 @@
             img.src = s.src; img.style.display = 'block'; vid.style.display = 'none';
             try { vid.pause(); } catch(e){} vid.removeAttribute('src'); try { vid.load(); } catch(e){}
             let p = 0;
-            storyInterval = setInterval(() => { p += 2; document.querySelectorAll('.story-progress-fill')[currentMediaIndex].style.width = p+'%'; if(p>=100) nextStory(stories); }, 100);
+            storyInterval = setInterval(() => {
+                if (token !== storyRenderToken) { clearInterval(storyInterval); return; }
+                p += 2;
+                document.querySelectorAll('.story-progress-fill')[currentMediaIndex].style.width = p+'%';
+                if(p>=100) nextStory(stories);
+            }, 100);
         } else {
             img.style.display = 'none'; vid.style.display = 'block';
             vid.pause(); vid.ontimeupdate = null; vid.onended = null; vid.oncanplay = null;
@@ -2849,10 +2856,20 @@
             vid.setAttribute('playsinline', ''); vid.setAttribute('webkit-playsinline', ''); vid.muted = true;
             vid.src = s.src;
             const capturedIndex = currentMediaIndex;
-            vid.oncanplay = () => { vid.oncanplay = null; vid.play().catch(()=>{}); };
+            vid.oncanplay = () => {
+                if (token !== storyRenderToken) return;
+                vid.oncanplay = null;
+                vid.play().catch(()=>{});
+            };
             vid.load();
-            vid.ontimeupdate = () => { if (vid.duration) document.querySelectorAll('.story-progress-fill')[capturedIndex].style.width = (vid.currentTime/vid.duration*100)+'%'; };
-            vid.onended = () => nextStory(stories);
+            vid.ontimeupdate = () => {
+                if (token !== storyRenderToken) return;
+                if (vid.duration) document.querySelectorAll('.story-progress-fill')[capturedIndex].style.width = (vid.currentTime/vid.duration*100)+'%';
+            };
+            vid.onended = () => {
+                if (token !== storyRenderToken) return;
+                nextStory(stories);
+            };
         }
         requestAnimationFrame(() => {
             const span = document.getElementById('story-text-content');
@@ -2865,6 +2882,7 @@
     function prevStory(s) { currentMediaIndex = Math.max(0, currentMediaIndex-1); showStory(s); }
     function closeStoryViewer() {
         lastStoryCloseTs = Date.now();
+        storyRenderToken++;
         document.getElementById('story-viewer').classList.remove('active');
         clearInterval(storyInterval);
         const vid = document.getElementById('story-video');
@@ -3622,12 +3640,13 @@
     function closeUserProfile() {
         const modal = document.getElementById('user-profile-modal');
         modal.classList.remove('visible');
+        requestAnimationFrame(() => modal.classList.remove('active'));
         modal.style.zIndex = '11000';
         const repostModal = document.getElementById('repost-modal-overlay');
         document.body.style.overflow = (postModal.classList.contains('active') || (repostModal && repostModal.classList.contains('active'))) ? 'hidden' : '';
         upmLocalPosts.clear();
         currentViewedProfile = null;
-        setTimeout(() => { modal.classList.remove('active'); modal.style.display = 'none'; }, 350);
+        setTimeout(() => { modal.style.display = 'none'; }, 350);
     }
 
     // Click on @mention anywhere in the app
