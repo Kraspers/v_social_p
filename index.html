@@ -27,7 +27,7 @@
         @keyframes gradientShift { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
         .story-avatar.create { background: transparent; animation: none; }
         .story-avatar-inner { width: 52px; height: 52px; border-radius: 50%; background: #0f0f11; border: 1px solid #0f0f11; display: flex; align-items: center; justify-content: center; overflow: hidden; }
-        .story-avatar.create .story-avatar-inner { background: transparent; }
+        .story-avatar.create .story-avatar-inner { width: 56px; height: 56px; background: transparent; border: none; }
         .story-avatar-img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
         .story-username { font-size: 12px; color: rgba(255,255,255,0.7); max-width: 64px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .story-viewer { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: #000; z-index: 9999; display: none; flex-direction: column; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
@@ -633,7 +633,7 @@
             }
             #post-modal .post-modal-content,
             #user-profile-modal .post-modal-content {
-                height: 84vh;
+                height: calc(100vh - 44px);
                 border-radius: 20px 20px 0 0 !important;
             }
             #post-modal .post-modal-outer-header,
@@ -643,6 +643,7 @@
                 padding: 0 8px 10px;
                 margin: 0 auto;
             }
+            #post-modal .post-modal-comment-dock { padding-bottom: 12px; }
             /* Edit post sheet on desktop: centered dialog */
             .edit-post-wrap {
                 bottom: auto; top: 50%; left: 50%;
@@ -3638,31 +3639,6 @@
         const following = u.following !== undefined ? u.following : 0;
         const isSubscribed = subscribedUsers.has(uname);
 
-        const postsHtml = (u.posts || []).map(p => `
-            <div class="post" style="margin-bottom:10px;">
-                <div class="post-header">
-                    <div class="avatar" style="${u.avatarGradient ? 'background:' + u.avatarGradient + ';' : ''}">${letter}</div>
-                    <div class="post-content">
-                        <div class="post-author">
-                            <span class="author-name">${displayName}</span>
-                            <span class="author-username">@${uname}</span>
-                            <span class="post-time">· ${p.time}</span>
-                        </div>
-                        <div class="post-text">${p.text}</div>
-                        <div class="post-actions" style="margin-left:0;">
-                            <button class="action-btn ${p.liked ? 'liked' : ''}" onclick="this.classList.toggle('liked');const s=this.querySelector('span');s.textContent=parseInt(s.textContent)+(this.classList.contains('liked')?1:-1);">
-                                <svg class="action-icon" viewBox="0 0 24 24" fill="${p.liked?'currentColor':'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
-                                <span>${p.likes}</span>
-                            </button>
-                            <button class="action-btn">
-                                <svg class="action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-                                <span>${p.comments || 0}</span>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>`).join('');
-
         body.innerHTML = `
             <div style="height:150px;${coverStyle}position:relative;"></div>
             <div style="padding:16px;position:relative;">
@@ -3686,11 +3662,38 @@
                 </div>
             </div>
             <div id="upm-posts-list" style="padding:12px 16px 80px;">
-                ${postsHtml || '<div style="text-align:center;color:rgba(255,255,255,0.3);padding:40px 0;font-size:14px;">Нет постов</div>'}
+                <div id="upm-posts-feed"></div>
             </div>
             <div id="upm-reposts-list" style="display:none;padding:12px 16px 80px;">
                 <div style="text-align:center;color:rgba(255,255,255,0.3);padding:40px 0;font-size:14px;">Нет репостов</div>
             </div>`;
+
+        const upmFeed = document.getElementById('upm-posts-feed');
+        const userPosts = (u.posts || []);
+        if (!userPosts.length) {
+            upmFeed.innerHTML = '<div style="text-align:center;color:rgba(255,255,255,0.3);padding:40px 0;font-size:14px;">Нет постов</div>';
+        } else {
+            upmFeed.innerHTML = '';
+            userPosts.forEach((p, idx) => {
+                const upmPost = {
+                    id: 900000 + idx,
+                    author: displayName,
+                    username: '@' + uname,
+                    avatar: letter,
+                    text: p.text || '',
+                    time: p.time || 'Недавно',
+                    likes: p.likes || 0,
+                    reposts: p.reposts || 0,
+                    comments: p.comments || 0,
+                    liked: !!p.liked,
+                    reposted: !!p.reposted,
+                    media: Array.isArray(p.media) ? p.media : [],
+                    avatarUrl: u.avatarUrl || null
+                };
+                const el = createPostElement(upmPost);
+                upmFeed.appendChild(el);
+            });
+        }
     }
 
     function switchUpmTab(tab, uname) {
