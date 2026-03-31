@@ -608,7 +608,7 @@
 
         @media (min-width: 900px) {
             .container { max-width: 660px; }
-            .bottom-nav { bottom: auto; right: auto; left: max(12px, calc(50% - 540px)); top: 80px; transform: translateY(0); width: 220px; height: auto; display: flex; flex-direction: column; padding: 8px; border-radius: 18px; gap: 2px; max-width: 220px; background: transparent; border: none; box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none; }
+            .bottom-nav { bottom: auto; right: auto; left: max(8px, calc(50% - 560px)); top: 80px; transform: translateY(0); width: 220px; height: auto; display: flex; flex-direction: column; padding: 8px; border-radius: 18px; gap: 2px; max-width: 220px; background: transparent; border: none; box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none; }
             .nav-slider { display: none; }
             .nav-btn { width: 100%; height: 56px; padding: 0 16px; border-radius: 14px; flex-direction: row; gap: 14px; flex: none; justify-content: flex-start; font-size: 17px; font-weight: 600; }
             .nav-btn span { display: block; }
@@ -695,6 +695,12 @@
             }
             #change-pw-overlay .edit-modal,
             #delete-acc-overlay .edit-modal {
+                max-width: 660px;
+            }
+            #edit-modal-overlay #edit-profile-wrap,
+            #edit-modal-overlay .edit-modal-topbar,
+            #edit-modal-overlay .edit-modal {
+                width: 100%;
                 max-width: 660px;
             }
             #edit-profile-wrap { padding: 0; }
@@ -1342,7 +1348,7 @@
         /* ===== DESKTOP LOGOUT + FOOTER ===== */
         .desktop-logout-btn {
             display: none;
-            position: fixed; bottom: 32px; left: max(12px, calc(50% - 540px));
+            position: fixed; bottom: 32px; left: max(8px, calc(50% - 560px));
             z-index: 500;
             background: none; border: none; cursor: pointer;
             color: rgba(255,255,255,0.55); font-size: 15px; font-weight: 500;
@@ -2290,7 +2296,7 @@
             const replies = Array.isArray(c.replies) ? c.replies : [];
             const shouldCollapseReplies = !nested && replies.length > 5;
             const isExpanded = !!expandedReplies[c.id];
-            const visibleReplies = isExpanded ? replies : replies.slice(0, 5);
+            const visibleReplies = shouldCollapseReplies && !isExpanded ? [] : replies;
             return `<div class="comment-item${nested?' nested-reply':''}" id="comment-${c.id}">
                 <div class="comment-avatar"${nested?' style="width:30px;height:30px;font-size:12px;"':''} data-open-profile="${c.username}">${c.avatar}</div>
                 <div class="comment-content">
@@ -2307,7 +2313,7 @@
                         <button class="comment-action-btn" onclick="prepareReplyInMainInput('${c.username.replace('@','')}', ${c.id})">Ответить</button>
                     </div>
                     ${!nested && replies.length ? `<div class="comment-replies-container" id="replies-${c.id}">${visibleReplies.map(r=>makeHTML(r,true)).join('')}</div>` : ''}
-                    ${shouldCollapseReplies ? `<button class="comment-replies-toggle" onclick="toggleRepliesVisibility(${c.id})">${isExpanded ? 'Свернуть ответы' : `Показать ещё ${replies.length - visibleReplies.length} ответов`}</button>` : ''}
+                    ${shouldCollapseReplies ? `<button class="comment-replies-toggle" onclick="toggleRepliesVisibility(${c.id})">${isExpanded ? 'Свернуть ответы' : `Показать ответы (${replies.length})`}</button>` : ''}
                 </div>
             </div>`;
         }
@@ -2347,8 +2353,9 @@
             postComments[currentPostId].unshift({ id: Date.now(), author:"Вы", username:"@username", avatar:"Я", text, time:"Только что", likes:0, liked:false, replies:[] });
         }
         const post = posts.find(p => p.id === currentPostId);
-        if (!replyTargetCommentId) post.comments++;
-        renderPosts(); if (postModal.classList.contains('active')) openPostModal(post);
+        if (!replyTargetCommentId && post) post.comments++;
+        if (post) renderPosts();
+        if (postModal.classList.contains('active')) openPostModal(post || upmLocalPosts.get(currentPostId));
         commentInput.value = '';
         commentInput.style.height = '40px';
         commentSubmit.disabled = true;
@@ -3786,28 +3793,31 @@
             </div>`;
 
         const upmFeed = document.getElementById('upm-posts-feed');
-        const userPosts = (u.posts || []);
+        const feedLinkedPosts = posts.filter(p => p.username === '@' + uname && !p.isRepost);
+        const userPosts = feedLinkedPosts.length ? feedLinkedPosts : (u.posts || []);
         upmLocalPosts.clear();
         if (!userPosts.length) {
             upmFeed.innerHTML = '<div style="text-align:center;color:rgba(255,255,255,0.3);padding:40px 0;font-size:14px;">Нет постов</div>';
         } else {
             upmFeed.innerHTML = '';
             userPosts.forEach((p, idx) => {
-                const upmPost = {
-                    id: 900000 + idx,
-                    author: displayName,
-                    username: '@' + uname,
-                    avatar: letter,
-                    text: p.text || '',
-                    time: p.time || 'Недавно',
-                    likes: p.likes || 0,
-                    reposts: p.reposts || 0,
-                    comments: p.comments || 0,
-                    liked: !!p.liked,
-                    reposted: !!p.reposted,
-                    media: Array.isArray(p.media) ? p.media : [],
-                    avatarUrl: u.avatarUrl || null
-                };
+                const upmPost = feedLinkedPosts.length
+                    ? p
+                    : {
+                        id: 900000 + idx,
+                        author: displayName,
+                        username: '@' + uname,
+                        avatar: letter,
+                        text: p.text || '',
+                        time: p.time || 'Недавно',
+                        likes: p.likes || 0,
+                        reposts: p.reposts || 0,
+                        comments: p.comments || 0,
+                        liked: !!p.liked,
+                        reposted: !!p.reposted,
+                        media: Array.isArray(p.media) ? p.media : [],
+                        avatarUrl: u.avatarUrl || null
+                    };
                 upmLocalPosts.set(upmPost.id, upmPost);
                 const el = createPostElement(upmPost);
                 upmFeed.appendChild(el);
