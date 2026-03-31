@@ -26,7 +26,7 @@
         .story-avatar { width: 64px; height: 64px; border-radius: 50%; padding: 3px; background: linear-gradient(45deg, #0078FF 0%, #23D4F9 50%, #0060CC 100%); background-size: 200% 200%; animation: gradientShift 3s ease infinite; display: flex; align-items: center; justify-content: center; }
         @keyframes gradientShift { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
         .story-avatar.create { background: transparent; animation: none; }
-        .story-avatar-inner { width: 52px; height: 52px; border-radius: 50%; background: white; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+        .story-avatar-inner { width: 54px; height: 54px; border-radius: 50%; background: #0f0f11; border: 2px solid #0f0f11; display: flex; align-items: center; justify-content: center; overflow: hidden; }
         .story-avatar.create .story-avatar-inner { background: transparent; }
         .story-avatar-img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
         .story-username { font-size: 12px; color: rgba(255,255,255,0.7); max-width: 64px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -61,16 +61,12 @@
         .story-creator.visible { opacity: 1; }
         .story-creator-topbar {
             width: 100%;
-            max-width: 600px;
-            padding: 0 8px 10px;
+            padding: 8px 8px 4px;
             display: flex;
             align-items: center;
-            position: absolute;
-            left: 50%;
-            top: max(8px, calc(16vh - 56px));
-            transform: translateX(-50%);
             z-index: 3;
             pointer-events: none;
+            flex-shrink: 0;
         }
         .story-creator-topbar .post-modal-outer-back {
             pointer-events: auto;
@@ -89,10 +85,10 @@
         @media (min-width: 601px) {
             .story-creator-inner { transform: translateY(100%); opacity: 1; }
             .story-creator.visible .story-creator-inner { transform: translateY(0); }
-            .story-creator-topbar { top: max(8px, calc(16vh - 56px)); }
+            .story-creator-topbar { padding-top: 10px; }
         }
         @media (max-width: 600px) {
-            .story-creator-topbar { top: max(6px, calc(12vh - 56px)); }
+            .story-creator-topbar { padding-top: 4px; }
         }
         .creator-header { padding: 16px; display: flex; align-items: center; justify-content: space-between; background: #1a1b1f; border-bottom: none; }
         .creator-close { background: none; border: none; color: white; font-size: 28px; cursor: pointer; }
@@ -291,7 +287,7 @@
         .post-modal-outer-back { background: none; border: none; color: white; cursor: pointer; display: flex; align-items: center; gap: 6px; font-size: 20px; font-weight: 700; font-family: inherit; padding: 8px 12px; border-radius: 12px; }
         .post-modal-outer-back:hover { background: rgba(255,255,255,0.08); }
         .post-modal-outer-back svg { flex-shrink: 0; }
-        .post-modal-content { background: #1a1b1f; width: 100%; height: 84vh; position: relative; display: flex; flex-direction: column; border-radius: 22px 22px 0 0; border: none; overflow: hidden; }
+        .post-modal-content { background: #1a1b1f; width: 100%; height: 88vh; position: relative; display: flex; flex-direction: column; border-radius: 22px 22px 0 0; border: none; overflow: hidden; }
         .post-modal-topbar { display: none; }
         .post-modal-back { display: none; }
         .post-modal-handle { width: 36px; height: 4px; background: rgba(255,255,255,0.18); border-radius: 2px; margin: 10px auto 0; flex-shrink: 0; }
@@ -578,7 +574,7 @@
             .post-modal.visible .post-modal-wrap { transform: translateY(0); opacity: 1 !important; }
             .post-modal-outer-header { padding: 0 8px 10px; }
             .post-modal-content {
-                height: 85vh; max-height: 800px; border-radius: 18px !important;
+                height: 88vh; max-height: 860px; border-radius: 18px !important;
                 border: none !important;
             }
             /* Repost modal on desktop: centered dialog */
@@ -593,7 +589,7 @@
             /* User profile modal: centered panel */
             #user-profile-modal { align-items: center; }
             #user-profile-modal .post-modal-content {
-                height: 90vh; border-radius: 18px !important;
+                height: 88vh; border-radius: 18px !important;
                 max-width: 600px;
                 transform: translateY(24px);
                 opacity: 0;
@@ -701,13 +697,19 @@
         .edit-close-x svg { display: block; }
         .edit-close-label { font-size: 15px; font-weight: 600; color: #e6e6e9; white-space: nowrap; }
         .edit-modal-save {
-            width: 38px; height: 38px;
-            background: #0D7EFF; color: white; border: none;
-            border-radius: 50%; cursor: pointer;
-            display: flex; align-items: center; justify-content: center;
-            transition: background 0.2s, transform 0.15s; flex-shrink: 0;
+            background: #0D7EFF;
+            border: none;
+            color: white;
+            border-radius: 999px;
+            padding: 11px 22px;
+            font-size: 15px;
+            font-weight: 700;
+            cursor: pointer;
+            font-family: inherit;
+            transition: background 0.2s;
+            flex-shrink: 0;
         }
-        .edit-modal-save:hover { background: #0066dd; transform: scale(1.08); }
+        .edit-modal-save:hover { background: #0066dd; }
         .edit-modal-body { flex: 1; overflow-y: auto; padding: 0 0 40px; }
         /* Draggable handle area */
         .edit-modal-drag-zone { padding: 4px 0 0; cursor: grab; touch-action: pan-x; }
@@ -1534,13 +1536,13 @@
 
     <!-- Story Creator Modal -->
     <div class="story-creator" id="story-creator">
-        <div class="story-creator-topbar">
-            <button class="post-modal-outer-back" id="creator-close">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-                История
-            </button>
-        </div>
         <div class="story-creator-inner">
+            <div class="story-creator-topbar">
+                <button class="post-modal-outer-back" id="creator-close">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+                    История
+                </button>
+            </div>
             <div class="creator-header">
                 <div class="creator-title" style="display:none;">Создать историю</div>
                 <button class="creator-done" id="creator-done" style="display:none;">Готово</button>
@@ -1647,7 +1649,7 @@
         <div class="edit-modal-header">
             <div></div>
             <button class="edit-modal-save" onclick="saveProfile()">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                Сохранить
             </button>
         </div>
         <div class="edit-modal-body">
@@ -2172,13 +2174,7 @@
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="${c.liked?'currentColor':'none'}" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
                             <span>${c.likes}</span>
                         </button>
-                        <button class="comment-action-btn" onclick="showReplyForm(${c.id}, '${c.username.replace('@','')}')">Ответить</button>
-                    </div>
-                    <div class="reply-form" id="reply-form-${c.id}">
-                        <textarea class="comment-input" id="reply-input-${c.id}" placeholder="Ответ @${c.username.replace('@','')}" oninput="this.style.height='40px';if(this.scrollHeight>40)this.style.height=Math.min(this.scrollHeight,120)+'px';"></textarea>
-                        <button class="comment-submit" onclick="submitReply(${c.id})">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>
-                        </button>
+                        <button class="comment-action-btn" onclick="prepareReplyInMainInput('${c.username.replace('@','')}')">Ответить</button>
                     </div>
                     ${!nested && c.replies && c.replies.length ? `<div class="comment-replies-container" id="replies-${c.id}">${c.replies.map(r=>makeHTML(r,true)).join('')}</div>` : ''}
                 </div>
@@ -2314,41 +2310,14 @@
         renderComments();
     };
 
-    window.showReplyForm = (id, username) => {
-        const form = document.getElementById(`reply-form-${id}`);
-        if (form.classList.contains('active')) { form.classList.remove('active'); return; }
-        document.querySelectorAll('.reply-form').forEach(f => f.classList.remove('active'));
-        form.classList.add('active');
-        const inp = document.getElementById(`reply-input-${id}`);
-        // Pre-fill @username
+    window.prepareReplyInMainInput = username => {
         const mention = username ? '@' + username.replace(/^@/,'') + ' ' : '';
+        const inp = document.getElementById('comment-input');
         inp.value = mention;
         inp.focus();
-        // move cursor to end
-        inp.setSelectionRange(inp.value.length, inp.value.length);
-    };
-
-    window.submitReply = id => {
-        const input = document.getElementById(`reply-input-${id}`);
-        const text = input.value.trim();
-        if (!text) return;
-        const comments = postComments[currentPostId];
-        function findRoot(list, targetId) {
-            for (let c of list) {
-                if (c.id === targetId) return c;
-                if (c.replies) {
-                    for (let r of c.replies) { if (r.id === targetId) return c; }
-                    const found = findRoot(c.replies, targetId);
-                    if (found) return found;
-                }
-            }
-            return null;
-        }
-        const rootComment = findRoot(comments, id);
-        if (rootComment) rootComment.replies.push({ id:Date.now(), author:"Вы", username:"@username", avatar:"Я", text, time:"Только что", likes:0, liked:false, replies:[] });
-        input.value = '';
-        document.getElementById(`reply-form-${id}`).classList.remove('active');
-        renderComments();
+        inp.style.height = '40px';
+        if (inp.scrollHeight > 40) inp.style.height = Math.min(inp.scrollHeight, 120) + 'px';
+        document.getElementById('comment-submit').disabled = !inp.value.trim();
     };
 
     // ===== POST SUBMIT =====
@@ -3620,7 +3589,7 @@
         body.innerHTML = `
             <div style="height:150px;${coverStyle}position:relative;"></div>
             <div style="padding:16px;position:relative;">
-                <div style="width:80px;height:80px;border-radius:50%;${avatarBg}border:5px solid #0f0f11;margin-top:-40px;display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:32px;overflow:hidden;">${avatarHtml}</div>
+                <div style="width:80px;height:80px;border-radius:50%;${avatarBg}border:5px solid #1a1b1f;margin-top:-40px;display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:32px;overflow:hidden;">${avatarHtml}</div>
                 <div style="font-size:20px;font-weight:700;margin-top:12px;">${displayName}</div>
                 <div style="color:rgba(255,255,255,0.6);font-size:15px;margin-top:2px;">@${uname}</div>
                 ${u.bio ? `<div style="margin-top:10px;font-size:15px;line-height:1.4;">${u.bio}</div>` : ''}
@@ -3633,7 +3602,7 @@
                     ${isSubscribed ? 'Вы подписаны' : 'Подписаться'}
                 </button>
             </div>
-            <div class="profile-tabs-bar" style="position:sticky;top:0;z-index:2;background:#0f0f11;">
+            <div class="profile-tabs-bar" style="position:sticky;top:0;z-index:2;background:#1a1b1f;">
                 <div class="profile-tabs-bar-inner">
                     <button class="profile-tab-btn active" id="upm-posts-btn" onclick="switchUpmTab('posts','${uname}')">Посты</button>
                     <button class="profile-tab-btn" id="upm-reposts-btn" onclick="switchUpmTab('reposts','${uname}')">Репосты</button>
