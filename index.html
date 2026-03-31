@@ -2879,7 +2879,11 @@
         });
     }
     function nextStory(s) { currentMediaIndex++; showStory(s); }
-    function prevStory(s) { currentMediaIndex = Math.max(0, currentMediaIndex-1); showStory(s); }
+    function prevStory(s) {
+        if (!Array.isArray(s) || s.length <= 1) return;
+        currentMediaIndex = Math.max(0, currentMediaIndex-1);
+        showStory(s);
+    }
     function closeStoryViewer() {
         lastStoryCloseTs = Date.now();
         storyRenderToken++;
@@ -3641,12 +3645,11 @@
         const modal = document.getElementById('user-profile-modal');
         modal.classList.remove('visible');
         requestAnimationFrame(() => modal.classList.remove('active'));
-        modal.style.zIndex = '11000';
         const repostModal = document.getElementById('repost-modal-overlay');
         document.body.style.overflow = (postModal.classList.contains('active') || (repostModal && repostModal.classList.contains('active'))) ? 'hidden' : '';
         upmLocalPosts.clear();
         currentViewedProfile = null;
-        setTimeout(() => { modal.style.display = 'none'; }, 350);
+        setTimeout(() => { modal.style.zIndex = '11000'; modal.style.display = 'none'; }, 350);
     }
 
     // Click on @mention anywhere in the app
