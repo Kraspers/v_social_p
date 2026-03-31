@@ -352,6 +352,22 @@
         .reply-form .comment-submit svg { width: 14px; height: 14px; }
 
         .post-modal .action-btn { flex: 1; justify-content: center; }
+        #upm-posts-feed { display: flex; flex-direction: column; gap: 10px; }
+        #upm-posts-feed .post {
+            background: rgba(255,255,255,0.03) !important;
+            border-radius: 18px;
+            padding: 16px !important;
+        }
+        #upm-posts-feed .post-actions {
+            margin-left: -8px !important;
+            justify-content: flex-start !important;
+            border-top: none !important;
+            border-bottom: none !important;
+            padding: 2px 0 0 !important;
+            margin-top: 10px !important;
+            gap: 4px;
+        }
+        #upm-posts-feed .action-btn { flex: none !important; justify-content: flex-start !important; }
         .post-comments-section { margin-top: 20px; }
         .post-modal-comment-dock {
             padding: 10px 16px calc(16px + env(safe-area-inset-bottom));
@@ -615,13 +631,14 @@
             #user-profile-modal.visible .post-modal-content { transform: translateY(0); opacity: 1 !important; }
             #post-modal,
             #user-profile-modal {
+                flex-direction: row;
                 align-items: flex-end;
                 justify-content: center;
             }
             #post-modal .post-modal-wrap,
             #user-profile-modal .post-modal-wrap {
                 width: 100%;
-                max-width: 600px;
+                max-width: 660px;
                 margin: 0 auto;
                 transform: translateY(100%) !important;
                 opacity: 1 !important;
@@ -639,7 +656,7 @@
             #post-modal .post-modal-outer-header,
             #user-profile-modal .post-modal-outer-header {
                 width: 100%;
-                max-width: 600px;
+                max-width: 660px;
                 padding: 0 8px 10px;
                 margin: 0 auto;
             }
