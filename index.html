@@ -352,13 +352,12 @@
         .reply-form .comment-submit svg { width: 14px; height: 14px; }
 
         .post-modal .action-btn { flex: 1; justify-content: center; }
-        #upm-posts-feed { display: flex; flex-direction: column; gap: 10px; }
-        #upm-posts-feed .post {
+        #user-profile-modal .post {
             background: rgba(255,255,255,0.03) !important;
             border-radius: 18px;
             padding: 16px !important;
         }
-        #upm-posts-feed .post-actions {
+        #user-profile-modal .post-actions {
             margin-left: -8px !important;
             justify-content: flex-start !important;
             border-top: none !important;
@@ -367,7 +366,7 @@
             margin-top: 10px !important;
             gap: 4px;
         }
-        #upm-posts-feed .action-btn { flex: none !important; justify-content: flex-start !important; }
+        #user-profile-modal .action-btn { flex: none !important; justify-content: flex-start !important; }
         .post-comments-section { margin-top: 20px; }
         .post-modal-comment-dock {
             padding: 10px 16px calc(16px + env(safe-area-inset-bottom));
@@ -604,7 +603,7 @@
             .stories-container::-webkit-scrollbar { display: none; }
             /* Post modal on desktop: centered */
             .post-modal { align-items: center; justify-content: center; }
-            .post-modal-wrap { transform: translateY(24px); opacity: 0; transition: transform 0.3s cubic-bezier(0.16,1,0.3,1), opacity 0.3s !important; max-width: 600px; }
+            .post-modal-wrap { transform: translateY(24px); opacity: 0; transition: transform 0.3s cubic-bezier(0.16,1,0.3,1), opacity 0.3s !important; max-width: 660px; }
             .post-modal.visible .post-modal-wrap { transform: translateY(0); opacity: 1 !important; }
             .post-modal-outer-header { padding: 0 8px 10px; }
             .post-modal-content {
@@ -613,18 +612,18 @@
             }
             /* Repost modal on desktop: centered dialog */
             #repost-modal-overlay .post-modal-content {
-                height: auto; max-height: 70vh; width: 600px; max-width: 600px;
+                height: auto; max-height: 70vh; width: 660px; max-width: 660px;
             }
-            #repost-modal-overlay .post-modal-wrap { max-width: 600px; }
+            #repost-modal-overlay .post-modal-wrap { max-width: 660px; }
             /* On desktop: centered layout */
             .post-modal { justify-content: center; align-items: center; flex-direction: column; gap: 0; }
-            .post-modal-outer-header { transform: none !important; transition: none !important; max-width: 600px; padding: 0 20px 10px; }
+            .post-modal-outer-header { transform: none !important; transition: none !important; max-width: 660px; padding: 0 20px 10px; }
             .post-modal-content { border-radius: 18px !important; border-bottom: none !important; }
             /* User profile modal: centered panel */
             #user-profile-modal { align-items: center; }
             #user-profile-modal .post-modal-content {
                 height: 88vh; border-radius: 18px !important;
-                max-width: 600px;
+                max-width: 660px;
                 transform: translateY(24px);
                 opacity: 0;
                 transition: transform 0.3s cubic-bezier(0.16,1,0.3,1), opacity 0.3s ease !important;
@@ -667,13 +666,13 @@
             .edit-modal {
                 max-width: 660px;
             }
-            .edit-modal { max-height: 84vh; }
+            .edit-modal { max-height: 78vh; }
             /* Edit post sheet on desktop: centered dialog */
             .edit-post-wrap {
                 bottom: auto; top: 50%; left: 50%;
                 transform: translate(-50%, -34%) !important;
                 width: 100%;
-                max-width: 600px;
+                max-width: 660px;
                 opacity: 0;
                 transition: transform 0.3s cubic-bezier(0.16,1,0.3,1), opacity 0.3s !important;
             }
@@ -684,9 +683,10 @@
             .edit-post-sheet { border-radius: 18px !important; padding-bottom: 0 !important; }
             /* Story creator on desktop: centered dialog */
             .story-creator { align-items: flex-end; justify-content: center; }
+            .story-creator-wrap { max-width: 660px; }
             .story-creator-inner {
                 border-radius: 20px 20px 0 0 !important;
-                height: 84vh; max-width: 600px;
+                height: 84vh; max-width: 660px;
                 border: none !important;
                 overflow: hidden;
             }
