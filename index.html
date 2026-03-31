@@ -587,9 +587,10 @@
         }
 
         @media (min-width: 900px) {
-            .bottom-nav { bottom: auto; right: auto; left: max(16px, calc(50% - 520px)); top: 80px; transform: translateY(0); width: 200px; height: auto; display: flex; flex-direction: column; padding: 8px; border-radius: 18px; gap: 2px; max-width: 200px; background: transparent; border: none; box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none; }
+            .container { max-width: 660px; }
+            .bottom-nav { bottom: auto; right: auto; left: max(16px, calc(50% - 520px)); top: 80px; transform: translateY(0); width: 220px; height: auto; display: flex; flex-direction: column; padding: 8px; border-radius: 18px; gap: 2px; max-width: 220px; background: transparent; border: none; box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none; }
             .nav-slider { display: none; }
-            .nav-btn { width: 100%; height: 52px; padding: 0 14px; border-radius: 14px; flex-direction: row; gap: 14px; flex: none; justify-content: flex-start; font-size: 16px; font-weight: 600; }
+            .nav-btn { width: 100%; height: 56px; padding: 0 16px; border-radius: 14px; flex-direction: row; gap: 14px; flex: none; justify-content: flex-start; font-size: 17px; font-weight: 600; }
             .nav-btn span { display: block; }
             .nav-btn svg, .nav-btn #nav-profile-avatar { width: 24px; height: 24px; flex-shrink: 0; }
             .nav-btn #nav-profile-avatar { width: 28px; height: 28px; }
@@ -650,7 +651,7 @@
             }
             #post-modal .post-modal-content,
             #user-profile-modal .post-modal-content {
-                height: calc(100vh - 44px);
+                height: 80vh;
                 border-radius: 20px 20px 0 0 !important;
             }
             #post-modal .post-modal-outer-header,
@@ -661,6 +662,12 @@
                 margin: 0 auto;
             }
             #post-modal .post-modal-comment-dock { padding-bottom: 12px; }
+            #edit-profile-wrap,
+            .edit-modal-topbar,
+            .edit-modal {
+                max-width: 660px;
+            }
+            .edit-modal { max-height: 84vh; }
             /* Edit post sheet on desktop: centered dialog */
             .edit-post-wrap {
                 bottom: auto; top: 50%; left: 50%;
@@ -2540,9 +2547,18 @@
         if (!btn) return;
         const action = btn.dataset.action;
         const id = parseInt(btn.dataset.id);
-        const post = posts.find(p => p.id === id);
+        const post = posts.find(p => p.id === id) || upmLocalPosts.get(id);
         if (!post) return;
-        if (action === 'like') { post.liked = !post.liked; post.likes += post.liked ? 1 : -1; renderPosts(); if (postModal.classList.contains('active')) openPostModal(post); }
+        if (action === 'like') {
+            post.liked = !post.liked;
+            post.likes += post.liked ? 1 : -1;
+            if (upmLocalPosts.has(id) && currentViewedProfile) {
+                renderUserProfileBody(currentViewedProfile.uname, currentViewedProfile.userData, document.getElementById('upm-body'));
+            } else {
+                renderPosts();
+            }
+            if (postModal.classList.contains('active')) openPostModal(post);
+        }
         else if (action === 'repost') {
             openRepostModal(post);
         }
@@ -3455,6 +3471,8 @@
             ]
         }
     };
+    const upmLocalPosts = new Map();
+    let currentViewedProfile = null;
 
     function openUserProfile(username) {
         const uname = username.replace(/^@/, '').toLowerCase();
@@ -3476,6 +3494,8 @@
         const lsUser = users[uname];
         const mockUser = mockUsers[uname];
         const userData = lsUser || mockUser;
+
+        currentViewedProfile = { uname, userData };
 
         if (!userData) {
             body.innerHTML = `
@@ -3508,6 +3528,8 @@
         modal.classList.remove('visible');
         modal.classList.remove('active');
         document.body.style.overflow = '';
+        upmLocalPosts.clear();
+        currentViewedProfile = null;
         setTimeout(() => { modal.style.display = 'none'; }, 350);
     }
 
@@ -3687,6 +3709,7 @@
 
         const upmFeed = document.getElementById('upm-posts-feed');
         const userPosts = (u.posts || []);
+        upmLocalPosts.clear();
         if (!userPosts.length) {
             upmFeed.innerHTML = '<div style="text-align:center;color:rgba(255,255,255,0.3);padding:40px 0;font-size:14px;">Нет постов</div>';
         } else {
@@ -3707,6 +3730,7 @@
                     media: Array.isArray(p.media) ? p.media : [],
                     avatarUrl: u.avatarUrl || null
                 };
+                upmLocalPosts.set(upmPost.id, upmPost);
                 const el = createPostElement(upmPost);
                 upmFeed.appendChild(el);
             });
