@@ -26,7 +26,7 @@
         .story-avatar { width: 64px; height: 64px; border-radius: 50%; padding: 3px; background: linear-gradient(45deg, #0078FF 0%, #23D4F9 50%, #0060CC 100%); background-size: 200% 200%; animation: gradientShift 3s ease infinite; display: flex; align-items: center; justify-content: center; }
         @keyframes gradientShift { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
         .story-avatar.create { background: transparent; animation: none; }
-        .story-avatar-inner { width: 56px; height: 56px; border-radius: 50%; background: white; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+        .story-avatar-inner { width: 52px; height: 52px; border-radius: 50%; background: white; display: flex; align-items: center; justify-content: center; overflow: hidden; }
         .story-avatar.create .story-avatar-inner { background: transparent; }
         .story-avatar-img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
         .story-username { font-size: 12px; color: rgba(255,255,255,0.7); max-width: 64px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -90,6 +90,9 @@
             .story-creator-inner { transform: translateY(100%); opacity: 1; }
             .story-creator.visible .story-creator-inner { transform: translateY(0); }
             .story-creator-topbar { top: max(8px, calc(16vh - 56px)); }
+        }
+        @media (max-width: 600px) {
+            .story-creator-topbar { top: max(6px, calc(12vh - 56px)); }
         }
         .creator-header { padding: 16px; display: flex; align-items: center; justify-content: space-between; background: #1a1b1f; border-bottom: none; }
         .creator-close { background: none; border: none; color: white; font-size: 28px; cursor: pointer; }
@@ -295,11 +298,6 @@
         .post-modal-header { display: none; }
         .post-modal-close { background: none; border: none; color: white; font-size: 24px; cursor: pointer; padding: 8px; margin-right: 16px; display: flex; align-items: center; justify-content: center; }
 
-        #user-profile-modal .post-modal-header {
-            display: flex; align-items: center; justify-content: space-between;
-            padding: 8px 8px 8px 0; border-bottom: 1px solid rgba(255,255,255,0.06);
-            background: #131315;
-        }
         .edit-post-sheet .post-opts-header { display: none; }
         .post-modal-body { flex: 1; overflow-y: auto; padding: 16px; }
         .post-modal .post { background: transparent; border: none; padding: 0; margin: 0; backdrop-filter: none; }
@@ -342,6 +340,16 @@
 
         .post-modal .action-btn { flex: 1; justify-content: center; }
         .post-comments-section { margin-top: 20px; }
+        .post-modal-comment-dock {
+            padding: 10px 16px calc(16px + env(safe-area-inset-bottom));
+            border-top: 1px solid rgba(255,255,255,0.06);
+            background: #1a1b1f;
+            flex-shrink: 0;
+        }
+        .post-modal-comment-dock .comment-form {
+            border-bottom: none;
+            padding: 0;
+        }
         .comments-title { font-weight: 600; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.05); }
         .empty-comments { text-align: center; color: rgba(255,255,255,0.4); padding: 40px 0; font-size: 14px; }
         @media (max-width: 600px) { .post-modal-content { max-width: 100%; border: none; } }
@@ -414,10 +422,10 @@
             align-items: center;
             gap: 8px;
             margin: 20px 0 24px 16px;
-            padding: 8px 14px;
+            padding: 10px 16px;
             background: rgba(80,80,88,0.75);
             border-radius: 999px;
-            border: 1px solid rgba(255,255,255,0.12);
+            border: none;
             cursor: pointer;
             width: fit-content;
             transition: background 0.2s, border-color 0.2s;
@@ -430,9 +438,9 @@
             background: none;
             border: none;
             color: rgba(255,255,255,0.85);
-            font-size: 18px;
-            width: 18px;
-            height: 18px;
+            font-size: 24px;
+            width: 24px;
+            height: 24px;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -440,7 +448,7 @@
             flex-shrink: 0;
             line-height: 1;
             padding: 0;
-            margin-top: -1px;
+            margin-top: 0;
         }
         .side-menu-header-title {
             font-size: 14px;
@@ -566,8 +574,8 @@
             .stories-container::-webkit-scrollbar { display: none; }
             /* Post modal on desktop: centered */
             .post-modal { align-items: center; justify-content: center; }
-            .post-modal-wrap { transform: none !important; opacity: 0; transition: opacity 0.25s ease !important; max-width: 600px; }
-            .post-modal.visible .post-modal-wrap { opacity: 1 !important; }
+            .post-modal-wrap { transform: translateY(24px); opacity: 0; transition: transform 0.3s cubic-bezier(0.16,1,0.3,1), opacity 0.3s !important; max-width: 600px; }
+            .post-modal.visible .post-modal-wrap { transform: translateY(0); opacity: 1 !important; }
             .post-modal-outer-header { padding: 0 8px 10px; }
             .post-modal-content {
                 height: 85vh; max-height: 800px; border-radius: 18px !important;
@@ -587,10 +595,11 @@
             #user-profile-modal .post-modal-content {
                 height: 90vh; border-radius: 18px !important;
                 max-width: 600px;
-                transform: none !important;
-                transition: opacity 0.25s ease !important;
+                transform: translateY(24px);
+                opacity: 0;
+                transition: transform 0.3s cubic-bezier(0.16,1,0.3,1), opacity 0.3s ease !important;
             }
-            #user-profile-modal.active .post-modal-content { opacity: 1 !important; }
+            #user-profile-modal.visible .post-modal-content { transform: translateY(0); opacity: 1 !important; }
             /* Edit post sheet on desktop: centered dialog */
             .edit-post-wrap {
                 bottom: auto; top: 50%; left: 50%;
@@ -1506,15 +1515,17 @@
                 <div id="modal-post-container"></div>
                 <div class="post-comments-section">
                     <div class="comments-title">Комментарии</div>
-                    <div class="comment-form" style="align-items:center;padding:10px 0;">
-                        <div style="flex:1;position:relative;display:flex;align-items:center;gap:8px;">
-                            <textarea class="comment-input" id="comment-input" placeholder="Написать комментарий..." oninput="this.style.height='40px';if(this.scrollHeight>40)this.style.height=Math.min(this.scrollHeight,120)+'px';document.getElementById('comment-submit').disabled=!this.value.trim();"></textarea>
-                            <button class="comment-submit" id="comment-submit" disabled style="flex-shrink:0;width:36px;height:36px;">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>
-                            </button>
-                        </div>
-                    </div>
                     <div class="comments-list" id="comments-list"></div>
+                </div>
+            </div>
+            <div class="post-modal-comment-dock">
+                <div class="comment-form" style="align-items:center;">
+                    <div style="flex:1;position:relative;display:flex;align-items:center;gap:8px;">
+                        <textarea class="comment-input" id="comment-input" placeholder="Написать комментарий..." oninput="this.style.height='40px';if(this.scrollHeight>40)this.style.height=Math.min(this.scrollHeight,120)+'px';document.getElementById('comment-submit').disabled=!this.value.trim();"></textarea>
+                        <button class="comment-submit" id="comment-submit" disabled style="flex-shrink:0;width:36px;height:36px;">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1728,12 +1739,6 @@
 <div class="edit-modal-overlay" id="change-pw-overlay" style="z-index:13000;">
     <div class="edit-modal" style="max-height:auto;">
         <div class="edit-modal-handle"></div>
-        <div class="edit-modal-header">
-            <button class="edit-close-pill" onclick="closeChangePasswordModal()">
-                <span class="edit-close-x"><svg width="10" height="10" viewBox="0 0 10 10" fill="none"><line x1="1" y1="1" x2="9" y2="9" stroke="rgba(255,255,255,0.85)" stroke-width="1.8" stroke-linecap="round"/><line x1="9" y1="1" x2="1" y2="9" stroke="rgba(255,255,255,0.85)" stroke-width="1.8" stroke-linecap="round"/></svg></span>
-                <span class="edit-close-label">Изменить пароль</span>
-            </button>
-        </div>
         <div class="edit-modal-body">
             <div style="padding:24px 16px 16px;display:flex;flex-direction:column;gap:14px;">
                 <input id="pw-old" type="password" placeholder="Текущий пароль" autocomplete="current-password"
@@ -1747,6 +1752,7 @@
                     onfocus="this.style.background='#333338'" onblur="this.style.background='#2a2a2e'">
                 <div style="color:#ff453a;font-size:13px;min-height:18px;text-align:center;padding:0 8px;" id="pw-error"></div>
                 <button onclick="submitChangePassword()" style="width:100%;padding:18px;background:#0078FF;border:none;border-radius:20px;color:white;font-size:17px;font-weight:700;cursor:pointer;font-family:inherit;margin-top:4px;">Сохранить</button>
+                <button onclick="closeChangePasswordModal()" style="width:100%;padding:18px;background:rgba(255,255,255,0.05);border:none;border-radius:20px;color:#e6e6e9;font-size:17px;font-weight:600;cursor:pointer;font-family:inherit;">Отмена</button>
             </div>
         </div>
     </div>
@@ -1774,17 +1780,17 @@
 
 <!-- User Profile Viewer Modal -->
 <div class="post-modal" id="user-profile-modal" style="z-index:11000;">
-    <div class="post-modal-content">
-        <div class="post-modal-header" style="position:sticky;top:0;z-index:10;">
-            <button class="post-modal-close" onclick="closeUserProfile()">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-            </button>
-            <div style="font-weight:700;font-size:17px;" id="upm-title"></div>
-            <button class="post-modal-close" onclick="closeUserProfile()" style="margin-right:8px;">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    <div class="post-modal-wrap">
+        <div class="post-modal-outer-header">
+            <button class="post-modal-outer-back" onclick="closeUserProfile()">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+                Профиль
             </button>
         </div>
-        <div class="post-modal-body" id="upm-body" style="padding:0;overflow-y:auto;"></div>
+        <div class="post-modal-content">
+            <div class="post-modal-handle"></div>
+            <div class="post-modal-body" id="upm-body" style="padding:0;overflow-y:auto;"></div>
+        </div>
     </div>
 </div>
 
@@ -2136,6 +2142,7 @@
     }
 
     function closePostModal() {
+        postModal.classList.remove('visible');
         postModal.classList.remove('active');
         document.body.style.overflow = '';
         setTimeout(() => { postModal.style.display = 'none'; }, 400);
@@ -2511,7 +2518,7 @@
     (()=>{ const i = Array.from(navBtns).findIndex(b=>b.classList.contains('active')); if(i>=0) updateSlider(i); })();
 
     // ===== STORIES =====
-    let userStories = [], currentMediaIndex = 0, storyInterval;
+    let userStories = [], currentMediaIndex = 0, storyInterval, activeStories = [], lastStoryCloseTs = 0;
     let storyTodayCount = 0;
     const STORY_DAILY_LIMIT = 30;
 
@@ -2638,10 +2645,14 @@
             el.innerHTML = `<div class="story-avatar"><div class="story-avatar-inner"><div style="width:100%;height:100%;border-radius:50%;background:linear-gradient(135deg,#0078FF 0%,#23D4F9 100%);display:flex;align-items:center;justify-content:center;color:white;font-weight:600;font-size:18px;">Я</div></div></div>`;
             list.insertBefore(el, list.children[1]);
         }
-        el.onclick = () => openStoryViewer(userStories, 0);
+        el.onclick = () => {
+            if (Date.now() - lastStoryCloseTs < 250) return;
+            openStoryViewer(userStories, 0);
+        };
     }
 
     function openStoryViewer(stories, start) {
+        activeStories = stories;
         currentMediaIndex = start;
         document.getElementById('story-viewer').classList.add('active');
         const bars = document.getElementById('story-progress-bars');
@@ -2688,9 +2699,16 @@
     }
     function nextStory(s) { currentMediaIndex++; showStory(s); }
     function prevStory(s) { currentMediaIndex = Math.max(0, currentMediaIndex-1); showStory(s); }
-    function closeStoryViewer() { document.getElementById('story-viewer').classList.remove('active'); clearInterval(storyInterval); try { document.getElementById('story-video').pause(); } catch(e){} }
-    document.getElementById('story-prev').addEventListener('click', () => prevStory(userStories));
-    document.getElementById('story-next').addEventListener('click', () => nextStory(userStories));
+    function closeStoryViewer() {
+        lastStoryCloseTs = Date.now();
+        document.getElementById('story-viewer').classList.remove('active');
+        clearInterval(storyInterval);
+        const vid = document.getElementById('story-video');
+        try { vid.pause(); } catch(e){}
+        vid.ontimeupdate = null; vid.onended = null; vid.oncanplay = null;
+    }
+    document.getElementById('story-prev').addEventListener('click', () => prevStory(activeStories));
+    document.getElementById('story-next').addEventListener('click', () => nextStory(activeStories));
     document.getElementById('story-close').addEventListener('click', closeStoryViewer);
     document.getElementById('story-text-overlay').addEventListener('click', (e) => {
         e.stopPropagation();
@@ -2700,10 +2718,10 @@
             clearInterval(storyInterval);
             try { document.getElementById('story-video').pause(); } catch(e){}
         } else {
-            const s = userStories[currentMediaIndex];
+            const s = activeStories[currentMediaIndex];
             if (s && s.type === 'image') {
                 let p = parseFloat(document.querySelectorAll('.story-progress-fill')[currentMediaIndex].style.width) || 0;
-                storyInterval = setInterval(() => { p += 2; document.querySelectorAll('.story-progress-fill')[currentMediaIndex].style.width = p+'%'; if(p>=100) nextStory(userStories); }, 100);
+                storyInterval = setInterval(() => { p += 2; document.querySelectorAll('.story-progress-fill')[currentMediaIndex].style.width = p+'%'; if(p>=100) nextStory(activeStories); }, 100);
             } else { document.getElementById('story-video').play().catch(()=>{}); }
         }
     });
@@ -2712,12 +2730,12 @@
     let holdTimer = null;
     function pauseStory() { clearInterval(storyInterval); try { const vid = document.getElementById('story-video'); if (!vid.paused) vid.pause(); } catch(e){} }
     function resumeStory() {
-        const s = userStories[currentMediaIndex];
+        const s = activeStories[currentMediaIndex];
         if (!s) return;
         if (s.type === 'image') {
             let p = parseFloat(document.querySelectorAll('.story-progress-fill')[currentMediaIndex]?.style.width) || 0;
             if (p >= 100) return;
-            storyInterval = setInterval(() => { p += 2; document.querySelectorAll('.story-progress-fill')[currentMediaIndex].style.width = p+'%'; if(p>=100) nextStory(userStories); }, 100);
+            storyInterval = setInterval(() => { p += 2; document.querySelectorAll('.story-progress-fill')[currentMediaIndex].style.width = p+'%'; if(p>=100) nextStory(activeStories); }, 100);
         } else { document.getElementById('story-video').play().catch(()=>{}); }
     }
     storyContent.addEventListener('mousedown', () => { holdTimer = setTimeout(pauseStory, 150); });
@@ -3389,7 +3407,6 @@
         const users = getUsers();
         const modal = document.getElementById('user-profile-modal');
         const body = document.getElementById('upm-body');
-        const title = document.getElementById('upm-title');
 
         // Check localStorage users first, then mock users
         const lsUser = users[uname];
@@ -3397,7 +3414,6 @@
         const userData = lsUser || mockUser;
 
         if (!userData) {
-            title.textContent = 'Профиль';
             body.innerHTML = `
                 <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:80px 20px;text-align:center;gap:16px;">
                     <div style="font-size:56px;font-weight:800;color:rgba(255,255,255,0.15);">404</div>
@@ -3405,7 +3421,6 @@
                     <div style="font-size:14px;color:rgba(255,255,255,0.4);">@${uname}</div>
                 </div>`;
         } else if (userData.blocked) {
-            title.textContent = 'Профиль';
             body.innerHTML = `
                 <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:80px 20px;text-align:center;gap:16px;">
                     <div style="width:64px;height:64px;border-radius:50%;background:rgba(255,59,48,0.12);display:flex;align-items:center;justify-content:center;">
@@ -3415,7 +3430,7 @@
                     <div style="font-size:14px;color:rgba(255,255,255,0.4);">@${uname}</div>
                 </div>`;
         } else {
-            renderUserProfileBody(uname, userData, body, title);
+            renderUserProfileBody(uname, userData, body);
         }
         modal.style.display = 'flex';
         requestAnimationFrame(() => requestAnimationFrame(() => {
@@ -3427,8 +3442,9 @@
     function closeUserProfile() {
         const modal = document.getElementById('user-profile-modal');
         modal.classList.remove('visible');
+        modal.classList.remove('active');
         document.body.style.overflow = '';
-        setTimeout(() => { modal.classList.remove('active'); modal.style.display = 'none'; }, 350);
+        setTimeout(() => { modal.style.display = 'none'; }, 350);
     }
 
     // Click on @mention anywhere in the app
@@ -3520,6 +3536,7 @@
     }
     function closeRepostModal() {
         const modal = document.getElementById('repost-modal-overlay');
+        modal.classList.remove('visible');
         modal.classList.remove('active');
         document.body.style.overflow = '';
         setTimeout(() => { modal.style.display = 'none'; }, 400);
@@ -3560,10 +3577,9 @@
     const subscribedUsers = new Set();
 
     // Patch renderUserProfileBody to be called from openUserProfile
-    function renderUserProfileBody(uname, userData, body, title) {
+    function renderUserProfileBody(uname, userData, body) {
         const u = userData;
         const displayName = u.displayname || uname;
-        title.textContent = displayName;
         const letter = displayName[0].toUpperCase();
         const avatarHtml = u.avatarUrl
             ? `<img src="${u.avatarUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`
