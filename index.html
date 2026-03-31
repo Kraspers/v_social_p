@@ -59,9 +59,18 @@
         }
         .story-creator.active { display: flex; }
         .story-creator.visible { opacity: 1; }
+        .story-creator-wrap {
+            width: 100%;
+            max-width: 600px;
+            display: flex;
+            flex-direction: column;
+            transform: translateY(100%);
+            transition: transform 0.45s cubic-bezier(0.16,1,0.3,1);
+        }
+        .story-creator.visible .story-creator-wrap { transform: translateY(0); }
         .story-creator-topbar {
             width: 100%;
-            padding: 8px 8px 4px;
+            padding: 0 8px 10px;
             display: flex;
             align-items: center;
             z-index: 3;
@@ -76,24 +85,33 @@
             width: 100%; max-width: 600px; height: 88vh;
             background: #1a1b1f; border-radius: 20px 20px 0 0;
             display: flex; flex-direction: column; overflow: hidden; position: relative;
-            transform: translateY(100%);
-            transition: transform 0.45s cubic-bezier(0.16,1,0.3,1);
             border: none;
         }
-        .story-creator.visible .story-creator-inner { transform: translateY(0); }
         /* Desktop same behaviour */
         @media (min-width: 601px) {
-            .story-creator-inner { transform: translateY(100%); opacity: 1; }
-            .story-creator.visible .story-creator-inner { transform: translateY(0); }
-            .story-creator-topbar { padding-top: 10px; }
+            .story-creator-topbar { padding-top: 0; }
         }
         @media (max-width: 600px) {
-            .story-creator-topbar { padding-top: 4px; }
+            .story-creator-topbar { padding-top: 0; }
         }
         .creator-header { padding: 16px; display: flex; align-items: center; justify-content: space-between; background: #1a1b1f; border-bottom: none; }
         .creator-close { background: none; border: none; color: white; font-size: 28px; cursor: pointer; }
         .creator-title { color: white; font-weight: 600; font-size: 16px; }
-        .creator-done { background: #0D7EFF; color: white; border: none; padding: 8px 20px; border-radius: 20px; font-weight: 600; cursor: pointer; }
+        .creator-done {
+            width: 100%;
+            background: #0D7EFF;
+            border: none;
+            color: white;
+            border-radius: 999px;
+            padding: 12px 22px;
+            font-size: 15px;
+            font-weight: 700;
+            cursor: pointer;
+            font-family: inherit;
+            transition: background 0.2s;
+            display: none;
+        }
+        .creator-done:hover { background: #0066dd; }
         .creator-content { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px; padding: 20px; }
         .creator-preview { max-width: 100%; max-height: 60vh; object-fit: contain; display: none; }
         .creator-preview.active { display: block; }
@@ -596,6 +614,28 @@
                 transition: transform 0.3s cubic-bezier(0.16,1,0.3,1), opacity 0.3s ease !important;
             }
             #user-profile-modal.visible .post-modal-content { transform: translateY(0); opacity: 1 !important; }
+            #post-modal,
+            #user-profile-modal {
+                align-items: flex-end;
+                justify-content: center;
+            }
+            #post-modal .post-modal-wrap,
+            #user-profile-modal .post-modal-wrap {
+                width: 100%;
+                max-width: 600px;
+                transform: translateY(100%) !important;
+                opacity: 1 !important;
+                transition: transform 0.4s cubic-bezier(0.16,1,0.3,1) !important;
+            }
+            #post-modal.visible .post-modal-wrap,
+            #user-profile-modal.visible .post-modal-wrap {
+                transform: translateY(0) !important;
+            }
+            #post-modal .post-modal-content,
+            #user-profile-modal .post-modal-content {
+                height: 84vh;
+                border-radius: 20px 20px 0 0 !important;
+            }
             /* Edit post sheet on desktop: centered dialog */
             .edit-post-wrap {
                 bottom: auto; top: 50%; left: 50%;
@@ -1536,32 +1576,34 @@
 
     <!-- Story Creator Modal -->
     <div class="story-creator" id="story-creator">
-        <div class="story-creator-inner">
+        <div class="story-creator-wrap">
             <div class="story-creator-topbar">
                 <button class="post-modal-outer-back" id="creator-close">
                     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
                     История
                 </button>
             </div>
-            <div class="creator-header">
-                <div class="creator-title" style="display:none;">Создать историю</div>
-                <button class="creator-done" id="creator-done" style="display:none;">Готово</button>
-            </div>
-            <div class="creator-content" style="position:relative;">
-                <img class="creator-preview" id="creator-preview" alt="Preview">
-                <video class="creator-preview" id="creator-video-preview" controls></video>
-                <div class="creator-options" id="creator-options">
-                    <div class="creator-option" id="upload-media-btn">
-                        <div class="creator-option-icon">
-                            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
-                        </div>
-                        <div class="creator-option-label">Медиа</div>
-                    </div>
+            <div class="story-creator-inner">
+                <div class="creator-header">
+                    <div class="creator-title" style="display:none;">Создать историю</div>
                 </div>
-                <input type="file" class="creator-input" id="media-input" accept="image/*,video/*">
-            </div>
-            <div class="creator-caption-bar" id="creator-caption-bar" style="display:none;">
-                <textarea class="creator-caption-input" id="creator-text-input" placeholder="Добавить описание..." maxlength="280" oninput="this.style.height='50px';if(this.scrollHeight>50)this.style.height=Math.min(this.scrollHeight,110)+'px';"></textarea>
+                <div class="creator-content" style="position:relative;">
+                    <img class="creator-preview" id="creator-preview" alt="Preview">
+                    <video class="creator-preview" id="creator-video-preview" controls></video>
+                    <div class="creator-options" id="creator-options">
+                        <div class="creator-option" id="upload-media-btn">
+                            <div class="creator-option-icon">
+                                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+                            </div>
+                            <div class="creator-option-label">Медиа</div>
+                        </div>
+                    </div>
+                    <input type="file" class="creator-input" id="media-input" accept="image/*,video/*">
+                </div>
+                <div class="creator-caption-bar" id="creator-caption-bar" style="display:none;">
+                    <textarea class="creator-caption-input" id="creator-text-input" placeholder="Добавить описание..." maxlength="280" oninput="this.style.height='50px';if(this.scrollHeight>50)this.style.height=Math.min(this.scrollHeight,110)+'px';"></textarea>
+                    <button class="creator-done" id="creator-done">Опубликовать</button>
+                </div>
             </div>
         </div>
     </div>
@@ -2088,6 +2130,7 @@
     const commentSubmit = document.getElementById('comment-submit');
     const commentsList = document.getElementById('comments-list');
     let currentPostId = null;
+    let replyTargetCommentId = null;
     const postComments = {};
 
     function openPostModal(post) {
@@ -2147,6 +2190,7 @@
         postModal.classList.remove('visible');
         postModal.classList.remove('active');
         document.body.style.overflow = '';
+        replyTargetCommentId = null;
         setTimeout(() => { postModal.style.display = 'none'; }, 400);
     }
     document.getElementById('post-modal-close').addEventListener('click', closePostModal);
@@ -2174,7 +2218,7 @@
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="${c.liked?'currentColor':'none'}" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
                             <span>${c.likes}</span>
                         </button>
-                        <button class="comment-action-btn" onclick="prepareReplyInMainInput('${c.username.replace('@','')}')">Ответить</button>
+                        <button class="comment-action-btn" onclick="prepareReplyInMainInput('${c.username.replace('@','')}', ${c.id})">Ответить</button>
                     </div>
                     ${!nested && c.replies && c.replies.length ? `<div class="comment-replies-container" id="replies-${c.id}">${c.replies.map(r=>makeHTML(r,true)).join('')}</div>` : ''}
                 </div>
@@ -2188,13 +2232,35 @@
         const text = commentInput.value.trim();
         if (!text) return;
         if (!postComments[currentPostId]) postComments[currentPostId] = [];
-        postComments[currentPostId].unshift({ id: Date.now(), author:"Вы", username:"@username", avatar:"Я", text, time:"Только что", likes:0, liked:false, replies:[] });
+        if (replyTargetCommentId) {
+            const comments = postComments[currentPostId];
+            function findRoot(list, targetId) {
+                for (let c of list) {
+                    if (c.id === targetId) return c;
+                    if (c.replies) {
+                        for (let r of c.replies) if (r.id === targetId) return c;
+                        const found = findRoot(c.replies, targetId);
+                        if (found) return found;
+                    }
+                }
+                return null;
+            }
+            const rootComment = findRoot(comments, replyTargetCommentId);
+            if (rootComment) {
+                rootComment.replies.push({ id: Date.now(), author:"Вы", username:"@username", avatar:"Я", text, time:"Только что", likes:0, liked:false, replies:[] });
+            } else {
+                postComments[currentPostId].unshift({ id: Date.now(), author:"Вы", username:"@username", avatar:"Я", text, time:"Только что", likes:0, liked:false, replies:[] });
+            }
+        } else {
+            postComments[currentPostId].unshift({ id: Date.now(), author:"Вы", username:"@username", avatar:"Я", text, time:"Только что", likes:0, liked:false, replies:[] });
+        }
         const post = posts.find(p => p.id === currentPostId);
-        post.comments++;
+        if (!replyTargetCommentId) post.comments++;
         renderPosts(); if (postModal.classList.contains('active')) openPostModal(post);
         commentInput.value = '';
         commentInput.style.height = '40px';
         commentSubmit.disabled = true;
+        replyTargetCommentId = null;
         renderComments();
     });
 
@@ -2310,9 +2376,10 @@
         renderComments();
     };
 
-    window.prepareReplyInMainInput = username => {
+    window.prepareReplyInMainInput = (username, commentId) => {
         const mention = username ? '@' + username.replace(/^@/,'') + ' ' : '';
         const inp = document.getElementById('comment-input');
+        replyTargetCommentId = commentId || null;
         inp.value = mention;
         inp.focus();
         inp.style.height = '40px';
@@ -2499,7 +2566,7 @@
     });
     // Drag to close story creator
     (function(){
-        const inner = document.querySelector('.story-creator-inner');
+        const inner = document.querySelector('.story-creator-wrap');
         let sy = 0, dragging = false;
         inner.addEventListener('touchstart', e => {
             if (!e.target.closest('.creator-header')) return;
