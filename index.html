@@ -340,6 +340,23 @@
 
         /* replies */
         .comment-replies-container { margin-top: 10px; padding-left: 12px; border-left: 1px solid rgba(255,255,255,0.06); overflow: hidden; }
+        .comment-replies-toggle {
+            margin-top: 10px;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 14px;
+            background: rgba(80,80,88,0.75);
+            border: none;
+            border-radius: 999px;
+            color: #e6e6e9;
+            font-size: 13px;
+            font-weight: 600;
+            font-family: inherit;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .comment-replies-toggle:hover { background: rgba(96,96,104,0.88); }
         .nested-reply { padding: 10px 0 0 0 !important; border-bottom: none !important; }
         .nested-reply .comment-avatar { width: 30px; height: 30px; font-size: 12px; }
         .nested-reply .comment-replies-container { padding-left: 0; border-left: none; }
@@ -717,6 +734,7 @@
             display: flex; flex-direction: column;
             transform: translateY(100%);
             transition: transform 0.4s cubic-bezier(0.16,1,0.3,1);
+            padding: 0 8px;
         }
         #edit-modal-overlay.visible #edit-profile-wrap { transform: translateY(8px); }
         #edit-modal-overlay #edit-modal { transform: none !important; }
@@ -739,6 +757,11 @@
             overflow: hidden;
         }
         .edit-modal-overlay.visible .edit-modal { transform: translateY(0); }
+        #upm-posts-feed {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
         .edit-modal-handle {
             width: 36px; height: 4px;
             background: rgba(255,255,255,0.15);
@@ -2153,6 +2176,10 @@
             if (e.target.closest('[data-open-repost-id]')) return;
             if (e.target.closest('[data-open-profile]')) return;
             if (e.target.classList.contains('mention')) return;
+            if (upmLocalPosts.has(post.id)) {
+                runOutsideUserProfile(() => openPostModal(post));
+                return;
+            }
             openPostModal(post);
         });
         return el;
@@ -2167,6 +2194,17 @@
     let currentPostId = null;
     let replyTargetCommentId = null;
     const postComments = {};
+    const expandedReplies = {};
+
+    function runOutsideUserProfile(onReady) {
+        const profileModal = document.getElementById('user-profile-modal');
+        if (profileModal && profileModal.classList.contains('active')) {
+            closeUserProfile();
+            setTimeout(onReady, 360);
+            return;
+        }
+        onReady();
+    }
 
     function openPostModal(post) {
         currentPostId = post.id;
@@ -2240,6 +2278,10 @@
             return;
         }
         function makeHTML(c, nested = false) {
+            const replies = Array.isArray(c.replies) ? c.replies : [];
+            const shouldCollapseReplies = !nested && replies.length > 5;
+            const isExpanded = !!expandedReplies[c.id];
+            const visibleReplies = shouldCollapseReplies && !isExpanded ? replies.slice(0, 5) : replies;
             return `<div class="comment-item${nested?' nested-reply':''}" id="comment-${c.id}">
                 <div class="comment-avatar"${nested?' style="width:30px;height:30px;font-size:12px;"':''} data-open-profile="${c.username}">${c.avatar}</div>
                 <div class="comment-content">
@@ -2255,11 +2297,17 @@
                         </button>
                         <button class="comment-action-btn" onclick="prepareReplyInMainInput('${c.username.replace('@','')}', ${c.id})">Ответить</button>
                     </div>
-                    ${!nested && c.replies && c.replies.length ? `<div class="comment-replies-container" id="replies-${c.id}">${c.replies.map(r=>makeHTML(r,true)).join('')}</div>` : ''}
+                    ${!nested && replies.length ? `<div class="comment-replies-container" id="replies-${c.id}">${visibleReplies.map(r=>makeHTML(r,true)).join('')}</div>` : ''}
+                    ${shouldCollapseReplies ? `<button class="comment-replies-toggle" onclick="toggleRepliesVisibility(${c.id})">${isExpanded ? 'Свернуть ответы' : `Показать ещё ${replies.length - visibleReplies.length} ответов`}</button>` : ''}
                 </div>
             </div>`;
         }
         comments.forEach(c => { commentsList.innerHTML += makeHTML(c); });
+    }
+
+    function toggleRepliesVisibility(commentId) {
+        expandedReplies[commentId] = !expandedReplies[commentId];
+        renderComments();
     }
 
     commentInput.addEventListener('input', () => { commentSubmit.disabled = !commentInput.value.trim(); });
@@ -2560,9 +2608,20 @@
             if (postModal.classList.contains('active')) openPostModal(post);
         }
         else if (action === 'repost') {
+            if (upmLocalPosts.has(id)) {
+                runOutsideUserProfile(() => openRepostModal(post));
+                return;
+            }
             openRepostModal(post);
         }
-        else if (action === 'comment') { if (!postModal.classList.contains('active')) openPostModal(post); }
+        else if (action === 'comment') {
+            if (postModal.classList.contains('active')) return;
+            if (upmLocalPosts.has(id)) {
+                runOutsideUserProfile(() => openPostModal(post));
+                return;
+            }
+            openPostModal(post);
+        }
         else if (action === 'share') { alert('Ссылка скопирована!'); }
     });
 
