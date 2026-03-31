@@ -3600,6 +3600,9 @@
         } else {
             renderUserProfileBody(uname, userData, body);
         }
+        const repostModal = document.getElementById('repost-modal-overlay');
+        const openAbovePostLayer = postModal.classList.contains('active') || (repostModal && repostModal.classList.contains('active'));
+        modal.style.zIndex = openAbovePostLayer ? '13050' : '11000';
         modal.style.display = 'flex';
         requestAnimationFrame(() => requestAnimationFrame(() => {
             modal.classList.add('active');
@@ -3611,7 +3614,9 @@
         const modal = document.getElementById('user-profile-modal');
         modal.classList.remove('visible');
         modal.classList.remove('active');
-        document.body.style.overflow = '';
+        modal.style.zIndex = '11000';
+        const repostModal = document.getElementById('repost-modal-overlay');
+        document.body.style.overflow = (postModal.classList.contains('active') || (repostModal && repostModal.classList.contains('active'))) ? 'hidden' : '';
         upmLocalPosts.clear();
         currentViewedProfile = null;
         setTimeout(() => { modal.style.display = 'none'; }, 350);
