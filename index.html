@@ -3694,7 +3694,7 @@
                 <span style="font-weight:700;font-size:14px;color:#e6e6e9;">${post.author}</span>
                 <span style="color:rgba(255,255,255,0.4);font-size:13px;">${post.time.replace('часа','дн.').replace('часов','дн.')}</span>
             </div>
-            ${post.text ? `<div style="padding:0 12px 10px;font-size:15px;color:#e6e6e9;line-height:1.5;">${formatPostText(post.text)}</div>` : ''}
+            ${post.text ? `<div style="padding:0 12px 10px;font-size:15px;color:#e6e6e9;line-height:1.5;overflow-wrap:anywhere;word-break:break-word;">${formatPostText(post.text)}</div>` : ''}
             ${mediaHtml ? `<div style="padding:0 0 0 0;">${mediaHtml}</div>` : ''}`;
         const modal = document.getElementById('repost-modal-overlay');
         modal.style.display = 'flex';
