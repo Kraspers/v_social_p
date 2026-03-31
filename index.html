@@ -604,7 +604,7 @@
 
         @media (min-width: 900px) {
             .container { max-width: 660px; }
-            .bottom-nav { bottom: auto; right: auto; left: max(16px, calc(50% - 520px)); top: 80px; transform: translateY(0); width: 220px; height: auto; display: flex; flex-direction: column; padding: 8px; border-radius: 18px; gap: 2px; max-width: 220px; background: transparent; border: none; box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none; }
+            .bottom-nav { bottom: auto; right: auto; left: max(12px, calc(50% - 540px)); top: 80px; transform: translateY(0); width: 220px; height: auto; display: flex; flex-direction: column; padding: 8px; border-radius: 18px; gap: 2px; max-width: 220px; background: transparent; border: none; box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none; }
             .nav-slider { display: none; }
             .nav-btn { width: 100%; height: 56px; padding: 0 16px; border-radius: 14px; flex-direction: row; gap: 14px; flex: none; justify-content: flex-start; font-size: 17px; font-weight: 600; }
             .nav-btn span { display: block; }
@@ -683,6 +683,7 @@
             .edit-modal {
                 max-width: 660px;
             }
+            #edit-profile-wrap { padding: 0; }
             .edit-modal { max-height: 78vh; }
             /* Edit post sheet on desktop: centered dialog */
             .edit-post-wrap {
@@ -730,22 +731,21 @@
             justify-content: flex-end;
         }
         #edit-profile-wrap {
-            width: 100%; max-width: 600px;
+            width: calc(100% - 16px); max-width: 600px;
             display: flex; flex-direction: column;
             transform: translateY(100%);
             transition: transform 0.4s cubic-bezier(0.16,1,0.3,1);
-            padding: 0 8px;
         }
         #edit-modal-overlay.visible #edit-profile-wrap { transform: translateY(8px); }
         #edit-modal-overlay #edit-modal { transform: none !important; }
         #edit-modal-overlay.visible #edit-modal { transform: none !important; }
         .edit-modal-topbar {
-            width: 100%; max-width: 600px;
+            width: calc(100% - 16px); max-width: 600px;
             padding: 0 8px 10px;
             display: flex; align-items: center;
         }
         .edit-modal {
-            width: 100%; max-width: 600px;
+            width: calc(100% - 16px); max-width: 600px;
             background: #1a1b1f;
             border-radius: 24px 24px 0 0;
             border: none;
@@ -1328,7 +1328,7 @@
         /* ===== DESKTOP LOGOUT + FOOTER ===== */
         .desktop-logout-btn {
             display: none;
-            position: fixed; bottom: 32px; left: max(16px, calc(50% - 520px));
+            position: fixed; bottom: 32px; left: max(12px, calc(50% - 540px));
             z-index: 500;
             background: none; border: none; cursor: pointer;
             color: rgba(255,255,255,0.55); font-size: 15px; font-weight: 500;
@@ -2601,6 +2601,14 @@
             post.liked = !post.liked;
             post.likes += post.liked ? 1 : -1;
             if (upmLocalPosts.has(id) && currentViewedProfile) {
+                const upmIdx = id - 900000;
+                const sourcePost = currentViewedProfile.userData && Array.isArray(currentViewedProfile.userData.posts)
+                    ? currentViewedProfile.userData.posts[upmIdx]
+                    : null;
+                if (sourcePost) {
+                    sourcePost.liked = post.liked;
+                    sourcePost.likes = post.likes;
+                }
                 renderUserProfileBody(currentViewedProfile.uname, currentViewedProfile.userData, document.getElementById('upm-body'));
             } else {
                 renderPosts();
