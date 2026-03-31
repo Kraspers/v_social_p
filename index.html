@@ -50,6 +50,8 @@
         .story-creator {
             position: fixed; top: 0; left: 0; right: 0; bottom: 0;
             background: rgba(0,0,0,0.55);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
             z-index: 9999;
             display: none;
             align-items: flex-end;
@@ -2673,6 +2675,7 @@
         if (storyTodayCount >= STORY_DAILY_LIMIT) { alert('Вы достигли лимита историй на сегодня (30 шт.)'); return; }
         const sc = document.getElementById('story-creator');
         sc.classList.add('active');
+        document.body.style.overflow = 'hidden';
         requestAnimationFrame(() => requestAnimationFrame(() => sc.classList.add('visible')));
     });
     // Drag to close story creator
@@ -2694,14 +2697,14 @@
             if (d > 120) {
                 const sc = document.getElementById('story-creator');
                 sc.classList.remove('visible');
-                setTimeout(() => { sc.classList.remove('active'); inner.style.transform = ''; resetCreator(); }, 400);
+                setTimeout(() => { sc.classList.remove('active'); inner.style.transform = ''; resetCreator(); document.body.style.overflow = ''; }, 400);
             } else { inner.style.transform = ''; }
         });
     })();
     document.getElementById('creator-close').addEventListener('click', () => {
         const sc = document.getElementById('story-creator');
         sc.classList.remove('visible');
-        setTimeout(() => { sc.classList.remove('active'); resetCreator(); }, 400);
+        setTimeout(() => { sc.classList.remove('active'); resetCreator(); document.body.style.overflow = ''; }, 400);
     });
     document.getElementById('upload-media-btn').addEventListener('click', () => document.getElementById('media-input').click());
     document.getElementById('media-input').addEventListener('change', e => {
@@ -2753,7 +2756,7 @@
         renderUserStory();
         const sc = document.getElementById('story-creator');
         sc.classList.remove('visible');
-        setTimeout(() => { sc.classList.remove('active'); resetCreator(); }, 400);
+        setTimeout(() => { sc.classList.remove('active'); resetCreator(); document.body.style.overflow = ''; }, 400);
     }
 
     document.getElementById('creator-done').addEventListener('click', () => {
@@ -2769,7 +2772,7 @@
             renderUserStory();
             const sc = document.getElementById('story-creator');
             sc.classList.remove('visible');
-            setTimeout(() => { sc.classList.remove('active'); resetCreator(); }, 400);
+            setTimeout(() => { sc.classList.remove('active'); resetCreator(); document.body.style.overflow = ''; }, 400);
         }
     });
 
