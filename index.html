@@ -23,13 +23,13 @@
         .stories-list { display: inline-flex; gap: 12px; }
         .story-item { display: flex; flex-direction: column; align-items: center; gap: 6px; cursor: pointer; }
         /* CHANGE 3: gradient 0078FF → 23D4F9 */
-        .story-avatar { width: 64px; height: 64px; border-radius: 50%; padding: 2px; background: linear-gradient(45deg, #0078FF 0%, #23D4F9 50%, #0060CC 100%); background-size: 200% 200%; animation: gradientShift 3s ease infinite; display: flex; align-items: center; justify-content: center; }
+        .story-avatar { width: 66px; height: 66px; border-radius: 50%; padding: 1px; background: linear-gradient(45deg, #0078FF 0%, #23D4F9 50%, #0060CC 100%); background-size: 200% 200%; animation: gradientShift 3s ease infinite; display: flex; align-items: center; justify-content: center; }
         @keyframes gradientShift { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
         .story-avatar.create { background: transparent; animation: none; }
-        .story-avatar-inner { width: 52px; height: 52px; border-radius: 50%; background: #0f0f11; border: 1px solid #0f0f11; display: flex; align-items: center; justify-content: center; overflow: hidden; }
-        .story-avatar.create .story-avatar-inner { width: 56px; height: 56px; background: transparent; border: none; }
+        .story-avatar-inner { width: 50px; height: 50px; border-radius: 50%; background: #0f0f11; border: none; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+        .story-avatar.create .story-avatar-inner { width: 58px; height: 58px; background: transparent; border: none; }
         .story-avatar-img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
-        .story-username { font-size: 12px; color: rgba(255,255,255,0.7); max-width: 64px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .story-username { font-size: 12px; color: rgba(255,255,255,0.7); max-width: 66px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .story-viewer { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: #000; z-index: 9999; display: none; flex-direction: column; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
         .story-viewer.active { display: flex; }
         .story-header { position: absolute; top: 0; left: 0; right: 0; z-index: 2; padding: 16px; background: linear-gradient(180deg, rgba(0,0,0,0.5) 0%, transparent 100%); }
@@ -2375,7 +2375,10 @@
     function setSession(u) { try { localStorage.setItem(SESSION_KEY, u); } catch(e){} }
 
     function showLoginScreen() { document.getElementById('login-screen').classList.remove('hidden'); }
-    function hideLoginScreen() { document.getElementById('login-screen').classList.add('hidden'); }
+    function hideLoginScreen() {
+        document.getElementById('login-screen').classList.add('hidden');
+        window.scrollTo(0, 0);
+    }
     function showMainPanel() {
         document.getElementById('login-main-panel').style.display = 'flex';
         document.getElementById('vpsc-panel').classList.remove('active');
@@ -3090,18 +3093,52 @@
     function closeCropModal() { document.getElementById('crop-modal').classList.remove('active'); }
     function confirmCrop() {
         const canvas = document.getElementById('crop-canvas');
-        const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
+        const exportCanvas = document.createElement('canvas');
+        const isAvatar = cropMode === 'avatar';
+        exportCanvas.width = isAvatar ? 1024 : 1600;
+        exportCanvas.height = isAvatar ? 1024 : 800;
+        const ex = exportCanvas.getContext('2d');
+        ex.imageSmoothingEnabled = true;
+        ex.imageSmoothingQuality = 'high';
+        const sx = exportCanvas.width / canvas.width;
+        const sy = exportCanvas.height / canvas.height;
+        ex.clearRect(0, 0, exportCanvas.width, exportCanvas.height);
+        ex.drawImage(cropImage, cropOffsetX * sx, cropOffsetY * sy, cropNaturalW * cropZoom * sx, cropNaturalH * cropZoom * sy);
+        const dataUrl = exportCanvas.toDataURL('image/jpeg', 0.96);
         if (cropMode === 'avatar') { profileData.avatarUrl = dataUrl; const img = document.getElementById('ep-avatar-img'); img.src = dataUrl; img.classList.add('loaded'); document.getElementById('ep-avatar-letter').style.display = 'none'; updateNavAvatar(); }
         else { profileData.bannerUrl = dataUrl; const img = document.getElementById('ep-banner-img'); img.src = dataUrl; img.classList.add('loaded'); }
         closeCropModal();
     }
+    function getCropPointer(clientX, clientY) {
+        const rect = cropWrap.getBoundingClientRect();
+        const canvas = document.getElementById('crop-canvas');
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+        return { x: (clientX - rect.left) * scaleX, y: (clientY - rect.top) * scaleY };
+    }
     const cropWrap = document.getElementById('crop-canvas-wrap');
     if (cropWrap) {
-        cropWrap.addEventListener('mousedown', e => { cropDragging = true; cropStartX = e.clientX - cropOffsetX; cropStartY = e.clientY - cropOffsetY; cropWrap.style.cursor = 'grabbing'; });
-        document.addEventListener('mousemove', e => { if (!cropDragging) return; cropOffsetX = e.clientX - cropStartX; cropOffsetY = e.clientY - cropStartY; drawCrop(); });
+        cropWrap.addEventListener('mousedown', e => {
+            const p = getCropPointer(e.clientX, e.clientY);
+            cropDragging = true; cropStartX = p.x - cropOffsetX; cropStartY = p.y - cropOffsetY; cropWrap.style.cursor = 'grabbing';
+        });
+        document.addEventListener('mousemove', e => {
+            if (!cropDragging) return;
+            const p = getCropPointer(e.clientX, e.clientY);
+            cropOffsetX = p.x - cropStartX; cropOffsetY = p.y - cropStartY; drawCrop();
+        });
         document.addEventListener('mouseup', () => { cropDragging = false; cropWrap.style.cursor = 'grab'; });
-        cropWrap.addEventListener('touchstart', e => { const t = e.touches[0]; cropDragging = true; cropStartX = t.clientX - cropOffsetX; cropStartY = t.clientY - cropOffsetY; }, {passive:true});
-        cropWrap.addEventListener('touchmove', e => { if (!cropDragging) return; const t = e.touches[0]; cropOffsetX = t.clientX - cropStartX; cropOffsetY = t.clientY - cropStartY; drawCrop(); }, {passive:true});
+        cropWrap.addEventListener('touchstart', e => {
+            const t = e.touches[0];
+            const p = getCropPointer(t.clientX, t.clientY);
+            cropDragging = true; cropStartX = p.x - cropOffsetX; cropStartY = p.y - cropOffsetY;
+        }, {passive:true});
+        cropWrap.addEventListener('touchmove', e => {
+            if (!cropDragging) return;
+            const t = e.touches[0];
+            const p = getCropPointer(t.clientX, t.clientY);
+            cropOffsetX = p.x - cropStartX; cropOffsetY = p.y - cropStartY; drawCrop();
+        }, {passive:true});
         cropWrap.addEventListener('touchend', () => { cropDragging = false; });
     }
     document.querySelector('.edit-profile-btn').addEventListener('click', openEditModal);
