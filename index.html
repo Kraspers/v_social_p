@@ -26,7 +26,7 @@
         .story-avatar { width: 66px; height: 66px; border-radius: 50%; padding: 1px; background: linear-gradient(45deg, #0078FF 0%, #23D4F9 50%, #0060CC 100%); background-size: 200% 200%; animation: gradientShift 3s ease infinite; display: flex; align-items: center; justify-content: center; }
         @keyframes gradientShift { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
         .story-avatar.create { background: transparent; animation: none; }
-        .story-avatar-inner { width: 50px; height: 50px; border-radius: 50%; background: #0f0f11; border: none; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+        .story-avatar-inner { width: 52px; height: 52px; border-radius: 50%; background: #0f0f11; border: 2px solid #0f0f11; display: flex; align-items: center; justify-content: center; overflow: hidden; }
         .story-avatar.create .story-avatar-inner { width: 58px; height: 58px; background: transparent; border: none; }
         .story-avatar-img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
         .story-username { font-size: 12px; color: rgba(255,255,255,0.7); max-width: 66px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -2843,20 +2843,30 @@
         if (s.text && s.text.trim()) { textContent.textContent = s.text; textOverlay.style.display = 'flex'; }
         else { textOverlay.style.display = 'none'; }
         if (s.type === 'image') {
+            img.onload = null; img.onerror = null;
             img.src = s.src; img.style.display = 'block'; vid.style.display = 'none';
             try { vid.pause(); } catch(e){} vid.removeAttribute('src'); try { vid.load(); } catch(e){}
-            let p = 0;
-            storyInterval = setInterval(() => {
-                if (token !== storyRenderToken) { clearInterval(storyInterval); return; }
-                p += 2;
-                document.querySelectorAll('.story-progress-fill')[currentMediaIndex].style.width = p+'%';
-                if(p>=100) nextStory(stories);
-            }, 100);
+            const startImageProgress = () => {
+                if (token !== storyRenderToken) return;
+                clearInterval(storyInterval);
+                let p = 0;
+                storyInterval = setInterval(() => {
+                    if (token !== storyRenderToken) { clearInterval(storyInterval); return; }
+                    p += 2;
+                    document.querySelectorAll('.story-progress-fill')[currentMediaIndex].style.width = p+'%';
+                    if(p>=100) nextStory(stories);
+                }, 100);
+            };
+            if (img.complete && img.naturalWidth) startImageProgress();
+            else {
+                img.onload = startImageProgress;
+                img.onerror = () => { if (token === storyRenderToken) nextStory(stories); };
+            }
         } else {
             img.style.display = 'none'; vid.style.display = 'block';
             vid.pause(); vid.ontimeupdate = null; vid.onended = null; vid.oncanplay = null;
             vid.removeAttribute('src'); vid.load();
-            vid.setAttribute('playsinline', ''); vid.setAttribute('webkit-playsinline', ''); vid.muted = true;
+            vid.setAttribute('playsinline', ''); vid.setAttribute('webkit-playsinline', ''); vid.muted = false;
             vid.src = s.src;
             const capturedIndex = currentMediaIndex;
             vid.oncanplay = () => {
@@ -2898,6 +2908,7 @@
         const textOverlay = document.getElementById('story-text-overlay');
         try { vid.pause(); } catch(e){}
         vid.ontimeupdate = null; vid.onended = null; vid.oncanplay = null;
+        img.onload = null; img.onerror = null;
         vid.removeAttribute('src');
         try { vid.load(); } catch(e){}
         img.removeAttribute('src');
