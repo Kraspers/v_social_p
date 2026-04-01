@@ -3056,7 +3056,7 @@
         const card = document.querySelector('.ep-vpsc-card');
         if (card) { card.style.background = '#0265d4'; setTimeout(() => { card.style.background = ''; }, 400); }
         const toast = document.getElementById('copy-toast');
-        if (toast) { toast.classList.add('show'); clearTimeout(toast._t); toast._t = setTimeout(() => toast.classList.remove('show'), 2000); }
+        if (toast) { toast.textContent = 'Скопировано'; toast.classList.add('show'); clearTimeout(toast._t); toast._t = setTimeout(() => toast.classList.remove('show'), 2000); }
     }
     function triggerCrop(mode) { cropMode = mode; document.getElementById('ep-file-input').click(); }
     function onFileSelected(e) { const file = e.target.files[0]; if (!file) return; e.target.value = ''; const reader = new FileReader(); reader.onload = ev => openCropModal(ev.target.result); reader.readAsDataURL(file); }
