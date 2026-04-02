@@ -2298,7 +2298,16 @@
             return;
         }
         function makeHTML(c, nested = false) {
-            const replies = Array.isArray(c.replies) ? c.replies : [];
+            const directReplies = Array.isArray(c.replies) ? c.replies : [];
+            const flatReplies = [];
+            const walkReplies = (items) => {
+                items.forEach((item) => {
+                    flatReplies.push({ ...item, replies: [] });
+                    if (Array.isArray(item.replies) && item.replies.length) walkReplies(item.replies);
+                });
+            };
+            walkReplies(directReplies);
+            const replies = nested ? [] : flatReplies;
             const shouldCollapseReplies = !nested && replies.length > 5;
             const isExpanded = !!expandedReplies[c.id];
             const visibleReplies = shouldCollapseReplies && !isExpanded ? [] : replies;
@@ -4051,7 +4060,11 @@
 
   async function syncPosts() {
     const r = await api('/posts');
-    posts = (r.posts || []);
+    posts = (r.posts || []).map((p) => ({
+      ...p,
+      avatarUrl: absoluteUrl(p.avatarUrl || ''),
+      repostOf: p.repostOf ? { ...p.repostOf, avatarUrl: absoluteUrl(p.repostOf.avatarUrl || '') } : p.repostOf
+    }));
     renderPosts();
     const st = document.querySelectorAll('.stat-item .stat-number'); if (st[1]) st[1].textContent = posts.filter(p => p.isRepost).length;
     const feed = document.getElementById('feed');
@@ -4209,8 +4222,9 @@
       const orderedStories = (r.stories || []).slice().sort((a,b)=>new Date(a.createdAt)-new Date(b.createdAt));
       orderedStories.forEach(s => {
         const key = s.username;
-        if (!byUser.has(key)) byUser.set(key, { user: s, items: [] });
-        byUser.get(key).items.push({ type: s.mediaType, src: s.src, text: s.caption || '', time: s.createdAt, username: s.username, avatar: s.avatar, avatarUrl: s.avatarUrl });
+        const fixed = { ...s, avatarUrl: absoluteUrl(s.avatarUrl || '') };
+        if (!byUser.has(key)) byUser.set(key, { user: fixed, items: [] });
+        byUser.get(key).items.push({ type: s.mediaType, src: s.src, text: s.caption || '', time: s.createdAt, username: s.username, avatar: s.avatar, avatarUrl: fixed.avatarUrl });
       });
       const list = document.getElementById('stories-list');
       if (!list) return;
@@ -4281,6 +4295,19 @@
   const originalOpenPostModal = window.openPostModal;
   window.openPostModal = async function(post) {
     originalOpenPostModal(post);
+    const modalOwn = me && post && String(post.username || '').toLowerCase() === `@${me.username}`.toLowerCase();
+    const hdr = document.querySelector('#post-modal .post-author');
+    if (hdr) {
+      hdr.querySelectorAll('.post-options-btn').forEach((n) => n.remove());
+      if (modalOwn) {
+        const btn = document.createElement('button');
+        btn.className = 'post-options-btn';
+        btn.setAttribute('data-post-id', String(post.id));
+        btn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"></circle><circle cx="12" cy="12" r="2"></circle><circle cx="19" cy="12" r="2"></circle></svg>';
+        btn.onclick = (ev) => handlePostOptionsClick(ev, post.id, btn);
+        hdr.appendChild(btn);
+      }
+    }
     try {
       const r = await api(`/posts/${post.id}/comments`);
       const flat = r.comments || [];
@@ -4439,14 +4466,11 @@
       syncProfileUi();
       originalOpenEditModal();
       const err = document.getElementById('ep-error');
-      if (err) err.textContent = 'Синхронизация профиля...';
       const saveBtn = document.querySelector('.edit-modal-save');
       if (saveBtn) saveBtn.disabled = true;
       syncMe().then(() => {
         syncProfileUi();
-        if (err) err.textContent = '';
       }).catch(() => {
-        if (err) err.textContent = '';
       }).finally(() => {
         if (saveBtn) saveBtn.disabled = false;
       });
@@ -4518,10 +4542,11 @@
     if (!me) return;
     document.querySelectorAll('.post').forEach(card => {
       const id = Number(card.dataset.id || 0);
-      const p = posts.find(x => x.id === id);
-      if (!p || (p.username || '').toLowerCase() !== `@${me.username}`.toLowerCase()) return;
+      const p = posts.find(x => x.id === id) || upmLocalPosts.get(id);
       const authorRow = card.querySelector('.post-author');
-      if (!authorRow || authorRow.querySelector('.post-options-btn')) return;
+      if (!authorRow) return;
+      authorRow.querySelectorAll('.post-options-btn').forEach((n) => n.remove());
+      if (!p || (p.username || '').toLowerCase() !== `@${me.username}`.toLowerCase()) return;
       const btn = document.createElement('button');
       btn.className = 'post-options-btn';
       btn.setAttribute('data-post-id', String(id));
