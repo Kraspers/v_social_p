@@ -4024,9 +4024,11 @@
     if (st[0] && typeof me.followers==='number') st[0].textContent = me.followers;
     if (st[1]) st[1].textContent = posts.filter(p => p.isRepost).length;
     const vpsc = document.getElementById('ep-vpsc-code'); if (vpsc) vpsc.textContent = me.vpsc || '';
-    const epn = document.getElementById('ep-name'); if (epn) epn.value = me.displayName || '';
-    const epu = document.getElementById('ep-username'); if (epu) epu.value = me.username || '';
-    const epbio = document.getElementById('ep-bio'); if (epbio) epbio.value = me.bio || '';
+    const editOverlay = document.getElementById('edit-modal-overlay');
+    const editOpen = !!(editOverlay && editOverlay.classList.contains('active'));
+    const epn = document.getElementById('ep-name'); if (epn && !editOpen) epn.value = me.displayName || '';
+    const epu = document.getElementById('ep-username'); if (epu && !editOpen) epu.value = me.username || '';
+    const epbio = document.getElementById('ep-bio'); if (epbio && !editOpen) epbio.value = me.bio || '';
     const nav = document.getElementById('nav-profile-avatar');
     const avatarUrl = absoluteUrl(me.avatarUrl || '');
     const bannerUrl = absoluteUrl(me.bannerUrl || '');
@@ -4326,9 +4328,10 @@
       e.stopImmediatePropagation();
       try {
         const id = Number(likeBtn.dataset.id);
-        const p = posts.find(x => x.id === id);
+        const p = posts.find(x => x.id === id) || upmLocalPosts.get(id);
         if (p) { p.liked = !p.liked; p.likes += p.liked ? 1 : -1; renderPosts(); }
         await api(`/posts/${id}/like`, { method: 'POST' });
+        if (typeof currentPostId !== 'undefined' && currentPostId === id && p) openPostModal(p);
       } catch {}
       return;
     }
@@ -4351,6 +4354,7 @@
     const body = document.getElementById('upm-body');
     if (!uname || !modal || !body) return;
     body.innerHTML = '<div style="padding:40px 20px;text-align:center;color:rgba(255,255,255,.5);font-size:14px;">Загрузка...</div>';
+    modal.style.display = 'flex';
     modal.classList.add('active');
     requestAnimationFrame(()=>requestAnimationFrame(()=>modal.classList.add('visible')));
     try {
@@ -4434,9 +4438,50 @@
     window.openEditModal = function openEditModal() {
       syncProfileUi();
       originalOpenEditModal();
-      syncMe().then(syncProfileUi).catch(() => {});
+      const err = document.getElementById('ep-error');
+      if (err) err.textContent = 'Синхронизация профиля...';
+      const saveBtn = document.querySelector('.edit-modal-save');
+      if (saveBtn) saveBtn.disabled = true;
+      syncMe().then(() => {
+        syncProfileUi();
+        if (err) err.textContent = '';
+      }).catch(() => {
+        if (err) err.textContent = '';
+      }).finally(() => {
+        if (saveBtn) saveBtn.disabled = false;
+      });
     };
   }
+
+  window.saveEditedPost = async function saveEditedPost() {
+    const post = posts.find((p) => p.id === editPostId);
+    if (!post) return;
+    const nextText = document.getElementById('edit-post-textarea').value.trim();
+    if (nextText === '' && editPostMedia.length === 0) {
+      showToast('Пустой пост сохранить нельзя');
+      return;
+    }
+    try {
+      await api(`/posts/${editPostId}`, { method: 'PATCH', body: JSON.stringify({ text: nextText, media: editPostMedia.map((m) => ({ ...m })) }) });
+      closeEditPostSheet();
+      await syncPosts();
+      showToast('Пост обновлён');
+    } catch (e) {
+      showToast(e.message);
+    }
+  };
+
+  window.toggleCommentLike = async function toggleCommentLike(commentId) {
+    try {
+      await api(`/comments/${commentId}/like`, { method: 'POST' });
+      if (!currentPostId) return;
+      const r = await api(`/posts/${currentPostId}/comments`);
+      postComments[currentPostId] = buildCommentTree(r.comments || []);
+      renderComments();
+    } catch (e) {
+      showToast(e.message);
+    }
+  };
 
   window.submitRepost = async function submitRepost() {
     if (!repostTargetPost) return;
@@ -4537,6 +4582,7 @@
 
   setInterval(() => { if (token()) syncPosts().catch(() => {}); }, 4000);
   setInterval(() => { if (token()) syncMe().catch(() => {}); }, 5000);
+  setInterval(() => { if (token()) syncTrends().catch(() => {}); }, 5000);
 
   (async () => {
     posts = [];
