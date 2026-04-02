@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: v-social-p
+    runtime: node
+    plan: free
+    buildCommand: ""
+    startCommand: node server.js
+    envVars:
+      - key: JWT_SECRET
+        generateValue: true
