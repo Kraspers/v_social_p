@@ -1,21 +1,16 @@
 const expressLib = require('express');
-const helmet = require('helmet');
-const morgan = require('morgan');
-const cookieParser = require('cookie-parser');
-const env = require('./config/env');
 const routes = require('./routes');
 const errorMiddleware = require('./middleware/error.middleware');
 const notFoundMiddleware = require('./middleware/not-found.middleware');
 
 const app = expressLib();
-app.use(helmet());
-app.use(cors({ origin: env.corsOrigin, credentials: true }));
+app.use(require('helmet')());
+app.use(require('cors')({ origin: env.corsOrigin, credentials: true }));
 app.use(expressLib.json({ limit: '2mb' }));
-app.use(cookieParser());
-app.use(morgan('dev'));
+app.use(require('cookie-parser')());
+app.use(require('morgan')('dev'));
 
 app.get('/health', (_req, res) => res.json({ status: 'ok' }));
-app.get('/', (_req, res) => res.redirect(302, 'https://v-social-p.onrender.com'));
 app.use('/api/v1', routes);
 
 app.use(notFoundMiddleware);
