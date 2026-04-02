@@ -1363,10 +1363,15 @@
             z-index: 500;
             flex-direction: column; align-items: flex-end; gap: 4px;
         }
+        .desktop-footer a,
         .desktop-footer span {
             font-size: 11px; color: rgba(255,255,255,0.22);
-            cursor: default; line-height: 1.4;
+            line-height: 1.4;
+            text-decoration: none;
+            transition: color 0.2s;
         }
+        .desktop-footer span { cursor: default; }
+        .desktop-footer a:hover { color: rgba(255,255,255,0.4); }
         @media (min-width: 900px) {
             .desktop-logout-btn { display: flex; }
             .desktop-footer { display: flex; }
@@ -1793,14 +1798,14 @@
             <div style="padding:52px 16px 0;display:flex;flex-direction:column;gap:16px;">
                 <div>
                     <div style="font-size:13px;font-weight:700;color:#e6e6e9;margin-bottom:6px;">Имя</div>
-                    <input id="ep-name" type="text" placeholder="Ваше отображаемое имя" value="Ваше Имя"
+                    <input id="ep-name" type="text" placeholder="Ваше отображаемое имя" value=""
                         style="width:100%;box-sizing:border-box;background:#2a2a2e;border:none;border-radius:14px;padding:18px 18px;color:#e6e6e9;font-size:16px;font-family:inherit;outline:none;-webkit-appearance:none;"
                         onfocus="this.style.background='#333338'" onblur="this.style.background='#2a2a2e'">
                     <div style="font-size:12px;color:rgba(255,255,255,0.3);margin-top:5px;padding-left:4px;">Ваше отображаемое имя</div>
                 </div>
                 <div>
                     <div style="font-size:13px;font-weight:700;color:#e6e6e9;margin-bottom:6px;">Username</div>
-                    <input id="ep-username" type="text" placeholder="username" value="username"
+                    <input id="ep-username" type="text" placeholder="username" value=""
                         style="width:100%;box-sizing:border-box;background:#2a2a2e;border:none;border-radius:14px;padding:18px 18px;color:#e6e6e9;font-size:16px;font-family:inherit;outline:none;-webkit-appearance:none;"
                         onfocus="this.style.background='#333338'" onblur="this.style.background='#2a2a2e'"
                         autocorrect="off" autocapitalize="off" spellcheck="false" oninput="this.value=this.value.replace(/[^a-zA-Z0-9_.-]/g,'')">
@@ -1810,14 +1815,14 @@
                     <div style="font-size:13px;font-weight:700;color:#e6e6e9;margin-bottom:6px;">О себе</div>
                     <textarea id="ep-bio" placeholder="Расскажите немного о себе"
                         style="width:100%;box-sizing:border-box;background:#2a2a2e;border:none;border-radius:14px;padding:18px 18px;color:#e6e6e9;font-size:16px;font-family:inherit;outline:none;resize:none;min-height:100px;-webkit-appearance:none;line-height:1.4;"
-                        onfocus="this.style.background='#333338'" onblur="this.style.background='#2a2a2e'">Здесь ваше описание профиля. Расскажите о себе что-нибудь интересное! #впизде</textarea>
+                        onfocus="this.style.background='#333338'" onblur="this.style.background='#2a2a2e'"></textarea>
                 </div>
             </div>
             <div class="ep-settings-section">
                 <div class="ep-settings-title">Основные настройки</div>
                 <div class="ep-vpsc-card" onclick="copyVPSC()" title="Нажмите, чтобы скопировать">
                     <img src="assets/vpprivacy.png" alt="VPSC" style="height:32px;width:auto;object-fit:contain;" onerror="this.style.display='none'">
-                    <div class="ep-vpsc-code" id="ep-vpsc-code">A7K2M9</div>
+                    <div class="ep-vpsc-code" id="ep-vpsc-code">------</div>
                 </div>
                 <button class="ep-action-btn password" onclick="openChangePasswordModal()">
                     <div class="ep-action-icon">
@@ -2127,7 +2132,8 @@
         const myFeed = document.getElementById('profile-feed');
         if (!myFeed) return;
         myFeed.innerHTML = '';
-        let myPosts = posts.filter(p => (p.author === 'Вы' || p.username === '@username') && !p.isRepost);
+        const meUsername = (window.me && window.me.username) ? `@${window.me.username}`.toLowerCase() : '';
+        let myPosts = posts.filter(p => (!p.isRepost) && (meUsername ? String(p.username || '').toLowerCase() === meUsername : (p.author === 'Вы' || p.username === '@username')));
         // Pinned post first
         if (pinnedPostId) {
             myPosts = [
@@ -2684,7 +2690,7 @@
     (()=>{ const i = Array.from(navBtns).findIndex(b=>b.classList.contains('active')); if(i>=0) updateSlider(i); })();
 
     // ===== STORIES =====
-    let userStories = [], currentMediaIndex = 0, storyInterval, activeStories = [], lastStoryCloseTs = 0, storyRenderToken = 0;
+    let userStories = [], currentMediaIndex = 0, storyInterval, activeStories = [], lastStoryCloseTs = 0, storyRenderToken = 0, activeStoryOwner = '';
     let storyTodayCount = 0;
     const STORY_DAILY_LIMIT = 30;
 
@@ -2821,6 +2827,7 @@
     function openStoryViewer(stories, start) {
         activeStories = stories;
         currentMediaIndex = start;
+        activeStoryOwner = stories[start]?.username || '';
         document.getElementById('story-viewer').classList.add('active');
         const bars = document.getElementById('story-progress-bars');
         bars.innerHTML = '';
@@ -2891,7 +2898,19 @@
             else { overlay.classList.remove('story-text-overflow'); }
         });
     }
-    function nextStory(s) { currentMediaIndex++; showStory(s); }
+    function markStoryViewedProgress() {
+        if (!activeStoryOwner) return;
+        const viewed = JSON.parse(localStorage.getItem('vp_story_viewed')||'{}');
+        viewed[activeStoryOwner] = Math.max(Number(viewed[activeStoryOwner] || 0), currentMediaIndex + 1);
+        localStorage.setItem('vp_story_viewed', JSON.stringify(viewed));
+        document.querySelectorAll('.story-item.remote-story .story-username').forEach((u) => {
+            if (u.textContent === activeStoryOwner) {
+                const item = u.closest('.story-item');
+                if (item && Number(viewed[activeStoryOwner] || 0) >= activeStories.length) item.classList.add('viewed');
+            }
+        });
+    }
+    function nextStory(s) { markStoryViewedProgress(); currentMediaIndex++; showStory(s); }
     function prevStory(s) {
         if (!Array.isArray(s) || !s.length) return;
         if (s.length === 1 || currentMediaIndex === 0) { showStory(s); return; }
@@ -2899,6 +2918,7 @@
         showStory(s);
     }
     function closeStoryViewer() {
+        markStoryViewedProgress();
         lastStoryCloseTs = Date.now();
         storyRenderToken++;
         document.getElementById('story-viewer').classList.remove('active');
@@ -2915,6 +2935,7 @@
         textOverlay.classList.remove('expanded', 'story-text-overflow');
         textOverlay.style.display = 'none';
         activeStories = [];
+        activeStoryOwner = '';
         currentMediaIndex = 0;
     }
     document.getElementById('story-prev').addEventListener('click', () => prevStory(activeStories));
@@ -3983,13 +4004,19 @@
   const API_BASE = `${location.origin}/api`;
   const TOKEN_KEY = 'vp_token';
   let me = null;
+  let liveSyncTimer = null;
+  let isSyncingPosts = false;
+  let isSyncingStories = false;
 
   const token = () => localStorage.getItem(TOKEN_KEY);
   const setToken = (t) => localStorage.setItem(TOKEN_KEY, t);
   const dropToken = () => localStorage.removeItem(TOKEN_KEY);
 
   const style = document.createElement('style');
-  style.textContent = `.story-avatar{padding:.5px!important}.story-item.viewed .story-avatar{background:#5f5f67!important;animation:none!important}#edit-modal-overlay.visible #edit-profile-wrap{transform:translateY(26px)!important}`;
+  style.textContent = `.story-avatar{padding:.5px!important}.story-item.viewed .story-avatar{background:#5f5f67!important;animation:none!important}
+  .story-avatar.segmented{background:repeating-conic-gradient(from -90deg,#0D7EFF 0 calc((360deg/var(--story-count,1)) - 3deg),rgba(255,255,255,0.14) calc((360deg/var(--story-count,1)) - 3deg) calc(360deg/var(--story-count,1)))!important;animation:none!important}
+  .story-item.viewed .story-avatar.segmented{background:repeating-conic-gradient(from -90deg,#5f5f67 0 calc((360deg/var(--story-count,1)) - 3deg),rgba(255,255,255,0.12) calc((360deg/var(--story-count,1)) - 3deg) calc(360deg/var(--story-count,1)))!important}
+  #edit-modal-overlay.visible #edit-profile-wrap{transform:translateY(26px)!important}`;
   document.head.appendChild(style);
 
   async function api(path, opts = {}) {
@@ -4036,16 +4063,23 @@
   async function syncMe() {
     const r = await api('/me');
     me = r.user;
+    window.me = me;
     syncProfileUi();
   }
 
   async function syncPosts() {
-    const r = await api('/posts');
-    posts = (r.posts || []);
-    renderPosts();
-    const st = document.querySelectorAll('.stat-item .stat-number'); if (st[1]) st[1].textContent = posts.filter(p => p.isRepost).length;
-    const feed = document.getElementById('feed');
-    if (feed && posts.length === 0) feed.innerHTML = '<div style="text-align:center;color:rgba(255,255,255,0.35);padding:40px 20px;font-size:14px;">Лента пуста</div>';
+    if (isSyncingPosts) return;
+    isSyncingPosts = true;
+    try {
+      const r = await api('/posts');
+      posts = (r.posts || []);
+      renderPosts();
+      const st = document.querySelectorAll('.stat-item .stat-number'); if (st[1]) st[1].textContent = posts.filter(p => p.isRepost).length;
+      const feed = document.getElementById('feed');
+      if (feed && posts.length === 0) feed.innerHTML = '<div style="text-align:center;color:rgba(255,255,255,0.35);padding:40px 20px;font-size:14px;">Лента пуста</div>';
+    } finally {
+      isSyncingPosts = false;
+    }
   }
 
   async function syncTrends() {
@@ -4061,6 +4095,7 @@
   }
 
   window.doLogout = function doLogout() {
+    stopLiveSync();
     dropToken();
     showLoginScreen();
     const homeBtn = document.querySelector('.nav-btn[data-tab="home"]'); if (homeBtn) homeBtn.click();
@@ -4079,6 +4114,7 @@
       hideLoginScreen();
       const homeBtn = document.querySelector('.nav-btn[data-tab="home"]'); if (homeBtn) homeBtn.click();
       await Promise.all([syncPosts(), syncTrends(), syncStories()]);
+      startLiveSync();
     } catch (e) { err.textContent = e.message; }
   };
 
@@ -4093,6 +4129,7 @@
       hideLoginScreen();
       const homeBtn = document.querySelector('.nav-btn[data-tab="home"]'); if (homeBtn) homeBtn.click();
       await Promise.all([syncPosts(), syncTrends(), syncStories()]);
+      startLiveSync();
     } catch (e) { err.textContent = e.message; }
   };
 
@@ -4111,6 +4148,7 @@
       hideLoginScreen();
       const homeBtn = document.querySelector('.nav-btn[data-tab="home"]'); if (homeBtn) homeBtn.click();
       await Promise.all([syncPosts(), syncTrends(), syncStories()]);
+      startLiveSync();
     } catch (e) { err.textContent = e.message; }
   };
 
@@ -4127,6 +4165,7 @@
     try {
       const r = await api('/me', { method: 'PATCH', body: JSON.stringify(payload) });
       me = r.user;
+      window.me = me;
       closeEditModal();
       syncProfileUi();
       await syncPosts();
@@ -4169,6 +4208,8 @@
   function formatStoryTime(iso){const d=Math.max(0,Date.now()-new Date(iso).getTime());const m=Math.floor(d/60000);const h=Math.floor(d/3600000); if(d<60000)return 'Только что'; if(m<60)return `${m} мин`; if(h<24)return `${h} ч`; return `${Math.floor(d/86400000)} д`; }
 
   async function syncStories() {
+    if (isSyncingStories) return;
+    isSyncingStories = true;
     try {
       const r = await api('/stories');
       const byUser = new Map();
@@ -4185,6 +4226,11 @@
         const el = document.createElement('div');
         el.className = 'story-item remote-story';
         el.innerHTML = `<div class="story-avatar"><div class="story-avatar-inner">${user.avatarUrl?`<img class="story-avatar-img" src="${user.avatarUrl}">`:`<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:white;background:linear-gradient(135deg,#0078FF 0%,#23D4F9 100%)">${user.avatar}</div>`}</div></div><div class="story-username">${user.username}</div>`;
+        const avatarEl = el.querySelector('.story-avatar');
+        if (avatarEl && items.length > 1) {
+          avatarEl.classList.add('segmented');
+          avatarEl.style.setProperty('--story-count', String(Math.min(items.length, 16)));
+        }
         el.onclick = () => {
           const viewed = JSON.parse(localStorage.getItem('vp_story_viewed')||'{}');
           const idx = Number(viewed[user.username] || 0);
@@ -4201,7 +4247,7 @@
         if (Number(viewed[user.username] || 0) >= items.length) el.classList.add('viewed');
         list.appendChild(el);
       });
-    } catch {}
+    } catch {} finally { isSyncingStories = false; }
   }
 
   document.getElementById('creator-done')?.addEventListener('click', async (e) => {
@@ -4211,7 +4257,21 @@
     const storyText = document.getElementById('creator-text-input').value.trim();
     const payload = img.classList.contains('active') ? { mediaType:'image', src: img.dataset.src, caption: storyText } : (vid.classList.contains('active') ? { mediaType:'video', src: vid.dataset.src, caption: storyText } : null);
     if (!payload) return;
-    try { await api('/stories', { method: 'POST', body: JSON.stringify(payload) }); await syncStories(); const sc=document.getElementById('story-creator'); sc.classList.remove('visible'); setTimeout(()=>{sc.classList.remove('active'); resetCreator(); document.body.style.overflow='';}, 380); } catch(err){ alert(err.message); }
+    const btn = document.getElementById('creator-done');
+    const oldText = btn?.textContent || 'Опубликовать';
+    if (btn) { btn.disabled = true; btn.textContent = 'Публикация…'; btn.style.opacity = '0.8'; }
+    try {
+      await api('/stories', { method: 'POST', body: JSON.stringify(payload) });
+      await syncStories();
+      const sc=document.getElementById('story-creator');
+      sc.classList.remove('visible');
+      setTimeout(()=>{sc.classList.remove('active'); resetCreator(); document.body.style.overflow='';}, 380);
+      showToast('История опубликована');
+    } catch(err){
+      showToast(err.message);
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = oldText; btn.style.opacity = ''; }
+    }
   }, true);
 
   function buildCommentTree(flat) {
@@ -4244,6 +4304,9 @@
       e.preventDefault(); e.stopImmediatePropagation();
       const text = postInput.value.trim();
       if (!text && composerMedia.length === 0) return;
+      const oldText = postBtn.textContent;
+      postBtn.disabled = true;
+      postBtn.textContent = 'Публикация…';
       try {
         await api('/posts', { method: 'POST', body: JSON.stringify({ text, media: composerMedia }) });
         postInput.value = ''; composerMedia = []; renderComposerPreviews();
@@ -4251,7 +4314,10 @@
         charCounter.classList.remove('visible','warning','danger');
         document.getElementById('post-submit').disabled = true;
         await syncPosts();
+        showToast('Пост опубликован');
       } catch (err) { alert(err.message); }
+      postBtn.textContent = oldText;
+      recalcPostBtn();
       return;
     }
 
@@ -4340,6 +4406,19 @@
 
 
   document.addEventListener('click', (e) => {
+    const mentionEl = e.target.closest('.mention');
+    if (mentionEl && me) {
+      const mentionValue = String(mentionEl.textContent || '').trim();
+      if (mentionValue && mentionValue.toLowerCase() === `@${me.username}`.toLowerCase()) {
+        e.stopImmediatePropagation();
+        e.preventDefault();
+        if (typeof closePostModal === 'function') closePostModal();
+        if (typeof closeUserProfile === 'function') closeUserProfile();
+        const btn = document.querySelector('.nav-btn[data-tab="profile"]');
+        if (btn) btn.click();
+        return;
+      }
+    }
     const ownLinks = e.target.closest('[data-open-profile]');
     if (!ownLinks || !me) return;
     const v = ownLinks.getAttribute('data-open-profile') || '';
@@ -4382,9 +4461,30 @@
     try {
       const r = await api('/me', { method: 'PATCH', body: JSON.stringify({ pinnedPostId, pinnedRepostId }) });
       me = r.user;
+      window.me = me;
+      showToast(post.isRepost ? (pinnedRepostId === id ? 'Репост закреплён в Репостах' : 'Репост откреплён') : (pinnedPostId === id ? 'Пост закреплён в Постах' : 'Пост откреплён'));
     } catch (e) { showToast(e.message); }
     renderPosts();
   };
+
+  function startLiveSync() {
+    stopLiveSync();
+    if (!token()) return;
+    liveSyncTimer = setInterval(async () => {
+      if (document.hidden || !token()) return;
+      try { await Promise.all([syncPosts(), syncStories()]); } catch {}
+    }, 2000);
+  }
+
+  function stopLiveSync() {
+    if (liveSyncTimer) clearInterval(liveSyncTimer);
+    liveSyncTimer = null;
+  }
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden || !token()) return;
+    Promise.all([syncPosts(), syncStories()]).catch(() => {});
+  });
 
 
   function patchOwnerButtons() {
@@ -4415,9 +4515,11 @@
       hideLoginScreen();
       const homeBtn = document.querySelector('.nav-btn[data-tab="home"]'); if (homeBtn) homeBtn.click();
       await Promise.all([syncPosts(), syncTrends(), syncStories()]);
+      startLiveSync();
     } catch {
       dropToken();
       showLoginScreen();
+      stopLiveSync();
     }
   })();
 })();
