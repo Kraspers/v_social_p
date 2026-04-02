@@ -1,0 +1,9 @@
+{
+  "name": "v_social_p",
+  "version": "1.0.0",
+  "description": "VP social backend",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  }
+}

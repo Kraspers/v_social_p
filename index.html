@@ -3976,5 +3976,153 @@
     <span>Условия использования</span>
     <span>© ВПизде</span>
 </div>
+
+<script>
+// ==== Backend integration layer (without UI changes) ====
+(() => {
+  const API_BASE = `${location.origin}/api`;
+  const TOKEN_KEY = 'vp_token';
+  let me = null;
+
+  const token = () => localStorage.getItem(TOKEN_KEY);
+  const setToken = (t) => localStorage.setItem(TOKEN_KEY, t);
+  const dropToken = () => localStorage.removeItem(TOKEN_KEY);
+
+  async function api(path, opts = {}) {
+    const headers = { 'Content-Type': 'application/json', ...(opts.headers || {}) };
+    if (token()) headers.Authorization = `Bearer ${token()}`;
+    const res = await fetch(`${API_BASE}${path}`, { ...opts, headers });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || 'API error');
+    return data;
+  }
+
+  async function syncMe() {
+    const r = await api('/me');
+    me = r.user;
+  }
+
+  async function syncPosts() {
+    const r = await api('/posts');
+    posts = r.posts || [];
+    renderPosts();
+  }
+
+  window.doLogin = async function doLogin() {
+    const u = document.getElementById('login-username').value.trim();
+    const p = document.getElementById('login-password').value;
+    const err = document.getElementById('login-error');
+    err.textContent = '';
+    if (!u || !p) { err.textContent = 'Введите логин и пароль'; return; }
+    try {
+      const r = await api('/auth/login', { method: 'POST', body: JSON.stringify({ username: u, password: p }) });
+      setToken(r.token);
+      await syncMe();
+      hideLoginScreen();
+      await syncPosts();
+    } catch (e) { err.textContent = e.message; }
+  };
+
+  window.doRegister = async function doRegister() {
+    const dn = document.getElementById('reg-displayname').value.trim();
+    const u = document.getElementById('reg-username').value.trim();
+    const p = document.getElementById('reg-password').value;
+    const p2 = document.getElementById('reg-password2').value;
+    const err = document.getElementById('reg-error');
+    err.textContent = '';
+    if (p !== p2) { err.textContent = 'Пароли не совпадают'; return; }
+    try {
+      const r = await api('/auth/register', { method: 'POST', body: JSON.stringify({ username: u, password: p, displayName: dn }) });
+      setToken(r.token);
+      await syncMe();
+      hideLoginScreen();
+      await syncPosts();
+    } catch (e) { err.textContent = e.message; }
+  };
+
+  window.doVpscLogin = function doVpscLogin() {
+    document.getElementById('vpsc-error').textContent = 'VPSC отключен: используйте логин/пароль через backend';
+  };
+
+  const originalOpenPostModal = window.openPostModal;
+  window.openPostModal = async function(post) {
+    originalOpenPostModal(post);
+    try {
+      const r = await api(`/posts/${post.id}/comments`);
+      const flat = r.comments || [];
+      const byId = new Map();
+      flat.forEach(c => byId.set(c.id, { ...c, replies: [] }));
+      const roots = [];
+      flat.forEach(c => {
+        const node = byId.get(c.id);
+        if (c.parentId && byId.has(c.parentId)) byId.get(c.parentId).replies.push(node);
+        else roots.push(node);
+      });
+      postComments[post.id] = roots;
+      renderComments();
+    } catch (_) {}
+  };
+
+  const postBtn = document.getElementById('post-submit');
+  const postBtnClone = postBtn.cloneNode(true);
+  postBtn.parentNode.replaceChild(postBtnClone, postBtn);
+  postBtnClone.addEventListener('click', async () => {
+    const text = postInput.value.trim();
+    if (!text && composerMedia.length === 0) return;
+    try {
+      await api('/posts', { method: 'POST', body: JSON.stringify({ text, media: composerMedia }) });
+      postInput.value = '';
+      composerMedia = [];
+      renderComposerPreviews();
+      charCounter.textContent = '0/280';
+      charCounter.classList.remove('visible','warning','danger');
+      await syncPosts();
+    } catch (e) { alert(e.message); }
+  });
+
+  const cbtn = document.getElementById('comment-submit');
+  const cbtnClone = cbtn.cloneNode(true);
+  cbtn.parentNode.replaceChild(cbtnClone, cbtn);
+  cbtnClone.addEventListener('click', async () => {
+    const text = document.getElementById('comment-input').value.trim();
+    if (!text || !currentPostId) return;
+    try {
+      await api(`/posts/${currentPostId}/comments`, { method: 'POST', body: JSON.stringify({ text, parentId: replyTargetCommentId || null }) });
+      document.getElementById('comment-input').value = '';
+      replyTargetCommentId = null;
+      const r = await api(`/posts/${currentPostId}/comments`);
+      postComments[currentPostId] = r.comments || [];
+      renderComments();
+      await syncPosts();
+    } catch (e) { alert(e.message); }
+  });
+
+  document.addEventListener('click', async (e) => {
+    const btn = e.target.closest('.action-btn[data-action="like"]');
+    if (!btn) return;
+    e.stopImmediatePropagation();
+    const id = Number(btn.dataset.id);
+    try {
+      await api(`/posts/${id}/like`, { method: 'POST' });
+      await syncPosts();
+    } catch (err) { console.error(err); }
+  }, true);
+
+  (async () => {
+    posts = [];
+    renderPosts();
+    if (!token()) { showLoginScreen(); return; }
+    try {
+      await syncMe();
+      hideLoginScreen();
+      await syncPosts();
+    } catch {
+      dropToken();
+      showLoginScreen();
+    }
+  })();
+})();
+</script>
+
 </body>
 </html>
