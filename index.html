@@ -2317,7 +2317,7 @@
                         </button>
                         <button class="comment-action-btn" onclick="prepareReplyInMainInput('${c.username.replace('@','')}', ${c.id})">Ответить</button>
                     </div>
-                    ${!nested && replies.length ? `<div class="comment-replies-container" id="replies-${c.id}">${visibleReplies.map(r=>makeHTML(r,true)).join('')}</div>` : ''}
+                    ${replies.length ? `<div class="comment-replies-container" id="replies-${c.id}">${visibleReplies.map(r=>makeHTML(r,true)).join('')}</div>` : ''}
                     ${shouldCollapseReplies ? `<button class="comment-replies-toggle" onclick="toggleRepliesVisibility(${c.id})">${isExpanded ? 'Свернуть ответы' : `Показать ответы (${replies.length})`}</button>` : ''}
                 </div>
             </div>`;
@@ -3860,7 +3860,7 @@
             : (u.bannerGradient ? `background:${u.bannerGradient};` : `background:linear-gradient(135deg,#0078FF 0%,#23D4F9 100%);`);
         const followers = u.followers !== undefined ? u.followers : 0;
         const following = u.following !== undefined ? u.following : 0;
-        const isSubscribed = subscribedUsers.has(uname);
+        const isSubscribed = typeof u.isFollowing === 'boolean' ? u.isFollowing : subscribedUsers.has(uname);
 
         body.innerHTML = `
             <div style="height:150px;${coverStyle}position:relative;"></div>
@@ -3888,40 +3888,41 @@
                 <div id="upm-posts-feed"></div>
             </div>
             <div id="upm-reposts-list" style="display:none;padding:12px 16px 80px;">
-                <div style="text-align:center;color:rgba(255,255,255,0.3);padding:40px 0;font-size:14px;">Нет репостов</div>
+                <div id="upm-reposts-feed"></div>
             </div>`;
 
-        const upmFeed = document.getElementById('upm-posts-feed');
-        const feedLinkedPosts = posts.filter(p => p.username === '@' + uname && !p.isRepost);
-        const userPosts = feedLinkedPosts.length ? feedLinkedPosts : (u.posts || []);
+        const allLinked = Array.isArray(u.posts) ? u.posts : [];
+        let postItems = allLinked.filter((p) => !p.isRepost);
+        let repostItems = allLinked.filter((p) => p.isRepost);
+        if (u.pinnedPostId) postItems = [...postItems.filter((p) => p.id === u.pinnedPostId), ...postItems.filter((p) => p.id !== u.pinnedPostId)];
+        if (u.pinnedRepostId) repostItems = [...repostItems.filter((p) => p.id === u.pinnedRepostId), ...repostItems.filter((p) => p.id !== u.pinnedRepostId)];
+
         upmLocalPosts.clear();
-        if (!userPosts.length) {
-            upmFeed.innerHTML = '<div style="text-align:center;color:rgba(255,255,255,0.3);padding:40px 0;font-size:14px;">Нет постов</div>';
-        } else {
-            upmFeed.innerHTML = '';
-            userPosts.forEach((p, idx) => {
-                const upmPost = feedLinkedPosts.length
-                    ? p
-                    : {
-                        id: 900000 + idx,
-                        author: displayName,
-                        username: '@' + uname,
-                        avatar: letter,
-                        text: p.text || '',
-                        time: p.time || 'Недавно',
-                        likes: p.likes || 0,
-                        reposts: p.reposts || 0,
-                        comments: p.comments || 0,
-                        liked: !!p.liked,
-                        reposted: !!p.reposted,
-                        media: Array.isArray(p.media) ? p.media : [],
-                        avatarUrl: u.avatarUrl || null
-                    };
-                upmLocalPosts.set(upmPost.id, upmPost);
-                const el = createPostElement(upmPost);
-                upmFeed.appendChild(el);
+        const upmPostsFeed = document.getElementById('upm-posts-feed');
+        const upmRepostsFeed = document.getElementById('upm-reposts-feed');
+
+        const renderList = (list, mount, pinId) => {
+            if (!list.length) {
+                mount.innerHTML = '<div style="text-align:center;color:rgba(255,255,255,0.3);padding:40px 0;font-size:14px;">Нет постов</div>';
+                return;
+            }
+            mount.innerHTML = '';
+            list.forEach((post) => {
+                upmLocalPosts.set(post.id, post);
+                const el = createPostElement(post);
+                if (pinId && post.id === pinId) {
+                    const badge = document.createElement('div');
+                    badge.style.cssText = 'font-size:12px;color:rgba(255,255,255,0.4);display:flex;align-items:center;gap:5px;padding:0 0 8px 0;';
+                    badge.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V17z"/></svg> Закреплено';
+                    el.insertBefore(badge, el.firstChild);
+                }
+                mount.appendChild(el);
             });
-        }
+        };
+
+        renderList(postItems, upmPostsFeed, u.pinnedPostId);
+        renderList(repostItems, upmRepostsFeed, u.pinnedRepostId);
+        if (!repostItems.length) upmRepostsFeed.innerHTML = '<div style="text-align:center;color:rgba(255,255,255,0.3);padding:40px 0;font-size:14px;">Нет репостов</div>';
     }
 
     function switchUpmTab(tab, uname) {
@@ -4355,15 +4356,20 @@
     try {
       const [uRes, pRes] = await Promise.all([api(`/users/${uname}`), api('/posts')]);
       const u = uRes.user;
-      const linked = (pRes.posts || []).filter(p => p.username.toLowerCase() === `@${u.username}`);
+      const linked = (pRes.posts || []).filter(p => String(p.username || '').toLowerCase() === `@${u.username}`.toLowerCase());
+      const absAvatar = absoluteUrl(u.avatarUrl || '');
+      const absBanner = absoluteUrl(u.bannerUrl || '');
       const userData = {
         displayname: u.displayName,
         bio: u.bio || '',
         followers: u.followers || 0,
         following: u.following || 0,
-        avatarUrl: u.avatarUrl || '',
-        bannerUrl: u.bannerUrl || '',
-        posts: linked.map(p => ({ text: p.text, time: p.time, likes: p.likes, comments: p.comments, reposts: p.reposts, liked: p.liked, reposted: p.reposted, media: p.media||[], avatarUrl: u.avatarUrl || '' }))
+        isFollowing: !!u.isFollowing,
+        avatarUrl: absAvatar,
+        bannerUrl: absBanner,
+        pinnedPostId: u.pinnedPostId || null,
+        pinnedRepostId: u.pinnedRepostId || null,
+        posts: linked.map(p => ({ ...p, avatarUrl: absAvatar }))
       };
       renderUserProfileBody(uname, userData, body);
     } catch (e) {
@@ -4390,32 +4396,45 @@
 
   document.addEventListener('click', (e) => {
     if (!me) return;
-    const mention = e.target.closest('.mention');
+    const targetEl = e.target instanceof Element ? e.target : null;
+    if (!targetEl) return;
+
+    const mention = targetEl.closest('.mention');
     if (mention) {
       const mentioned = mention.textContent.replace(/^@/, '').trim().toLowerCase();
+      e.stopImmediatePropagation();
+      e.preventDefault();
       if (mentioned === String(me.username || '').toLowerCase()) {
-        e.stopImmediatePropagation();
-        e.preventDefault();
         if (typeof closePostModal === 'function') closePostModal();
         const btn = document.querySelector('.nav-btn[data-tab="profile"]');
         if (btn) btn.click();
-        return;
+      } else {
+        openUserProfile(mentioned);
       }
+      return;
     }
-    const ownLinks = e.target.closest('[data-open-profile]');
-    if (!ownLinks) return;
-    const v = ownLinks.getAttribute('data-open-profile') || '';
-    if (v.toLowerCase() !== `@${me.username}`.toLowerCase()) return;
+
+    const profileLink = targetEl.closest('[data-open-profile]');
+    if (!profileLink) return;
+    const v = String(profileLink.getAttribute('data-open-profile') || '').replace(/^@/, '').toLowerCase();
+    if (!v) return;
     e.stopImmediatePropagation();
-    if (typeof closePostModal === 'function') closePostModal();
-    const btn = document.querySelector('.nav-btn[data-tab="profile"]');
-    if (btn) btn.click();
+    e.preventDefault();
+    if (v === String(me.username || '').toLowerCase()) {
+      if (typeof closePostModal === 'function') closePostModal();
+      const btn = document.querySelector('.nav-btn[data-tab="profile"]');
+      if (btn) btn.click();
+      return;
+    }
+    openUserProfile(v);
   }, true);
 
   const originalOpenEditModal = window.openEditModal;
   if (typeof originalOpenEditModal === 'function') {
     window.openEditModal = function openEditModal() {
-      syncMe().catch(() => {}).finally(() => { syncProfileUi(); originalOpenEditModal(); });
+      syncProfileUi();
+      originalOpenEditModal();
+      syncMe().then(syncProfileUi).catch(() => {});
     };
   }
 
