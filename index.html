@@ -4010,7 +4010,6 @@
       profileData.avatarUrl = me.avatarUrl || null;
       profileData.bannerUrl = me.bannerUrl || null;
       profileData.vpsc = me.vpsc || profileData.vpsc;
-      if (typeof applyProfileData === 'function') applyProfileData();
     }
     const nameEl = document.querySelector('.profile-name'); if (nameEl) nameEl.textContent = me.displayName || '';
     const uEl = document.querySelector('.profile-username'); if (uEl) uEl.textContent = `@${me.username}`;
@@ -4019,6 +4018,16 @@
     if (st[0] && typeof me.following==='number') st[0].textContent = me.following;
     if (st[1] && typeof me.followers==='number') st[1].textContent = me.followers;
     const vpsc = document.getElementById('ep-vpsc-code'); if (vpsc) vpsc.textContent = me.vpsc || '';
+    const nav = document.getElementById('nav-profile-avatar');
+    if (nav) nav.innerHTML = me.avatarUrl ? `<img src="${me.avatarUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">` : (me.displayName||'Я')[0].toUpperCase();
+    const pa = document.querySelector('.profile-avatar');
+    if (pa) pa.innerHTML = me.avatarUrl ? `<img src="${me.avatarUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">` : (me.displayName||'Я')[0].toUpperCase();
+    const cover = document.querySelector('.profile-cover');
+    if (cover && me.bannerUrl) cover.style.background = `url('${me.bannerUrl}') center/cover no-repeat`;
+    const epi = document.getElementById('ep-avatar-img');
+    if (epi && me.avatarUrl) { epi.src = me.avatarUrl; epi.classList.add('loaded'); const l = document.getElementById('ep-avatar-letter'); if (l) l.style.display='none'; }
+    const epb = document.getElementById('ep-banner-img');
+    if (epb && me.bannerUrl) { epb.src = me.bannerUrl; epb.classList.add('loaded'); }
   }
 
   async function syncMe() {
@@ -4029,7 +4038,12 @@
 
   async function syncPosts() {
     const r = await api('/posts');
-    posts = r.posts || [];
+    posts = (r.posts || []).map(p => {
+      if (me && p.username === `@${me.username}`) {
+        return { ...p, author: 'Вы', username: '@username', avatar: 'Я' };
+      }
+      return p;
+    });
     renderPosts();
     const feed = document.getElementById('feed');
     if (feed && posts.length === 0) feed.innerHTML = '<div style="text-align:center;color:rgba(255,255,255,0.35);padding:40px 20px;font-size:14px;">Лента пуста</div>';
@@ -4263,6 +4277,50 @@
   };
   postInput?.addEventListener('input', recalcPostBtn);
   document.getElementById('composer-file-input')?.addEventListener('change', () => setTimeout(recalcPostBtn, 0));
+
+
+  window.openUserProfile = async function openUserProfile(username) {
+    const uname = String(username || '').replace(/^@/, '').toLowerCase();
+    const modal = document.getElementById('user-profile-modal');
+    const body = document.getElementById('upm-body');
+    if (!uname || !modal || !body) return;
+    body.innerHTML = '<div style="padding:20px;color:rgba(255,255,255,.6)">Загрузка...</div>';
+    modal.classList.add('active');
+    requestAnimationFrame(()=>requestAnimationFrame(()=>modal.classList.add('visible')));
+    try {
+      const [uRes, pRes] = await Promise.all([api(`/users/${uname}`), api('/posts')]);
+      const u = uRes.user;
+      const linked = (pRes.posts || []).filter(p => p.username.toLowerCase() === `@${u.username}`);
+      const userData = {
+        displayname: u.displayName,
+        bio: u.bio || '',
+        followers: u.followers || 0,
+        following: u.following || 0,
+        avatarUrl: u.avatarUrl || '',
+        bannerUrl: u.bannerUrl || '',
+        posts: linked.map(p => ({ text: p.text, time: p.time, likes: p.likes, comments: p.comments, reposts: p.reposts, liked: p.liked, reposted: p.reposted, media: p.media||[], avatarUrl: u.avatarUrl || '' }))
+      };
+      renderUserProfileBody(uname, userData, body);
+    } catch (e) {
+      body.innerHTML = '<div style="padding:20px;color:rgba(255,255,255,.6)">404: Пользователь не найден</div>';
+    }
+  };
+
+  window.toggleSubscribe = async function toggleSubscribe(uname) {
+    try {
+      const r = await api(`/users/${uname}/follow`, { method: 'POST' });
+      const btn = document.getElementById('upm-subscribe-btn');
+      const followersEl = document.getElementById('upm-followers');
+      if (!btn || !followersEl) return;
+      const c = parseInt(followersEl.textContent || '0', 10);
+      if (r.following) {
+        btn.style.background = 'rgba(255,255,255,0.08)'; btn.style.color = '#e6e6e9'; btn.textContent = 'Вы подписаны'; followersEl.textContent = c + 1;
+      } else {
+        btn.style.background = 'white'; btn.style.color = '#000'; btn.textContent = 'Подписаться'; followersEl.textContent = Math.max(0, c - 1);
+      }
+      await syncMe();
+    } catch (e) { showToast(e.message); }
+  };
 
   (async () => {
     posts = [];
