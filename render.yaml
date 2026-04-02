@@ -1,4 +1,31 @@
 services:
+  - type: web
+    name: v-social-backend
+    env: node
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: npm run start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_ACCESS_SECRET
+        sync: false
+      - key: JWT_REFRESH_SECRET
+        sync: false
+      - key: JWT_ACCESS_TTL
+        value: 15m
+      - key: JWT_REFRESH_TTL
+        value: 30d
+      - key: CORS_ORIGIN
+        value: https://v-social-p.onrender.com
+      - key: BCRYPT_ROUNDS
+        value: 12
+
   - type: static_site
     name: v-social-p
     staticPublishPath: .
