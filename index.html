@@ -1567,9 +1567,9 @@
             </div>
             <div class="profile-info">
                 <div class="profile-avatar">Я</div>
-                <div class="profile-name">Ваше Имя</div>
-                <div class="profile-username">@username</div>
-                <div class="profile-bio">Здесь ваше описание профиля. Расскажите о себе что-нибудь интересное! #впизде</div>
+                <div class="profile-name"></div>
+                <div class="profile-username"></div>
+                <div class="profile-bio"></div>
                 <div class="profile-stats">
                     <div class="stat-item"><span class="stat-number">256</span><span class="stat-label">Подписчиков</span></div>
                     <div class="stat-item"><span class="stat-number">89</span><span class="stat-label">Репостов</span></div>
@@ -1798,14 +1798,14 @@
             <div style="padding:52px 16px 0;display:flex;flex-direction:column;gap:16px;">
                 <div>
                     <div style="font-size:13px;font-weight:700;color:#e6e6e9;margin-bottom:6px;">Имя</div>
-                    <input id="ep-name" type="text" placeholder="Ваше отображаемое имя" value="Ваше Имя"
+                    <input id="ep-name" type="text" placeholder="Ваше отображаемое имя" value=""
                         style="width:100%;box-sizing:border-box;background:#2a2a2e;border:none;border-radius:14px;padding:18px 18px;color:#e6e6e9;font-size:16px;font-family:inherit;outline:none;-webkit-appearance:none;"
                         onfocus="this.style.background='#333338'" onblur="this.style.background='#2a2a2e'">
                     <div style="font-size:12px;color:rgba(255,255,255,0.3);margin-top:5px;padding-left:4px;">Ваше отображаемое имя</div>
                 </div>
                 <div>
                     <div style="font-size:13px;font-weight:700;color:#e6e6e9;margin-bottom:6px;">Username</div>
-                    <input id="ep-username" type="text" placeholder="username" value="username"
+                    <input id="ep-username" type="text" placeholder="username" value=""
                         style="width:100%;box-sizing:border-box;background:#2a2a2e;border:none;border-radius:14px;padding:18px 18px;color:#e6e6e9;font-size:16px;font-family:inherit;outline:none;-webkit-appearance:none;"
                         onfocus="this.style.background='#333338'" onblur="this.style.background='#2a2a2e'"
                         autocorrect="off" autocapitalize="off" spellcheck="false" oninput="this.value=this.value.replace(/[^a-zA-Z0-9_.-]/g,'')">
@@ -1815,14 +1815,14 @@
                     <div style="font-size:13px;font-weight:700;color:#e6e6e9;margin-bottom:6px;">О себе</div>
                     <textarea id="ep-bio" placeholder="Расскажите немного о себе"
                         style="width:100%;box-sizing:border-box;background:#2a2a2e;border:none;border-radius:14px;padding:18px 18px;color:#e6e6e9;font-size:16px;font-family:inherit;outline:none;resize:none;min-height:100px;-webkit-appearance:none;line-height:1.4;"
-                        onfocus="this.style.background='#333338'" onblur="this.style.background='#2a2a2e'">Здесь ваше описание профиля. Расскажите о себе что-нибудь интересное! #впизде</textarea>
+                        onfocus="this.style.background='#333338'" onblur="this.style.background='#2a2a2e'"></textarea>
                 </div>
             </div>
             <div class="ep-settings-section">
                 <div class="ep-settings-title">Основные настройки</div>
                 <div class="ep-vpsc-card" onclick="copyVPSC()" title="Нажмите, чтобы скопировать">
                     <img src="assets/vpprivacy.png" alt="VPSC" style="height:32px;width:auto;object-fit:contain;" onerror="this.style.display='none'">
-                    <div class="ep-vpsc-code" id="ep-vpsc-code">A7K2M9</div>
+                    <div class="ep-vpsc-code" id="ep-vpsc-code"></div>
                 </div>
                 <button class="ep-action-btn password" onclick="openChangePasswordModal()">
                     <div class="ep-action-icon">
@@ -3032,7 +3032,7 @@
     let cropMode = null, cropImage = null;
     let cropOffsetX = 0, cropOffsetY = 0, cropStartX = 0, cropStartY = 0;
     let cropDragging = false, cropZoom = 1, cropNaturalW = 0, cropNaturalH = 0;
-    let profileData = { name: 'Ваше Имя', username: '@username', bio: 'Здесь ваше описание профиля. Расскажите о себе что-нибудь интересное! #впизде', avatarUrl: null, bannerUrl: null, vpsc: 'A7K2M9' };
+    let profileData = { name: '', username: '', bio: '', avatarUrl: null, bannerUrl: null, vpsc: '' };
 
     function openEditModal() {
         const ov = document.getElementById('edit-modal-overlay');
@@ -4377,7 +4377,19 @@
       try {
         const id = Number(likeBtn.dataset.id);
         const p = posts.find(x => x.id === id) || upmLocalPosts.get(id);
-        if (p) { p.liked = !p.liked; p.likes += p.liked ? 1 : -1; renderPosts(); }
+        if (p) {
+          p.liked = !p.liked;
+          p.likes += p.liked ? 1 : -1;
+          renderPosts();
+          const likeBtnModal = document.querySelector('#modal-post-container .action-btn[data-action="like"]');
+          if (likeBtnModal && Number(likeBtnModal.dataset.id || 0) === id) {
+            likeBtnModal.classList.toggle('liked', !!p.liked);
+            const count = likeBtnModal.querySelector('span');
+            if (count) count.textContent = String(p.likes);
+            const icon = likeBtnModal.querySelector('svg');
+            if (icon) icon.setAttribute('fill', p.liked ? 'currentColor' : 'none');
+          }
+        }
         await api(`/posts/${id}/like`, { method: 'POST' });
       } catch {}
       return;
@@ -4501,7 +4513,8 @@
   }
 
   window.saveEditedPost = async function saveEditedPost() {
-    const post = posts.find((p) => p.id === editPostId);
+    const id = postOptsId;
+    const post = posts.find((p) => p.id === id);
     if (!post) return;
     const nextText = document.getElementById('edit-post-textarea').value.trim();
     if (nextText === '' && editPostMedia.length === 0) {
@@ -4509,8 +4522,9 @@
       return;
     }
     try {
-      await api(`/posts/${editPostId}`, { method: 'PATCH', body: JSON.stringify({ text: nextText, media: editPostMedia.map((m) => ({ ...m })) }) });
+      await api(`/posts/${id}`, { method: 'PATCH', body: JSON.stringify({ text: nextText, media: editPostMedia.map((m) => ({ ...m })) }) });
       closeEditPostSheet();
+      postOptsId = null;
       await syncPosts();
       showToast('Пост обновлён');
     } catch (e) {
