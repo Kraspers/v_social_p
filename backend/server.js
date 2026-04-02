@@ -5,7 +5,12 @@ const db = require('./src/config/db');
 let server;
 
 const start = async () => {
-  await db.query('SELECT 1');
+  if (db.isConfigured) {
+    await db.query('SELECT 1');
+  } else {
+    console.warn('[startup] DATABASE_URL is not set. API routes requiring DB will fail until configured.');
+  }
+
   server = app.listen(env.port, () => {
     console.log(`Backend running on :${env.port}`);
   });
