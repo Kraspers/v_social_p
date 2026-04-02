@@ -17,6 +17,8 @@ app.use(cookieParser());
 app.use(morgan('dev'));
 
 app.get('/health', (_req, res) => res.json({ status: 'ok' }));
+app.get('/', (_req, res) => res.json({ status: 'ok', service: 'v-social-backend', api: '/api/v1' }));
+app.head('/', (_req, res) => res.status(200).end());
 app.use('/api/v1', routes);
 
 app.use(notFoundMiddleware);

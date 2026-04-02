@@ -2405,7 +2405,7 @@
     const SESSION_KEY = 'vp_session';
     const ACCESS_TOKEN_KEY = 'vp_access_token';
     const REFRESH_TOKEN_KEY = 'vp_refresh_token';
-    const API_BASE = (window.__API_BASE__ || 'http://localhost:4000') + '/api/v1';
+    const API_BASE = (window.__API_BASE__ || (location.hostname.endsWith('onrender.com') ? 'https://v-social-backend.onrender.com' : 'http://localhost:4000')) + '/api/v1';
     const usersCache = {};
 
     function getUsers() { return usersCache; }
