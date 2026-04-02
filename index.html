@@ -4043,6 +4043,7 @@
     const r = await api('/posts');
     posts = (r.posts || []);
     renderPosts();
+    const st = document.querySelectorAll('.stat-item .stat-number'); if (st[1]) st[1].textContent = posts.filter(p => p.isRepost).length;
     const feed = document.getElementById('feed');
     if (feed && posts.length === 0) feed.innerHTML = '<div style="text-align:center;color:rgba(255,255,255,0.35);padding:40px 20px;font-size:14px;">Лента пуста</div>';
   }
@@ -4165,14 +4166,17 @@
     navigator.clipboard.writeText(text).then(() => showToast('VPSC скопирован'));
   };
 
+  function formatStoryTime(iso){const d=Math.max(0,Date.now()-new Date(iso).getTime());const m=Math.floor(d/60000);const h=Math.floor(d/3600000); if(d<60000)return 'Только что'; if(m<60)return `${m} мин`; if(h<24)return `${h} ч`; return `${Math.floor(d/86400000)} д`; }
+
   async function syncStories() {
     try {
       const r = await api('/stories');
       const byUser = new Map();
-      (r.stories || []).forEach(s => {
+      const orderedStories = (r.stories || []).slice().sort((a,b)=>new Date(a.createdAt)-new Date(b.createdAt));
+      orderedStories.forEach(s => {
         const key = s.username;
         if (!byUser.has(key)) byUser.set(key, { user: s, items: [] });
-        byUser.get(key).items.push({ type: s.mediaType, src: s.src, text: s.caption || '', time: 'Только что' });
+        byUser.get(key).items.push({ type: s.mediaType, src: s.src, text: s.caption || '', time: s.createdAt, username: s.username, avatar: s.avatar, avatarUrl: s.avatarUrl });
       });
       const list = document.getElementById('stories-list');
       if (!list) return;
@@ -4183,13 +4187,18 @@
         el.innerHTML = `<div class="story-avatar"><div class="story-avatar-inner">${user.avatarUrl?`<img class="story-avatar-img" src="${user.avatarUrl}">`:`<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:white;background:linear-gradient(135deg,#0078FF 0%,#23D4F9 100%)">${user.avatar}</div>`}</div></div><div class="story-username">${user.username}</div>`;
         el.onclick = () => {
           const viewed = JSON.parse(localStorage.getItem('vp_story_viewed')||'{}');
-          viewed[user.username] = Date.now();
+          const idx = Number(viewed[user.username] || 0);
+          const start = Math.min(idx, Math.max(0, items.length - 1));
+          document.getElementById('viewer-name').textContent = user.username;
+          document.getElementById('viewer-time').textContent = items[start]?.time ? '· ' + formatStoryTime(items[start].time) : '';
+          document.getElementById('viewer-avatar').innerHTML = user.avatarUrl ? `<img src="${user.avatarUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">` : user.avatar;
+          openStoryViewer(items,start);
+          viewed[user.username] = start + 1;
           localStorage.setItem('vp_story_viewed', JSON.stringify(viewed));
-          el.classList.add('viewed');
-          openStoryViewer(items,0);
+          if ((start + 1) >= items.length) el.classList.add('viewed');
         };
         const viewed = JSON.parse(localStorage.getItem('vp_story_viewed')||'{}');
-        if (viewed[user.username]) el.classList.add('viewed');
+        if (Number(viewed[user.username] || 0) >= items.length) el.classList.add('viewed');
         list.appendChild(el);
       });
     } catch {}
@@ -4202,7 +4211,7 @@
     const storyText = document.getElementById('creator-text-input').value.trim();
     const payload = img.classList.contains('active') ? { mediaType:'image', src: img.dataset.src, caption: storyText } : (vid.classList.contains('active') ? { mediaType:'video', src: vid.dataset.src, caption: storyText } : null);
     if (!payload) return;
-    try { await api('/stories', { method: 'POST', body: JSON.stringify(payload) }); await syncStories(); } catch(err){ alert(err.message); }
+    try { await api('/stories', { method: 'POST', body: JSON.stringify(payload) }); await syncStories(); const sc=document.getElementById('story-creator'); sc.classList.remove('visible'); setTimeout(()=>{sc.classList.remove('active'); resetCreator(); document.body.style.overflow='';}, 380); } catch(err){ alert(err.message); }
   }, true);
 
   function buildCommentTree(flat) {
@@ -4291,7 +4300,7 @@
     const modal = document.getElementById('user-profile-modal');
     const body = document.getElementById('upm-body');
     if (!uname || !modal || !body) return;
-    body.innerHTML = '<div style="padding:20px;color:rgba(255,255,255,.6)">Загрузка...</div>';
+    body.innerHTML = '<div style="padding:40px 20px;text-align:center;color:rgba(255,255,255,.5);font-size:14px;">Загрузка...</div>';
     modal.classList.add('active');
     requestAnimationFrame(()=>requestAnimationFrame(()=>modal.classList.add('visible')));
     try {
@@ -4376,6 +4385,26 @@
     } catch (e) { showToast(e.message); }
     renderPosts();
   };
+
+
+  function patchOwnerButtons() {
+    if (!me) return;
+    document.querySelectorAll('.post').forEach(card => {
+      const id = Number(card.dataset.id || 0);
+      const p = posts.find(x => x.id === id);
+      if (!p || (p.username || '').toLowerCase() !== `@${me.username}`.toLowerCase()) return;
+      const authorRow = card.querySelector('.post-author');
+      if (!authorRow || authorRow.querySelector('.post-options-btn')) return;
+      const btn = document.createElement('button');
+      btn.className = 'post-options-btn';
+      btn.setAttribute('data-post-id', String(id));
+      btn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"></circle><circle cx="12" cy="12" r="2"></circle><circle cx="19" cy="12" r="2"></circle></svg>';
+      btn.onclick = (ev) => handlePostOptionsClick(ev, id, btn);
+      authorRow.appendChild(btn);
+    });
+  }
+  const _renderPosts = window.renderPosts;
+  window.renderPosts = function renderPostsWrapped() { _renderPosts(); patchOwnerButtons(); };
 
   (async () => {
     posts = [];
