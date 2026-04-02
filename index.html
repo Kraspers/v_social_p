@@ -23,13 +23,13 @@
         .stories-list { display: inline-flex; gap: 12px; }
         .story-item { display: flex; flex-direction: column; align-items: center; gap: 6px; cursor: pointer; }
         /* CHANGE 3: gradient 0078FF → 23D4F9 */
-        .story-avatar { width: 64px; height: 64px; border-radius: 50%; padding: 3px; background: linear-gradient(45deg, #0078FF 0%, #23D4F9 50%, #0060CC 100%); background-size: 200% 200%; animation: gradientShift 3s ease infinite; display: flex; align-items: center; justify-content: center; }
+        .story-avatar { width: 66px; height: 66px; border-radius: 50%; padding: 1px; background: linear-gradient(45deg, #0078FF 0%, #23D4F9 50%, #0060CC 100%); background-size: 200% 200%; animation: gradientShift 3s ease infinite; display: flex; align-items: center; justify-content: center; }
         @keyframes gradientShift { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
         .story-avatar.create { background: transparent; animation: none; }
-        .story-avatar-inner { width: 56px; height: 56px; border-radius: 50%; background: white; display: flex; align-items: center; justify-content: center; overflow: hidden; }
-        .story-avatar.create .story-avatar-inner { background: transparent; }
+        .story-avatar-inner { width: 52px; height: 52px; border-radius: 50%; background: #0f0f11; border: 2px solid #0f0f11; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+        .story-avatar.create .story-avatar-inner { width: 58px; height: 58px; background: transparent; border: none; }
         .story-avatar-img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
-        .story-username { font-size: 12px; color: rgba(255,255,255,0.7); max-width: 64px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .story-username { font-size: 12px; color: rgba(255,255,255,0.7); max-width: 66px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .story-viewer { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: #000; z-index: 9999; display: none; flex-direction: column; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
         .story-viewer.active { display: flex; }
         .story-header { position: absolute; top: 0; left: 0; right: 0; z-index: 2; padding: 16px; background: linear-gradient(180deg, rgba(0,0,0,0.5) 0%, transparent 100%); }
@@ -50,6 +50,8 @@
         .story-creator {
             position: fixed; top: 0; left: 0; right: 0; bottom: 0;
             background: rgba(0,0,0,0.55);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
             z-index: 9999;
             display: none;
             align-items: flex-end;
@@ -59,18 +61,23 @@
         }
         .story-creator.active { display: flex; }
         .story-creator.visible { opacity: 1; }
-        .story-creator-topbar {
+        .story-creator-wrap {
             width: 100%;
             max-width: 600px;
+            display: flex;
+            flex-direction: column;
+            transform: translateY(100%);
+            transition: transform 0.45s cubic-bezier(0.16,1,0.3,1);
+        }
+        .story-creator.visible .story-creator-wrap { transform: translateY(0); }
+        .story-creator-topbar {
+            width: 100%;
             padding: 0 8px 10px;
             display: flex;
             align-items: center;
-            position: absolute;
-            left: 50%;
-            top: max(8px, calc(16vh - 56px));
-            transform: translateX(-50%);
             z-index: 3;
             pointer-events: none;
+            flex-shrink: 0;
         }
         .story-creator-topbar .post-modal-outer-back {
             pointer-events: auto;
@@ -80,21 +87,32 @@
             width: 100%; max-width: 600px; height: 88vh;
             background: #1a1b1f; border-radius: 20px 20px 0 0;
             display: flex; flex-direction: column; overflow: hidden; position: relative;
-            transform: translateY(100%);
-            transition: transform 0.45s cubic-bezier(0.16,1,0.3,1);
             border: none;
         }
-        .story-creator.visible .story-creator-inner { transform: translateY(0); }
         /* Desktop same behaviour */
         @media (min-width: 601px) {
-            .story-creator-inner { transform: translateY(100%); opacity: 1; }
-            .story-creator.visible .story-creator-inner { transform: translateY(0); }
-            .story-creator-topbar { top: max(8px, calc(16vh - 56px)); }
+            .story-creator-topbar { padding-top: 0; }
+        }
+        @media (max-width: 600px) {
+            .story-creator-topbar { padding-top: 0; }
         }
         .creator-header { padding: 16px; display: flex; align-items: center; justify-content: space-between; background: #1a1b1f; border-bottom: none; }
         .creator-close { background: none; border: none; color: white; font-size: 28px; cursor: pointer; }
         .creator-title { color: white; font-weight: 600; font-size: 16px; }
-        .creator-done { background: #0D7EFF; color: white; border: none; padding: 8px 20px; border-radius: 20px; font-weight: 600; cursor: pointer; }
+        .creator-done {
+            background: #0D7EFF;
+            border: none;
+            color: white;
+            border-radius: 28px;
+            padding: 14px 32px;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            font-family: inherit;
+            transition: background 0.2s;
+            display: none;
+        }
+        .creator-done:hover { background: #0066dd; }
         .creator-content { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px; padding: 20px; }
         .creator-preview { max-width: 100%; max-height: 60vh; object-fit: contain; display: none; }
         .creator-preview.active { display: block; }
@@ -288,18 +306,13 @@
         .post-modal-outer-back { background: none; border: none; color: white; cursor: pointer; display: flex; align-items: center; gap: 6px; font-size: 20px; font-weight: 700; font-family: inherit; padding: 8px 12px; border-radius: 12px; }
         .post-modal-outer-back:hover { background: rgba(255,255,255,0.08); }
         .post-modal-outer-back svg { flex-shrink: 0; }
-        .post-modal-content { background: #1a1b1f; width: 100%; height: 84vh; position: relative; display: flex; flex-direction: column; border-radius: 22px 22px 0 0; border: none; overflow: hidden; }
+        .post-modal-content { background: #1a1b1f; width: 100%; height: 88vh; position: relative; display: flex; flex-direction: column; border-radius: 22px 22px 0 0; border: none; overflow: hidden; }
         .post-modal-topbar { display: none; }
         .post-modal-back { display: none; }
         .post-modal-handle { width: 36px; height: 4px; background: rgba(255,255,255,0.18); border-radius: 2px; margin: 10px auto 0; flex-shrink: 0; }
         .post-modal-header { display: none; }
         .post-modal-close { background: none; border: none; color: white; font-size: 24px; cursor: pointer; padding: 8px; margin-right: 16px; display: flex; align-items: center; justify-content: center; }
 
-        #user-profile-modal .post-modal-header {
-            display: flex; align-items: center; justify-content: space-between;
-            padding: 8px 8px 8px 0; border-bottom: 1px solid rgba(255,255,255,0.06);
-            background: #131315;
-        }
         .edit-post-sheet .post-opts-header { display: none; }
         .post-modal-body { flex: 1; overflow-y: auto; padding: 16px; }
         .post-modal .post { background: transparent; border: none; padding: 0; margin: 0; backdrop-filter: none; }
@@ -329,6 +342,23 @@
 
         /* replies */
         .comment-replies-container { margin-top: 10px; padding-left: 12px; border-left: 1px solid rgba(255,255,255,0.06); overflow: hidden; }
+        .comment-replies-toggle {
+            margin-top: 10px;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 14px;
+            background: rgba(80,80,88,0.75);
+            border: none;
+            border-radius: 999px;
+            color: #e6e6e9;
+            font-size: 13px;
+            font-weight: 600;
+            font-family: inherit;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .comment-replies-toggle:hover { background: rgba(96,96,104,0.88); }
         .nested-reply { padding: 10px 0 0 0 !important; border-bottom: none !important; }
         .nested-reply .comment-avatar { width: 30px; height: 30px; font-size: 12px; }
         .nested-reply .comment-replies-container { padding-left: 0; border-left: none; }
@@ -341,7 +371,34 @@
         .reply-form .comment-submit svg { width: 14px; height: 14px; }
 
         .post-modal .action-btn { flex: 1; justify-content: center; }
+        #post-modal { z-index: 12050; }
+        #repost-modal-overlay { z-index: 12100 !important; }
+        #user-profile-modal .post {
+            background: rgba(255,255,255,0.03) !important;
+            border-radius: 18px;
+            padding: 16px !important;
+        }
+        #user-profile-modal .post-actions {
+            margin-left: -8px !important;
+            justify-content: flex-start !important;
+            border-top: none !important;
+            border-bottom: none !important;
+            padding: 2px 0 0 !important;
+            margin-top: 10px !important;
+            gap: 4px;
+        }
+        #user-profile-modal .action-btn { flex: none !important; justify-content: flex-start !important; }
         .post-comments-section { margin-top: 20px; }
+        .post-modal-comment-dock {
+            padding: 10px 16px calc(16px + env(safe-area-inset-bottom));
+            border-top: 1px solid rgba(255,255,255,0.06);
+            background: #1a1b1f;
+            flex-shrink: 0;
+        }
+        .post-modal-comment-dock .comment-form {
+            border-bottom: none;
+            padding: 0;
+        }
         .comments-title { font-weight: 600; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.05); }
         .empty-comments { text-align: center; color: rgba(255,255,255,0.4); padding: 40px 0; font-size: 14px; }
         @media (max-width: 600px) { .post-modal-content { max-width: 100%; border: none; } }
@@ -414,10 +471,10 @@
             align-items: center;
             gap: 8px;
             margin: 20px 0 24px 16px;
-            padding: 8px 14px;
+            padding: 10px 16px;
             background: rgba(80,80,88,0.75);
             border-radius: 999px;
-            border: 1px solid rgba(255,255,255,0.12);
+            border: none;
             cursor: pointer;
             width: fit-content;
             transition: background 0.2s, border-color 0.2s;
@@ -430,9 +487,9 @@
             background: none;
             border: none;
             color: rgba(255,255,255,0.85);
-            font-size: 18px;
-            width: 18px;
-            height: 18px;
+            font-size: 24px;
+            width: 24px;
+            height: 24px;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -440,7 +497,7 @@
             flex-shrink: 0;
             line-height: 1;
             padding: 0;
-            margin-top: -1px;
+            margin-top: 0;
         }
         .side-menu-header-title {
             font-size: 14px;
@@ -550,9 +607,10 @@
         }
 
         @media (min-width: 900px) {
-            .bottom-nav { bottom: auto; right: auto; left: max(16px, calc(50% - 520px)); top: 80px; transform: translateY(0); width: 200px; height: auto; display: flex; flex-direction: column; padding: 8px; border-radius: 18px; gap: 2px; max-width: 200px; background: transparent; border: none; box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none; }
+            .container { max-width: 660px; }
+            .bottom-nav { bottom: auto; right: auto; left: max(8px, calc(50% - 560px)); top: 80px; transform: translateY(0); width: 220px; height: auto; display: flex; flex-direction: column; padding: 8px; border-radius: 18px; gap: 2px; max-width: 220px; background: transparent; border: none; box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none; }
             .nav-slider { display: none; }
-            .nav-btn { width: 100%; height: 52px; padding: 0 14px; border-radius: 14px; flex-direction: row; gap: 14px; flex: none; justify-content: flex-start; font-size: 16px; font-weight: 600; }
+            .nav-btn { width: 100%; height: 56px; padding: 0 16px; border-radius: 14px; flex-direction: row; gap: 14px; flex: none; justify-content: flex-start; font-size: 17px; font-weight: 600; }
             .nav-btn span { display: block; }
             .nav-btn svg, .nav-btn #nav-profile-avatar { width: 24px; height: 24px; flex-shrink: 0; }
             .nav-btn #nav-profile-avatar { width: 28px; height: 28px; }
@@ -566,37 +624,93 @@
             .stories-container::-webkit-scrollbar { display: none; }
             /* Post modal on desktop: centered */
             .post-modal { align-items: center; justify-content: center; }
-            .post-modal-wrap { transform: none !important; opacity: 0; transition: opacity 0.25s ease !important; max-width: 600px; }
-            .post-modal.visible .post-modal-wrap { opacity: 1 !important; }
+            .post-modal-wrap { transform: translateY(24px); opacity: 0; transition: transform 0.3s cubic-bezier(0.16,1,0.3,1), opacity 0.3s !important; max-width: 660px; }
+            .post-modal.visible .post-modal-wrap { transform: translateY(0); opacity: 1 !important; }
             .post-modal-outer-header { padding: 0 8px 10px; }
             .post-modal-content {
-                height: 85vh; max-height: 800px; border-radius: 18px !important;
+                height: 88vh; max-height: 860px; border-radius: 18px !important;
                 border: none !important;
             }
             /* Repost modal on desktop: centered dialog */
             #repost-modal-overlay .post-modal-content {
-                height: auto; max-height: 70vh; width: 600px; max-width: 600px;
+                height: auto; max-height: 70vh; width: 660px; max-width: 660px;
             }
-            #repost-modal-overlay .post-modal-wrap { max-width: 600px; }
+            #repost-modal-overlay .post-modal-wrap { max-width: 660px; }
             /* On desktop: centered layout */
             .post-modal { justify-content: center; align-items: center; flex-direction: column; gap: 0; }
-            .post-modal-outer-header { transform: none !important; transition: none !important; max-width: 600px; padding: 0 20px 10px; }
+            .post-modal-outer-header { transform: none !important; transition: none !important; max-width: 660px; padding: 0 20px 10px; }
             .post-modal-content { border-radius: 18px !important; border-bottom: none !important; }
             /* User profile modal: centered panel */
             #user-profile-modal { align-items: center; }
             #user-profile-modal .post-modal-content {
-                height: 90vh; border-radius: 18px !important;
-                max-width: 600px;
-                transform: none !important;
-                transition: opacity 0.25s ease !important;
+                height: 88vh; border-radius: 18px !important;
+                max-width: 660px;
+                transform: translateY(24px);
+                opacity: 0;
+                transition: transform 0.3s cubic-bezier(0.16,1,0.3,1), opacity 0.3s ease !important;
             }
-            #user-profile-modal.active .post-modal-content { opacity: 1 !important; }
+            #user-profile-modal.visible .post-modal-content { transform: translateY(0); opacity: 1 !important; }
+            #post-modal,
+            #user-profile-modal {
+                flex-direction: row;
+                align-items: flex-end;
+                justify-content: center;
+            }
+            #post-modal .post-modal-wrap,
+            #user-profile-modal .post-modal-wrap {
+                width: 100%;
+                max-width: 660px;
+                margin: 0 auto;
+                transform: translateY(100%) !important;
+                opacity: 1 !important;
+                transition: transform 0.4s cubic-bezier(0.16,1,0.3,1) !important;
+            }
+            #post-modal.visible .post-modal-wrap,
+            #user-profile-modal.visible .post-modal-wrap {
+                transform: translateY(0) !important;
+            }
+            #post-modal .post-modal-content,
+            #user-profile-modal .post-modal-content {
+                height: 80vh;
+                border-radius: 20px 20px 0 0 !important;
+            }
+            #post-modal .post-modal-outer-header,
+            #user-profile-modal .post-modal-outer-header {
+                width: 100%;
+                max-width: 660px;
+                padding: 0 8px 10px;
+                margin: 0 auto;
+            }
+            #post-modal .post-modal-comment-dock { padding-bottom: 12px; }
+            #edit-profile-wrap,
+            .edit-modal-topbar,
+            .edit-modal {
+                max-width: 660px;
+            }
+            #edit-profile-wrap,
+            .edit-modal-topbar,
+            .edit-modal,
+            .edit-post-wrap {
+                width: 100%;
+            }
+            #change-pw-overlay .edit-modal,
+            #delete-acc-overlay .edit-modal {
+                max-width: 660px;
+            }
+            #edit-modal-overlay #edit-profile-wrap,
+            #edit-modal-overlay .edit-modal-topbar,
+            #edit-modal-overlay .edit-modal {
+                width: 100%;
+                max-width: 660px;
+            }
+            #edit-profile-wrap { padding: 0; }
+            .edit-modal { max-height: 78vh; }
             /* Edit post sheet on desktop: centered dialog */
             .edit-post-wrap {
                 bottom: auto; top: 50%; left: 50%;
                 transform: translate(-50%, -34%) !important;
                 width: 100%;
-                max-width: 600px;
+                max-width: 660px;
                 opacity: 0;
                 transition: transform 0.3s cubic-bezier(0.16,1,0.3,1), opacity 0.3s !important;
             }
@@ -607,9 +721,10 @@
             .edit-post-sheet { border-radius: 18px !important; padding-bottom: 0 !important; }
             /* Story creator on desktop: centered dialog */
             .story-creator { align-items: flex-end; justify-content: center; }
+            .story-creator-wrap { max-width: 660px; }
             .story-creator-inner {
                 border-radius: 20px 20px 0 0 !important;
-                height: 84vh; max-width: 600px;
+                height: 84vh; max-width: 660px;
                 border: none !important;
                 overflow: hidden;
             }
@@ -662,6 +777,11 @@
             overflow: hidden;
         }
         .edit-modal-overlay.visible .edit-modal { transform: translateY(0); }
+        #upm-posts-feed {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
         .edit-modal-handle {
             width: 36px; height: 4px;
             background: rgba(255,255,255,0.15);
@@ -692,13 +812,19 @@
         .edit-close-x svg { display: block; }
         .edit-close-label { font-size: 15px; font-weight: 600; color: #e6e6e9; white-space: nowrap; }
         .edit-modal-save {
-            width: 38px; height: 38px;
-            background: #0D7EFF; color: white; border: none;
-            border-radius: 50%; cursor: pointer;
-            display: flex; align-items: center; justify-content: center;
-            transition: background 0.2s, transform 0.15s; flex-shrink: 0;
+            background: #0D7EFF;
+            border: none;
+            color: white;
+            border-radius: 999px;
+            padding: 11px 22px;
+            font-size: 15px;
+            font-weight: 700;
+            cursor: pointer;
+            font-family: inherit;
+            transition: background 0.2s;
+            flex-shrink: 0;
         }
-        .edit-modal-save:hover { background: #0066dd; transform: scale(1.08); }
+        .edit-modal-save:hover { background: #0066dd; }
         .edit-modal-body { flex: 1; overflow-y: auto; padding: 0 0 40px; }
         /* Draggable handle area */
         .edit-modal-drag-zone { padding: 4px 0 0; cursor: grab; touch-action: pan-x; }
@@ -723,7 +849,7 @@
         .ep-avatar-wrap {
             position: absolute; bottom: -36px; left: 16px;
             width: 72px; height: 72px; border-radius: 50%;
-            border: 5px solid #0f0f11;
+            border: 5px solid #1a1b1f;
             background: linear-gradient(135deg, #0078FF 0%, #23D4F9 100%);
             display: flex; align-items: center; justify-content: center;
             cursor: pointer; overflow: hidden;
@@ -862,7 +988,7 @@
         .repost-card-name { font-weight: 600; font-size: 14px; }
         .repost-card-uname { color: rgba(255,255,255,0.5); font-size: 13px; }
         .repost-card-time { color: rgba(255,255,255,0.4); font-size: 13px; }
-        .repost-card-text { font-size: 14px; line-height: 1.5; }
+        .repost-card-text { font-size: 14px; line-height: 1.5; overflow-wrap: anywhere; word-break: break-word; }
         /* Repost modal overlay */
         .repost-modal-overlay {
             position: fixed; inset: 0; background: rgba(0,0,0,0.7);
@@ -1183,6 +1309,7 @@
             background: transparent;
             flex-shrink: 0;
         }
+        .creator-caption-actions { display: flex; justify-content: flex-end; margin-top: 12px; }
         .creator-caption-input {
             width: 100%; box-sizing: border-box;
             background: rgba(255,255,255,0.1);
@@ -1221,7 +1348,7 @@
         /* ===== DESKTOP LOGOUT + FOOTER ===== */
         .desktop-logout-btn {
             display: none;
-            position: fixed; bottom: 32px; left: max(16px, calc(50% - 520px));
+            position: fixed; bottom: 32px; left: max(8px, calc(50% - 560px));
             z-index: 500;
             background: none; border: none; cursor: pointer;
             color: rgba(255,255,255,0.55); font-size: 15px; font-weight: 500;
@@ -1506,15 +1633,17 @@
                 <div id="modal-post-container"></div>
                 <div class="post-comments-section">
                     <div class="comments-title">Комментарии</div>
-                    <div class="comment-form" style="align-items:center;padding:10px 0;">
-                        <div style="flex:1;position:relative;display:flex;align-items:center;gap:8px;">
-                            <textarea class="comment-input" id="comment-input" placeholder="Написать комментарий..." oninput="this.style.height='40px';if(this.scrollHeight>40)this.style.height=Math.min(this.scrollHeight,120)+'px';document.getElementById('comment-submit').disabled=!this.value.trim();"></textarea>
-                            <button class="comment-submit" id="comment-submit" disabled style="flex-shrink:0;width:36px;height:36px;">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>
-                            </button>
-                        </div>
-                    </div>
                     <div class="comments-list" id="comments-list"></div>
+                </div>
+            </div>
+            <div class="post-modal-comment-dock">
+                <div class="comment-form" style="align-items:center;">
+                    <div style="flex:1;position:relative;display:flex;align-items:center;gap:8px;">
+                        <textarea class="comment-input" id="comment-input" placeholder="Написать комментарий..." oninput="this.style.height='40px';if(this.scrollHeight>40)this.style.height=Math.min(this.scrollHeight,120)+'px';document.getElementById('comment-submit').disabled=!this.value.trim();"></textarea>
+                        <button class="comment-submit" id="comment-submit" disabled style="flex-shrink:0;width:36px;height:36px;">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1523,32 +1652,36 @@
 
     <!-- Story Creator Modal -->
     <div class="story-creator" id="story-creator">
-        <div class="story-creator-topbar">
-            <button class="post-modal-outer-back" id="creator-close">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-                История
-            </button>
-        </div>
-        <div class="story-creator-inner">
-            <div class="creator-header">
-                <div class="creator-title" style="display:none;">Создать историю</div>
-                <button class="creator-done" id="creator-done" style="display:none;">Готово</button>
+        <div class="story-creator-wrap">
+            <div class="story-creator-topbar">
+                <button class="post-modal-outer-back" id="creator-close">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+                    История
+                </button>
             </div>
-            <div class="creator-content" style="position:relative;">
-                <img class="creator-preview" id="creator-preview" alt="Preview">
-                <video class="creator-preview" id="creator-video-preview" controls></video>
-                <div class="creator-options" id="creator-options">
-                    <div class="creator-option" id="upload-media-btn">
-                        <div class="creator-option-icon">
-                            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+            <div class="story-creator-inner">
+                <div class="creator-header">
+                    <div class="creator-title" style="display:none;">Создать историю</div>
+                </div>
+                <div class="creator-content" style="position:relative;">
+                    <img class="creator-preview" id="creator-preview" alt="Preview">
+                    <video class="creator-preview" id="creator-video-preview" controls></video>
+                    <div class="creator-options" id="creator-options">
+                        <div class="creator-option" id="upload-media-btn">
+                            <div class="creator-option-icon">
+                                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+                            </div>
+                            <div class="creator-option-label">Медиа</div>
                         </div>
-                        <div class="creator-option-label">Медиа</div>
+                    </div>
+                    <input type="file" class="creator-input" id="media-input" accept="image/*,video/*">
+                </div>
+                <div class="creator-caption-bar" id="creator-caption-bar" style="display:none;">
+                    <textarea class="creator-caption-input" id="creator-text-input" placeholder="Добавить описание..." maxlength="280"></textarea>
+                    <div class="creator-caption-actions">
+                        <button class="creator-done" id="creator-done">Опубликовать</button>
                     </div>
                 </div>
-                <input type="file" class="creator-input" id="media-input" accept="image/*,video/*">
-            </div>
-            <div class="creator-caption-bar" id="creator-caption-bar" style="display:none;">
-                <textarea class="creator-caption-input" id="creator-text-input" placeholder="Добавить описание..." maxlength="280" oninput="this.style.height='50px';if(this.scrollHeight>50)this.style.height=Math.min(this.scrollHeight,110)+'px';"></textarea>
             </div>
         </div>
     </div>
@@ -1636,7 +1769,7 @@
         <div class="edit-modal-header">
             <div></div>
             <button class="edit-modal-save" onclick="saveProfile()">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                Сохранить
             </button>
         </div>
         <div class="edit-modal-body">
@@ -1728,12 +1861,6 @@
 <div class="edit-modal-overlay" id="change-pw-overlay" style="z-index:13000;">
     <div class="edit-modal" style="max-height:auto;">
         <div class="edit-modal-handle"></div>
-        <div class="edit-modal-header">
-            <button class="edit-close-pill" onclick="closeChangePasswordModal()">
-                <span class="edit-close-x"><svg width="10" height="10" viewBox="0 0 10 10" fill="none"><line x1="1" y1="1" x2="9" y2="9" stroke="rgba(255,255,255,0.85)" stroke-width="1.8" stroke-linecap="round"/><line x1="9" y1="1" x2="1" y2="9" stroke="rgba(255,255,255,0.85)" stroke-width="1.8" stroke-linecap="round"/></svg></span>
-                <span class="edit-close-label">Изменить пароль</span>
-            </button>
-        </div>
         <div class="edit-modal-body">
             <div style="padding:24px 16px 16px;display:flex;flex-direction:column;gap:14px;">
                 <input id="pw-old" type="password" placeholder="Текущий пароль" autocomplete="current-password"
@@ -1747,6 +1874,7 @@
                     onfocus="this.style.background='#333338'" onblur="this.style.background='#2a2a2e'">
                 <div style="color:#ff453a;font-size:13px;min-height:18px;text-align:center;padding:0 8px;" id="pw-error"></div>
                 <button onclick="submitChangePassword()" style="width:100%;padding:18px;background:#0078FF;border:none;border-radius:20px;color:white;font-size:17px;font-weight:700;cursor:pointer;font-family:inherit;margin-top:4px;">Сохранить</button>
+                <button onclick="closeChangePasswordModal()" style="width:100%;padding:18px;background:rgba(255,255,255,0.05);border:none;border-radius:20px;color:#e6e6e9;font-size:17px;font-weight:600;cursor:pointer;font-family:inherit;">Отмена</button>
             </div>
         </div>
     </div>
@@ -1774,17 +1902,17 @@
 
 <!-- User Profile Viewer Modal -->
 <div class="post-modal" id="user-profile-modal" style="z-index:11000;">
-    <div class="post-modal-content">
-        <div class="post-modal-header" style="position:sticky;top:0;z-index:10;">
-            <button class="post-modal-close" onclick="closeUserProfile()">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-            </button>
-            <div style="font-weight:700;font-size:17px;" id="upm-title"></div>
-            <button class="post-modal-close" onclick="closeUserProfile()" style="margin-right:8px;">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    <div class="post-modal-wrap">
+        <div class="post-modal-outer-header">
+            <button class="post-modal-outer-back" onclick="closeUserProfile()">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+                Профиль
             </button>
         </div>
-        <div class="post-modal-body" id="upm-body" style="padding:0;overflow-y:auto;"></div>
+        <div class="post-modal-content">
+            <div class="post-modal-handle"></div>
+            <div class="post-modal-body" id="upm-body" style="padding:0;overflow-y:auto;"></div>
+        </div>
     </div>
 </div>
 
@@ -2068,6 +2196,10 @@
             if (e.target.closest('[data-open-repost-id]')) return;
             if (e.target.closest('[data-open-profile]')) return;
             if (e.target.classList.contains('mention')) return;
+            if (upmLocalPosts.has(post.id)) {
+                runOutsideUserProfile(() => openPostModal(post));
+                return;
+            }
             openPostModal(post);
         });
         return el;
@@ -2080,7 +2212,13 @@
     const commentSubmit = document.getElementById('comment-submit');
     const commentsList = document.getElementById('comments-list');
     let currentPostId = null;
+    let replyTargetCommentId = null;
     const postComments = {};
+    const expandedReplies = {};
+
+    function runOutsideUserProfile(onReady) {
+        onReady();
+    }
 
     function openPostModal(post) {
         currentPostId = post.id;
@@ -2136,8 +2274,11 @@
     }
 
     function closePostModal() {
+        postModal.classList.remove('visible');
         postModal.classList.remove('active');
-        document.body.style.overflow = '';
+        const profileModal = document.getElementById('user-profile-modal');
+        document.body.style.overflow = (profileModal && profileModal.classList.contains('active')) ? 'hidden' : '';
+        replyTargetCommentId = null;
         setTimeout(() => { postModal.style.display = 'none'; }, 400);
     }
     document.getElementById('post-modal-close').addEventListener('click', closePostModal);
@@ -2152,6 +2293,10 @@
             return;
         }
         function makeHTML(c, nested = false) {
+            const replies = Array.isArray(c.replies) ? c.replies : [];
+            const shouldCollapseReplies = !nested && replies.length > 5;
+            const isExpanded = !!expandedReplies[c.id];
+            const visibleReplies = shouldCollapseReplies && !isExpanded ? [] : replies;
             return `<div class="comment-item${nested?' nested-reply':''}" id="comment-${c.id}">
                 <div class="comment-avatar"${nested?' style="width:30px;height:30px;font-size:12px;"':''} data-open-profile="${c.username}">${c.avatar}</div>
                 <div class="comment-content">
@@ -2165,19 +2310,19 @@
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="${c.liked?'currentColor':'none'}" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
                             <span>${c.likes}</span>
                         </button>
-                        <button class="comment-action-btn" onclick="showReplyForm(${c.id}, '${c.username.replace('@','')}')">Ответить</button>
+                        <button class="comment-action-btn" onclick="prepareReplyInMainInput('${c.username.replace('@','')}', ${c.id})">Ответить</button>
                     </div>
-                    <div class="reply-form" id="reply-form-${c.id}">
-                        <textarea class="comment-input" id="reply-input-${c.id}" placeholder="Ответ @${c.username.replace('@','')}" oninput="this.style.height='40px';if(this.scrollHeight>40)this.style.height=Math.min(this.scrollHeight,120)+'px';"></textarea>
-                        <button class="comment-submit" onclick="submitReply(${c.id})">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>
-                        </button>
-                    </div>
-                    ${!nested && c.replies && c.replies.length ? `<div class="comment-replies-container" id="replies-${c.id}">${c.replies.map(r=>makeHTML(r,true)).join('')}</div>` : ''}
+                    ${!nested && replies.length ? `<div class="comment-replies-container" id="replies-${c.id}">${visibleReplies.map(r=>makeHTML(r,true)).join('')}</div>` : ''}
+                    ${shouldCollapseReplies ? `<button class="comment-replies-toggle" onclick="toggleRepliesVisibility(${c.id})">${isExpanded ? 'Свернуть ответы' : `Показать ответы (${replies.length})`}</button>` : ''}
                 </div>
             </div>`;
         }
         comments.forEach(c => { commentsList.innerHTML += makeHTML(c); });
+    }
+
+    function toggleRepliesVisibility(commentId) {
+        expandedReplies[commentId] = !expandedReplies[commentId];
+        renderComments();
     }
 
     commentInput.addEventListener('input', () => { commentSubmit.disabled = !commentInput.value.trim(); });
@@ -2185,13 +2330,36 @@
         const text = commentInput.value.trim();
         if (!text) return;
         if (!postComments[currentPostId]) postComments[currentPostId] = [];
-        postComments[currentPostId].unshift({ id: Date.now(), author:"Вы", username:"@username", avatar:"Я", text, time:"Только что", likes:0, liked:false, replies:[] });
+        if (replyTargetCommentId) {
+            const comments = postComments[currentPostId];
+            function findRoot(list, targetId) {
+                for (let c of list) {
+                    if (c.id === targetId) return c;
+                    if (c.replies) {
+                        for (let r of c.replies) if (r.id === targetId) return c;
+                        const found = findRoot(c.replies, targetId);
+                        if (found) return found;
+                    }
+                }
+                return null;
+            }
+            const rootComment = findRoot(comments, replyTargetCommentId);
+            if (rootComment) {
+                rootComment.replies.push({ id: Date.now(), author:"Вы", username:"@username", avatar:"Я", text, time:"Только что", likes:0, liked:false, replies:[] });
+            } else {
+                postComments[currentPostId].unshift({ id: Date.now(), author:"Вы", username:"@username", avatar:"Я", text, time:"Только что", likes:0, liked:false, replies:[] });
+            }
+        } else {
+            postComments[currentPostId].unshift({ id: Date.now(), author:"Вы", username:"@username", avatar:"Я", text, time:"Только что", likes:0, liked:false, replies:[] });
+        }
         const post = posts.find(p => p.id === currentPostId);
-        post.comments++;
-        renderPosts(); if (postModal.classList.contains('active')) openPostModal(post);
+        if (!replyTargetCommentId && post) post.comments++;
+        if (post) renderPosts();
+        if (postModal.classList.contains('active')) openPostModal(post || upmLocalPosts.get(currentPostId));
         commentInput.value = '';
         commentInput.style.height = '40px';
         commentSubmit.disabled = true;
+        replyTargetCommentId = null;
         renderComments();
     });
 
@@ -2207,7 +2375,10 @@
     function setSession(u) { try { localStorage.setItem(SESSION_KEY, u); } catch(e){} }
 
     function showLoginScreen() { document.getElementById('login-screen').classList.remove('hidden'); }
-    function hideLoginScreen() { document.getElementById('login-screen').classList.add('hidden'); }
+    function hideLoginScreen() {
+        document.getElementById('login-screen').classList.add('hidden');
+        window.scrollTo(0, 0);
+    }
     function showMainPanel() {
         document.getElementById('login-main-panel').style.display = 'flex';
         document.getElementById('vpsc-panel').classList.remove('active');
@@ -2307,41 +2478,15 @@
         renderComments();
     };
 
-    window.showReplyForm = (id, username) => {
-        const form = document.getElementById(`reply-form-${id}`);
-        if (form.classList.contains('active')) { form.classList.remove('active'); return; }
-        document.querySelectorAll('.reply-form').forEach(f => f.classList.remove('active'));
-        form.classList.add('active');
-        const inp = document.getElementById(`reply-input-${id}`);
-        // Pre-fill @username
+    window.prepareReplyInMainInput = (username, commentId) => {
         const mention = username ? '@' + username.replace(/^@/,'') + ' ' : '';
+        const inp = document.getElementById('comment-input');
+        replyTargetCommentId = commentId || null;
         inp.value = mention;
         inp.focus();
-        // move cursor to end
-        inp.setSelectionRange(inp.value.length, inp.value.length);
-    };
-
-    window.submitReply = id => {
-        const input = document.getElementById(`reply-input-${id}`);
-        const text = input.value.trim();
-        if (!text) return;
-        const comments = postComments[currentPostId];
-        function findRoot(list, targetId) {
-            for (let c of list) {
-                if (c.id === targetId) return c;
-                if (c.replies) {
-                    for (let r of c.replies) { if (r.id === targetId) return c; }
-                    const found = findRoot(c.replies, targetId);
-                    if (found) return found;
-                }
-            }
-            return null;
-        }
-        const rootComment = findRoot(comments, id);
-        if (rootComment) rootComment.replies.push({ id:Date.now(), author:"Вы", username:"@username", avatar:"Я", text, time:"Только что", likes:0, liked:false, replies:[] });
-        input.value = '';
-        document.getElementById(`reply-form-${id}`).classList.remove('active');
-        renderComments();
+        inp.style.height = '40px';
+        if (inp.scrollHeight > 40) inp.style.height = Math.min(inp.scrollHeight, 120) + 'px';
+        document.getElementById('comment-submit').disabled = !inp.value.trim();
     };
 
     // ===== POST SUBMIT =====
@@ -2469,13 +2614,41 @@
         if (!btn) return;
         const action = btn.dataset.action;
         const id = parseInt(btn.dataset.id);
-        const post = posts.find(p => p.id === id);
+        const post = posts.find(p => p.id === id) || upmLocalPosts.get(id);
         if (!post) return;
-        if (action === 'like') { post.liked = !post.liked; post.likes += post.liked ? 1 : -1; renderPosts(); if (postModal.classList.contains('active')) openPostModal(post); }
+        if (action === 'like') {
+            post.liked = !post.liked;
+            post.likes += post.liked ? 1 : -1;
+            if (upmLocalPosts.has(id) && currentViewedProfile) {
+                const upmIdx = id - 900000;
+                const sourcePost = currentViewedProfile.userData && Array.isArray(currentViewedProfile.userData.posts)
+                    ? currentViewedProfile.userData.posts[upmIdx]
+                    : null;
+                if (sourcePost) {
+                    sourcePost.liked = post.liked;
+                    sourcePost.likes = post.likes;
+                }
+                renderUserProfileBody(currentViewedProfile.uname, currentViewedProfile.userData, document.getElementById('upm-body'));
+            } else {
+                renderPosts();
+            }
+            if (postModal.classList.contains('active')) openPostModal(post);
+        }
         else if (action === 'repost') {
+            if (upmLocalPosts.has(id)) {
+                runOutsideUserProfile(() => openRepostModal(post));
+                return;
+            }
             openRepostModal(post);
         }
-        else if (action === 'comment') { if (!postModal.classList.contains('active')) openPostModal(post); }
+        else if (action === 'comment') {
+            if (postModal.classList.contains('active')) return;
+            if (upmLocalPosts.has(id)) {
+                runOutsideUserProfile(() => openPostModal(post));
+                return;
+            }
+            openPostModal(post);
+        }
         else if (action === 'share') { alert('Ссылка скопирована!'); }
     });
 
@@ -2511,7 +2684,7 @@
     (()=>{ const i = Array.from(navBtns).findIndex(b=>b.classList.contains('active')); if(i>=0) updateSlider(i); })();
 
     // ===== STORIES =====
-    let userStories = [], currentMediaIndex = 0, storyInterval;
+    let userStories = [], currentMediaIndex = 0, storyInterval, activeStories = [], lastStoryCloseTs = 0, storyRenderToken = 0;
     let storyTodayCount = 0;
     const STORY_DAILY_LIMIT = 30;
 
@@ -2519,11 +2692,12 @@
         if (storyTodayCount >= STORY_DAILY_LIMIT) { alert('Вы достигли лимита историй на сегодня (30 шт.)'); return; }
         const sc = document.getElementById('story-creator');
         sc.classList.add('active');
+        document.body.style.overflow = 'hidden';
         requestAnimationFrame(() => requestAnimationFrame(() => sc.classList.add('visible')));
     });
     // Drag to close story creator
     (function(){
-        const inner = document.querySelector('.story-creator-inner');
+        const inner = document.querySelector('.story-creator-wrap');
         let sy = 0, dragging = false;
         inner.addEventListener('touchstart', e => {
             if (!e.target.closest('.creator-header')) return;
@@ -2540,14 +2714,14 @@
             if (d > 120) {
                 const sc = document.getElementById('story-creator');
                 sc.classList.remove('visible');
-                setTimeout(() => { sc.classList.remove('active'); inner.style.transform = ''; resetCreator(); }, 400);
+                setTimeout(() => { sc.classList.remove('active'); inner.style.transform = ''; resetCreator(); document.body.style.overflow = ''; }, 400);
             } else { inner.style.transform = ''; }
         });
     })();
     document.getElementById('creator-close').addEventListener('click', () => {
         const sc = document.getElementById('story-creator');
         sc.classList.remove('visible');
-        setTimeout(() => { sc.classList.remove('active'); resetCreator(); }, 400);
+        setTimeout(() => { sc.classList.remove('active'); resetCreator(); document.body.style.overflow = ''; }, 400);
     });
     document.getElementById('upload-media-btn').addEventListener('click', () => document.getElementById('media-input').click());
     document.getElementById('media-input').addEventListener('change', e => {
@@ -2599,7 +2773,7 @@
         renderUserStory();
         const sc = document.getElementById('story-creator');
         sc.classList.remove('visible');
-        setTimeout(() => { sc.classList.remove('active'); resetCreator(); }, 400);
+        setTimeout(() => { sc.classList.remove('active'); resetCreator(); document.body.style.overflow = ''; }, 400);
     }
 
     document.getElementById('creator-done').addEventListener('click', () => {
@@ -2615,7 +2789,7 @@
             renderUserStory();
             const sc = document.getElementById('story-creator');
             sc.classList.remove('visible');
-            setTimeout(() => { sc.classList.remove('active'); resetCreator(); }, 400);
+            setTimeout(() => { sc.classList.remove('active'); resetCreator(); document.body.style.overflow = ''; }, 400);
         }
     });
 
@@ -2638,10 +2812,14 @@
             el.innerHTML = `<div class="story-avatar"><div class="story-avatar-inner"><div style="width:100%;height:100%;border-radius:50%;background:linear-gradient(135deg,#0078FF 0%,#23D4F9 100%);display:flex;align-items:center;justify-content:center;color:white;font-weight:600;font-size:18px;">Я</div></div></div>`;
             list.insertBefore(el, list.children[1]);
         }
-        el.onclick = () => openStoryViewer(userStories, 0);
+        el.onclick = () => {
+            if (Date.now() - lastStoryCloseTs < 250) return;
+            openStoryViewer(userStories, 0);
+        };
     }
 
     function openStoryViewer(stories, start) {
+        activeStories = stories;
         currentMediaIndex = start;
         document.getElementById('story-viewer').classList.add('active');
         const bars = document.getElementById('story-progress-bars');
@@ -2651,7 +2829,9 @@
     }
 
     function showStory(stories) {
+        if (!stories || !stories.length) { closeStoryViewer(); return; }
         if (currentMediaIndex >= stories.length) { closeStoryViewer(); return; }
+        const token = ++storyRenderToken;
         const s = stories[currentMediaIndex];
         const img = document.getElementById('story-media');
         const vid = document.getElementById('story-video');
@@ -2663,21 +2843,46 @@
         if (s.text && s.text.trim()) { textContent.textContent = s.text; textOverlay.style.display = 'flex'; }
         else { textOverlay.style.display = 'none'; }
         if (s.type === 'image') {
+            img.onload = null; img.onerror = null;
             img.src = s.src; img.style.display = 'block'; vid.style.display = 'none';
             try { vid.pause(); } catch(e){} vid.removeAttribute('src'); try { vid.load(); } catch(e){}
-            let p = 0;
-            storyInterval = setInterval(() => { p += 2; document.querySelectorAll('.story-progress-fill')[currentMediaIndex].style.width = p+'%'; if(p>=100) nextStory(stories); }, 100);
+            const startImageProgress = () => {
+                if (token !== storyRenderToken) return;
+                clearInterval(storyInterval);
+                let p = 0;
+                storyInterval = setInterval(() => {
+                    if (token !== storyRenderToken) { clearInterval(storyInterval); return; }
+                    p += 2;
+                    document.querySelectorAll('.story-progress-fill')[currentMediaIndex].style.width = p+'%';
+                    if(p>=100) nextStory(stories);
+                }, 100);
+            };
+            if (img.complete && img.naturalWidth) startImageProgress();
+            else {
+                img.onload = startImageProgress;
+                img.onerror = () => { if (token === storyRenderToken) nextStory(stories); };
+            }
         } else {
             img.style.display = 'none'; vid.style.display = 'block';
             vid.pause(); vid.ontimeupdate = null; vid.onended = null; vid.oncanplay = null;
             vid.removeAttribute('src'); vid.load();
-            vid.setAttribute('playsinline', ''); vid.setAttribute('webkit-playsinline', ''); vid.muted = true;
+            vid.setAttribute('playsinline', ''); vid.setAttribute('webkit-playsinline', ''); vid.muted = false;
             vid.src = s.src;
             const capturedIndex = currentMediaIndex;
-            vid.oncanplay = () => { vid.oncanplay = null; vid.play().catch(()=>{}); };
+            vid.oncanplay = () => {
+                if (token !== storyRenderToken) return;
+                vid.oncanplay = null;
+                vid.play().catch(()=>{});
+            };
             vid.load();
-            vid.ontimeupdate = () => { if (vid.duration) document.querySelectorAll('.story-progress-fill')[capturedIndex].style.width = (vid.currentTime/vid.duration*100)+'%'; };
-            vid.onended = () => nextStory(stories);
+            vid.ontimeupdate = () => {
+                if (token !== storyRenderToken) return;
+                if (vid.duration) document.querySelectorAll('.story-progress-fill')[capturedIndex].style.width = (vid.currentTime/vid.duration*100)+'%';
+            };
+            vid.onended = () => {
+                if (token !== storyRenderToken) return;
+                nextStory(stories);
+            };
         }
         requestAnimationFrame(() => {
             const span = document.getElementById('story-text-content');
@@ -2687,10 +2892,33 @@
         });
     }
     function nextStory(s) { currentMediaIndex++; showStory(s); }
-    function prevStory(s) { currentMediaIndex = Math.max(0, currentMediaIndex-1); showStory(s); }
-    function closeStoryViewer() { document.getElementById('story-viewer').classList.remove('active'); clearInterval(storyInterval); try { document.getElementById('story-video').pause(); } catch(e){} }
-    document.getElementById('story-prev').addEventListener('click', () => prevStory(userStories));
-    document.getElementById('story-next').addEventListener('click', () => nextStory(userStories));
+    function prevStory(s) {
+        if (!Array.isArray(s) || !s.length) return;
+        if (s.length === 1 || currentMediaIndex === 0) { showStory(s); return; }
+        currentMediaIndex = Math.max(0, currentMediaIndex-1);
+        showStory(s);
+    }
+    function closeStoryViewer() {
+        lastStoryCloseTs = Date.now();
+        storyRenderToken++;
+        document.getElementById('story-viewer').classList.remove('active');
+        clearInterval(storyInterval);
+        const vid = document.getElementById('story-video');
+        const img = document.getElementById('story-media');
+        const textOverlay = document.getElementById('story-text-overlay');
+        try { vid.pause(); } catch(e){}
+        vid.ontimeupdate = null; vid.onended = null; vid.oncanplay = null;
+        img.onload = null; img.onerror = null;
+        vid.removeAttribute('src');
+        try { vid.load(); } catch(e){}
+        img.removeAttribute('src');
+        textOverlay.classList.remove('expanded', 'story-text-overflow');
+        textOverlay.style.display = 'none';
+        activeStories = [];
+        currentMediaIndex = 0;
+    }
+    document.getElementById('story-prev').addEventListener('click', () => prevStory(activeStories));
+    document.getElementById('story-next').addEventListener('click', () => nextStory(activeStories));
     document.getElementById('story-close').addEventListener('click', closeStoryViewer);
     document.getElementById('story-text-overlay').addEventListener('click', (e) => {
         e.stopPropagation();
@@ -2700,10 +2928,10 @@
             clearInterval(storyInterval);
             try { document.getElementById('story-video').pause(); } catch(e){}
         } else {
-            const s = userStories[currentMediaIndex];
+            const s = activeStories[currentMediaIndex];
             if (s && s.type === 'image') {
                 let p = parseFloat(document.querySelectorAll('.story-progress-fill')[currentMediaIndex].style.width) || 0;
-                storyInterval = setInterval(() => { p += 2; document.querySelectorAll('.story-progress-fill')[currentMediaIndex].style.width = p+'%'; if(p>=100) nextStory(userStories); }, 100);
+                storyInterval = setInterval(() => { p += 2; document.querySelectorAll('.story-progress-fill')[currentMediaIndex].style.width = p+'%'; if(p>=100) nextStory(activeStories); }, 100);
             } else { document.getElementById('story-video').play().catch(()=>{}); }
         }
     });
@@ -2712,12 +2940,12 @@
     let holdTimer = null;
     function pauseStory() { clearInterval(storyInterval); try { const vid = document.getElementById('story-video'); if (!vid.paused) vid.pause(); } catch(e){} }
     function resumeStory() {
-        const s = userStories[currentMediaIndex];
+        const s = activeStories[currentMediaIndex];
         if (!s) return;
         if (s.type === 'image') {
             let p = parseFloat(document.querySelectorAll('.story-progress-fill')[currentMediaIndex]?.style.width) || 0;
             if (p >= 100) return;
-            storyInterval = setInterval(() => { p += 2; document.querySelectorAll('.story-progress-fill')[currentMediaIndex].style.width = p+'%'; if(p>=100) nextStory(userStories); }, 100);
+            storyInterval = setInterval(() => { p += 2; document.querySelectorAll('.story-progress-fill')[currentMediaIndex].style.width = p+'%'; if(p>=100) nextStory(activeStories); }, 100);
         } else { document.getElementById('story-video').play().catch(()=>{}); }
     }
     storyContent.addEventListener('mousedown', () => { holdTimer = setTimeout(pauseStory, 150); });
@@ -2842,7 +3070,7 @@
         const card = document.querySelector('.ep-vpsc-card');
         if (card) { card.style.background = '#0265d4'; setTimeout(() => { card.style.background = ''; }, 400); }
         const toast = document.getElementById('copy-toast');
-        if (toast) { toast.classList.add('show'); clearTimeout(toast._t); toast._t = setTimeout(() => toast.classList.remove('show'), 2000); }
+        if (toast) { toast.textContent = 'Скопировано'; toast.classList.add('show'); clearTimeout(toast._t); toast._t = setTimeout(() => toast.classList.remove('show'), 2000); }
     }
     function triggerCrop(mode) { cropMode = mode; document.getElementById('ep-file-input').click(); }
     function onFileSelected(e) { const file = e.target.files[0]; if (!file) return; e.target.value = ''; const reader = new FileReader(); reader.onload = ev => openCropModal(ev.target.result); reader.readAsDataURL(file); }
@@ -2876,18 +3104,52 @@
     function closeCropModal() { document.getElementById('crop-modal').classList.remove('active'); }
     function confirmCrop() {
         const canvas = document.getElementById('crop-canvas');
-        const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
+        const exportCanvas = document.createElement('canvas');
+        const isAvatar = cropMode === 'avatar';
+        exportCanvas.width = isAvatar ? 1024 : 1600;
+        exportCanvas.height = isAvatar ? 1024 : 800;
+        const ex = exportCanvas.getContext('2d');
+        ex.imageSmoothingEnabled = true;
+        ex.imageSmoothingQuality = 'high';
+        const sx = exportCanvas.width / canvas.width;
+        const sy = exportCanvas.height / canvas.height;
+        ex.clearRect(0, 0, exportCanvas.width, exportCanvas.height);
+        ex.drawImage(cropImage, cropOffsetX * sx, cropOffsetY * sy, cropNaturalW * cropZoom * sx, cropNaturalH * cropZoom * sy);
+        const dataUrl = exportCanvas.toDataURL('image/jpeg', 0.96);
         if (cropMode === 'avatar') { profileData.avatarUrl = dataUrl; const img = document.getElementById('ep-avatar-img'); img.src = dataUrl; img.classList.add('loaded'); document.getElementById('ep-avatar-letter').style.display = 'none'; updateNavAvatar(); }
         else { profileData.bannerUrl = dataUrl; const img = document.getElementById('ep-banner-img'); img.src = dataUrl; img.classList.add('loaded'); }
         closeCropModal();
     }
+    function getCropPointer(clientX, clientY) {
+        const rect = cropWrap.getBoundingClientRect();
+        const canvas = document.getElementById('crop-canvas');
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+        return { x: (clientX - rect.left) * scaleX, y: (clientY - rect.top) * scaleY };
+    }
     const cropWrap = document.getElementById('crop-canvas-wrap');
     if (cropWrap) {
-        cropWrap.addEventListener('mousedown', e => { cropDragging = true; cropStartX = e.clientX - cropOffsetX; cropStartY = e.clientY - cropOffsetY; cropWrap.style.cursor = 'grabbing'; });
-        document.addEventListener('mousemove', e => { if (!cropDragging) return; cropOffsetX = e.clientX - cropStartX; cropOffsetY = e.clientY - cropStartY; drawCrop(); });
+        cropWrap.addEventListener('mousedown', e => {
+            const p = getCropPointer(e.clientX, e.clientY);
+            cropDragging = true; cropStartX = p.x - cropOffsetX; cropStartY = p.y - cropOffsetY; cropWrap.style.cursor = 'grabbing';
+        });
+        document.addEventListener('mousemove', e => {
+            if (!cropDragging) return;
+            const p = getCropPointer(e.clientX, e.clientY);
+            cropOffsetX = p.x - cropStartX; cropOffsetY = p.y - cropStartY; drawCrop();
+        });
         document.addEventListener('mouseup', () => { cropDragging = false; cropWrap.style.cursor = 'grab'; });
-        cropWrap.addEventListener('touchstart', e => { const t = e.touches[0]; cropDragging = true; cropStartX = t.clientX - cropOffsetX; cropStartY = t.clientY - cropOffsetY; }, {passive:true});
-        cropWrap.addEventListener('touchmove', e => { if (!cropDragging) return; const t = e.touches[0]; cropOffsetX = t.clientX - cropStartX; cropOffsetY = t.clientY - cropStartY; drawCrop(); }, {passive:true});
+        cropWrap.addEventListener('touchstart', e => {
+            const t = e.touches[0];
+            const p = getCropPointer(t.clientX, t.clientY);
+            cropDragging = true; cropStartX = p.x - cropOffsetX; cropStartY = p.y - cropOffsetY;
+        }, {passive:true});
+        cropWrap.addEventListener('touchmove', e => {
+            if (!cropDragging) return;
+            const t = e.touches[0];
+            const p = getCropPointer(t.clientX, t.clientY);
+            cropOffsetX = p.x - cropStartX; cropOffsetY = p.y - cropStartY; drawCrop();
+        }, {passive:true});
         cropWrap.addEventListener('touchend', () => { cropDragging = false; });
     }
     document.querySelector('.edit-profile-btn').addEventListener('click', openEditModal);
@@ -3373,6 +3635,8 @@
             ]
         }
     };
+    const upmLocalPosts = new Map();
+    let currentViewedProfile = null;
 
     function openUserProfile(username) {
         const uname = username.replace(/^@/, '').toLowerCase();
@@ -3389,15 +3653,15 @@
         const users = getUsers();
         const modal = document.getElementById('user-profile-modal');
         const body = document.getElementById('upm-body');
-        const title = document.getElementById('upm-title');
 
         // Check localStorage users first, then mock users
         const lsUser = users[uname];
         const mockUser = mockUsers[uname];
         const userData = lsUser || mockUser;
 
+        currentViewedProfile = { uname, userData };
+
         if (!userData) {
-            title.textContent = 'Профиль';
             body.innerHTML = `
                 <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:80px 20px;text-align:center;gap:16px;">
                     <div style="font-size:56px;font-weight:800;color:rgba(255,255,255,0.15);">404</div>
@@ -3405,7 +3669,6 @@
                     <div style="font-size:14px;color:rgba(255,255,255,0.4);">@${uname}</div>
                 </div>`;
         } else if (userData.blocked) {
-            title.textContent = 'Профиль';
             body.innerHTML = `
                 <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:80px 20px;text-align:center;gap:16px;">
                     <div style="width:64px;height:64px;border-radius:50%;background:rgba(255,59,48,0.12);display:flex;align-items:center;justify-content:center;">
@@ -3415,8 +3678,11 @@
                     <div style="font-size:14px;color:rgba(255,255,255,0.4);">@${uname}</div>
                 </div>`;
         } else {
-            renderUserProfileBody(uname, userData, body, title);
+            renderUserProfileBody(uname, userData, body);
         }
+        const repostModal = document.getElementById('repost-modal-overlay');
+        const openAbovePostLayer = postModal.classList.contains('active') || (repostModal && repostModal.classList.contains('active'));
+        modal.style.zIndex = openAbovePostLayer ? '13050' : '11000';
         modal.style.display = 'flex';
         requestAnimationFrame(() => requestAnimationFrame(() => {
             modal.classList.add('active');
@@ -3427,8 +3693,12 @@
     function closeUserProfile() {
         const modal = document.getElementById('user-profile-modal');
         modal.classList.remove('visible');
-        document.body.style.overflow = '';
-        setTimeout(() => { modal.classList.remove('active'); modal.style.display = 'none'; }, 350);
+        requestAnimationFrame(() => modal.classList.remove('active'));
+        const repostModal = document.getElementById('repost-modal-overlay');
+        document.body.style.overflow = (postModal.classList.contains('active') || (repostModal && repostModal.classList.contains('active'))) ? 'hidden' : '';
+        upmLocalPosts.clear();
+        currentViewedProfile = null;
+        setTimeout(() => { modal.style.zIndex = '11000'; modal.style.display = 'none'; }, 350);
     }
 
     // Click on @mention anywhere in the app
@@ -3495,12 +3765,22 @@
 
     // ===== REPOST MODAL =====
     let repostTargetPost = null;
+    function renderRepostPreviewMedia(mediaArr) {
+        if (!Array.isArray(mediaArr) || !mediaArr.length) return '';
+        const items = mediaArr.map(m => {
+            if (m.type === 'video') {
+                return `<div style="width:100%;max-height:260px;display:flex;align-items:center;justify-content:center;background:#0f1014;border-radius:12px;overflow:hidden;"><video src="${m.src}" controls playsinline style="width:100%;max-height:260px;object-fit:contain;"></video></div>`;
+            }
+            return `<div style="width:100%;max-height:260px;display:flex;align-items:center;justify-content:center;background:#0f1014;border-radius:12px;overflow:hidden;"><img src="${m.src}" alt="" style="width:100%;max-height:260px;object-fit:contain;"></div>`;
+        }).join('<div style="height:8px;"></div>');
+        return `<div style="padding:0 12px 12px;">${items}</div>`;
+    }
     function openRepostModal(post) {
         repostTargetPost = post;
         document.getElementById('repost-comment-input').value = '';
         // Build preview card with author + text + media
         const mediaHtml = post.media && post.media.length
-            ? renderPostMedia(post.media)
+            ? renderRepostPreviewMedia(post.media)
             : '';
         document.getElementById('repost-preview-card').innerHTML = `
             <div style="padding:12px 12px 6px;display:flex;align-items:center;gap:8px;">
@@ -3508,8 +3788,8 @@
                 <span style="font-weight:700;font-size:14px;color:#e6e6e9;">${post.author}</span>
                 <span style="color:rgba(255,255,255,0.4);font-size:13px;">${post.time.replace('часа','дн.').replace('часов','дн.')}</span>
             </div>
-            ${post.text ? `<div style="padding:0 12px 10px;font-size:15px;color:#e6e6e9;line-height:1.5;">${formatPostText(post.text)}</div>` : ''}
-            ${mediaHtml ? `<div style="padding:0 0 0 0;">${mediaHtml}</div>` : ''}`;
+            ${post.text ? `<div style="padding:0 12px 10px;font-size:15px;color:#e6e6e9;line-height:1.5;overflow-wrap:anywhere;word-break:break-word;">${formatPostText(post.text)}</div>` : ''}
+            ${mediaHtml || ''}`;
         const modal = document.getElementById('repost-modal-overlay');
         modal.style.display = 'flex';
         requestAnimationFrame(() => requestAnimationFrame(() => {
@@ -3520,8 +3800,10 @@
     }
     function closeRepostModal() {
         const modal = document.getElementById('repost-modal-overlay');
+        modal.classList.remove('visible');
         modal.classList.remove('active');
-        document.body.style.overflow = '';
+        const profileModal = document.getElementById('user-profile-modal');
+        document.body.style.overflow = (profileModal && profileModal.classList.contains('active')) ? 'hidden' : '';
         setTimeout(() => { modal.style.display = 'none'; }, 400);
         repostTargetPost = null;
     }
@@ -3560,10 +3842,9 @@
     const subscribedUsers = new Set();
 
     // Patch renderUserProfileBody to be called from openUserProfile
-    function renderUserProfileBody(uname, userData, body, title) {
+    function renderUserProfileBody(uname, userData, body) {
         const u = userData;
         const displayName = u.displayname || uname;
-        title.textContent = displayName;
         const letter = displayName[0].toUpperCase();
         const avatarHtml = u.avatarUrl
             ? `<img src="${u.avatarUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`
@@ -3576,35 +3857,10 @@
         const following = u.following !== undefined ? u.following : 0;
         const isSubscribed = subscribedUsers.has(uname);
 
-        const postsHtml = (u.posts || []).map(p => `
-            <div class="post" style="margin-bottom:10px;">
-                <div class="post-header">
-                    <div class="avatar" style="${u.avatarGradient ? 'background:' + u.avatarGradient + ';' : ''}">${letter}</div>
-                    <div class="post-content">
-                        <div class="post-author">
-                            <span class="author-name">${displayName}</span>
-                            <span class="author-username">@${uname}</span>
-                            <span class="post-time">· ${p.time}</span>
-                        </div>
-                        <div class="post-text">${p.text}</div>
-                        <div class="post-actions" style="margin-left:0;">
-                            <button class="action-btn ${p.liked ? 'liked' : ''}" onclick="this.classList.toggle('liked');const s=this.querySelector('span');s.textContent=parseInt(s.textContent)+(this.classList.contains('liked')?1:-1);">
-                                <svg class="action-icon" viewBox="0 0 24 24" fill="${p.liked?'currentColor':'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
-                                <span>${p.likes}</span>
-                            </button>
-                            <button class="action-btn">
-                                <svg class="action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-                                <span>${p.comments || 0}</span>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>`).join('');
-
         body.innerHTML = `
             <div style="height:150px;${coverStyle}position:relative;"></div>
             <div style="padding:16px;position:relative;">
-                <div style="width:80px;height:80px;border-radius:50%;${avatarBg}border:5px solid #0f0f11;margin-top:-40px;display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:32px;overflow:hidden;">${avatarHtml}</div>
+                <div style="width:80px;height:80px;border-radius:50%;${avatarBg}border:5px solid #1a1b1f;margin-top:-40px;display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:32px;overflow:hidden;">${avatarHtml}</div>
                 <div style="font-size:20px;font-weight:700;margin-top:12px;">${displayName}</div>
                 <div style="color:rgba(255,255,255,0.6);font-size:15px;margin-top:2px;">@${uname}</div>
                 ${u.bio ? `<div style="margin-top:10px;font-size:15px;line-height:1.4;">${u.bio}</div>` : ''}
@@ -3617,18 +3873,50 @@
                     ${isSubscribed ? 'Вы подписаны' : 'Подписаться'}
                 </button>
             </div>
-            <div class="profile-tabs-bar" style="position:sticky;top:0;z-index:2;background:#0f0f11;">
+            <div class="profile-tabs-bar" style="position:sticky;top:0;z-index:2;background:#1a1b1f;">
                 <div class="profile-tabs-bar-inner">
                     <button class="profile-tab-btn active" id="upm-posts-btn" onclick="switchUpmTab('posts','${uname}')">Посты</button>
                     <button class="profile-tab-btn" id="upm-reposts-btn" onclick="switchUpmTab('reposts','${uname}')">Репосты</button>
                 </div>
             </div>
             <div id="upm-posts-list" style="padding:12px 16px 80px;">
-                ${postsHtml || '<div style="text-align:center;color:rgba(255,255,255,0.3);padding:40px 0;font-size:14px;">Нет постов</div>'}
+                <div id="upm-posts-feed"></div>
             </div>
             <div id="upm-reposts-list" style="display:none;padding:12px 16px 80px;">
                 <div style="text-align:center;color:rgba(255,255,255,0.3);padding:40px 0;font-size:14px;">Нет репостов</div>
             </div>`;
+
+        const upmFeed = document.getElementById('upm-posts-feed');
+        const feedLinkedPosts = posts.filter(p => p.username === '@' + uname && !p.isRepost);
+        const userPosts = feedLinkedPosts.length ? feedLinkedPosts : (u.posts || []);
+        upmLocalPosts.clear();
+        if (!userPosts.length) {
+            upmFeed.innerHTML = '<div style="text-align:center;color:rgba(255,255,255,0.3);padding:40px 0;font-size:14px;">Нет постов</div>';
+        } else {
+            upmFeed.innerHTML = '';
+            userPosts.forEach((p, idx) => {
+                const upmPost = feedLinkedPosts.length
+                    ? p
+                    : {
+                        id: 900000 + idx,
+                        author: displayName,
+                        username: '@' + uname,
+                        avatar: letter,
+                        text: p.text || '',
+                        time: p.time || 'Недавно',
+                        likes: p.likes || 0,
+                        reposts: p.reposts || 0,
+                        comments: p.comments || 0,
+                        liked: !!p.liked,
+                        reposted: !!p.reposted,
+                        media: Array.isArray(p.media) ? p.media : [],
+                        avatarUrl: u.avatarUrl || null
+                    };
+                upmLocalPosts.set(upmPost.id, upmPost);
+                const el = createPostElement(upmPost);
+                upmFeed.appendChild(el);
+            });
+        }
     }
 
     function switchUpmTab(tab, uname) {
