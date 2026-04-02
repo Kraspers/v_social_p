@@ -4003,6 +4003,25 @@
   const setToken = (t) => localStorage.setItem(TOKEN_KEY, t);
   const dropToken = () => localStorage.removeItem(TOKEN_KEY);
 
+  function resetClientUiState() {
+    ['login-username','login-password','reg-displayname','reg-username','reg-password','reg-password2'].forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) el.value = '';
+    });
+    const errs = ['login-error','reg-error','vpsc-error','ep-error'];
+    errs.forEach((id) => { const el = document.getElementById(id); if (el) el.textContent = ''; });
+    const overlays = ['edit-modal-overlay','change-pw-overlay','delete-acc-overlay','post-modal','user-profile-modal','repost-modal-overlay','story-creator'];
+    overlays.forEach((id) => {
+      const ov = document.getElementById(id);
+      if (!ov) return;
+      ov.classList.remove('visible','active');
+      ov.style.display = '';
+    });
+    const body = document.body;
+    if (body) body.style.overflow = '';
+    if (typeof closeEditPostSheet === 'function') closeEditPostSheet();
+  }
+
   const style = document.createElement('style');
   style.textContent = `.story-item.viewed .story-avatar{background:#5f5f67!important;animation:none!important}#edit-modal-overlay.visible #edit-profile-wrap{transform:translateY(26px)!important}`;
   document.head.appendChild(style);
@@ -4085,6 +4104,7 @@
 
   window.doLogout = function doLogout() {
     dropToken();
+    resetClientUiState();
     showLoginScreen();
     const homeBtn = document.querySelector('.nav-btn[data-tab="home"]'); if (homeBtn) homeBtn.click();
   };
@@ -4359,7 +4379,6 @@
         const p = posts.find(x => x.id === id) || upmLocalPosts.get(id);
         if (p) { p.liked = !p.liked; p.likes += p.liked ? 1 : -1; renderPosts(); }
         await api(`/posts/${id}/like`, { method: 'POST' });
-        if (typeof currentPostId !== 'undefined' && currentPostId === id && p) openPostModal(p);
       } catch {}
       return;
     }
@@ -4524,6 +4543,20 @@
   };
 
 
+  window.postOptsDelete = async function postOptsDelete() {
+    const id = postOptsId;
+    closePostOptions();
+    if (id === null || !me) return;
+    try {
+      await api(`/posts/${id}`, { method: 'DELETE' });
+      if (typeof closePostModal === 'function') closePostModal();
+      await syncPosts();
+      showToast('Пост удалён');
+    } catch (e) {
+      showToast(e.message);
+    }
+  };
+
   window.postOptsPin = async function postOptsPin() {
     const id = postOptsId;
     closePostOptions();
@@ -4616,7 +4649,7 @@
   (async () => {
     posts = [];
     renderPosts();
-    if (!token()) { showLoginScreen(); return; }
+    if (!token()) { resetClientUiState(); showLoginScreen(); return; }
     try {
       await syncMe();
       syncProfileUi();
@@ -4625,6 +4658,7 @@
       await Promise.all([syncPosts(), syncTrends(), syncStories()]);
     } catch {
       dropToken();
+      resetClientUiState();
       showLoginScreen();
     }
   })();
