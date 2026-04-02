@@ -179,6 +179,8 @@ const server = http.createServer(async (req, res) => {
       avatarUrl: '',
       bannerUrl: '',
       vpsc: code,
+      pinnedPostId: null,
+      pinnedRepostId: null,
       createdAt: nowIso()
     };
     db.users.push(user);
@@ -230,6 +232,8 @@ const server = http.createServer(async (req, res) => {
     if (typeof b.bio === 'string') me.bio = b.bio.slice(0, 300);
     if (typeof b.avatarUrl === 'string') me.avatarUrl = b.avatarUrl;
     if (typeof b.bannerUrl === 'string') me.bannerUrl = b.bannerUrl;
+    if (Object.prototype.hasOwnProperty.call(b, 'pinnedPostId')) me.pinnedPostId = b.pinnedPostId || null;
+    if (Object.prototype.hasOwnProperty.call(b, 'pinnedRepostId')) me.pinnedRepostId = b.pinnedRepostId || null;
     writeDb(db);
     return sendJson(res, 200, { user: sanitizeUser(me) });
   }

@@ -3972,8 +3972,8 @@
 </button>
 <!-- Desktop footer (bottom-right, desktop only) -->
 <div class="desktop-footer">
-    <span>Политика конфиденциальности</span>
-    <span>Условия использования</span>
+    <a href="privacy.html" style="color:inherit;text-decoration:none;">Политика конфиденциальности</a>
+    <a href="terms.html" style="color:inherit;text-decoration:none;">Условия использования</a>
     <span>© ВПизде</span>
 </div>
 
@@ -4014,9 +4014,9 @@
     const nameEl = document.querySelector('.profile-name'); if (nameEl) nameEl.textContent = me.displayName || '';
     const uEl = document.querySelector('.profile-username'); if (uEl) uEl.textContent = `@${me.username}`;
     const bEl = document.querySelector('.profile-bio'); if (bEl) bEl.textContent = me.bio || '';
-    const st = document.querySelectorAll('.stat-item .stat-value');
-    if (st[0] && typeof me.following==='number') st[0].textContent = me.following;
-    if (st[1] && typeof me.followers==='number') st[1].textContent = me.followers;
+    const st = document.querySelectorAll('.stat-item .stat-number');
+    if (st[0] && typeof me.followers==='number') st[0].textContent = me.followers;
+    if (st[1]) st[1].textContent = posts.filter(p => p.isRepost).length;
     const vpsc = document.getElementById('ep-vpsc-code'); if (vpsc) vpsc.textContent = me.vpsc || '';
     const epn = document.getElementById('ep-name'); if (epn) epn.value = me.displayName || '';
     const epu = document.getElementById('ep-username'); if (epu) epu.value = me.username || '';
@@ -4041,12 +4041,7 @@
 
   async function syncPosts() {
     const r = await api('/posts');
-    posts = (r.posts || []).map(p => {
-      if (me && p.username === `@${me.username}`) {
-        return { ...p, author: 'Вы', username: '@username', avatar: 'Я' };
-      }
-      return p;
-    });
+    posts = (r.posts || []);
     renderPosts();
     const feed = document.getElementById('feed');
     if (feed && posts.length === 0) feed.innerHTML = '<div style="text-align:center;color:rgba(255,255,255,0.35);padding:40px 20px;font-size:14px;">Лента пуста</div>';
@@ -4067,6 +4062,7 @@
   window.doLogout = function doLogout() {
     dropToken();
     showLoginScreen();
+    const homeBtn = document.querySelector('.nav-btn[data-tab="home"]'); if (homeBtn) homeBtn.click();
   };
 
   window.doLogin = async function doLogin() {
@@ -4080,6 +4076,7 @@
       setToken(r.token);
       await syncMe();
       hideLoginScreen();
+      const homeBtn = document.querySelector('.nav-btn[data-tab="home"]'); if (homeBtn) homeBtn.click();
       await Promise.all([syncPosts(), syncTrends(), syncStories()]);
     } catch (e) { err.textContent = e.message; }
   };
@@ -4093,6 +4090,7 @@
       setToken(r.token);
       await syncMe();
       hideLoginScreen();
+      const homeBtn = document.querySelector('.nav-btn[data-tab="home"]'); if (homeBtn) homeBtn.click();
       await Promise.all([syncPosts(), syncTrends(), syncStories()]);
     } catch (e) { err.textContent = e.message; }
   };
@@ -4110,6 +4108,7 @@
       setToken(r.token);
       await syncMe();
       hideLoginScreen();
+      const homeBtn = document.querySelector('.nav-btn[data-tab="home"]'); if (homeBtn) homeBtn.click();
       await Promise.all([syncPosts(), syncTrends(), syncStories()]);
     } catch (e) { err.textContent = e.message; }
   };
@@ -4179,7 +4178,6 @@
       if (!list) return;
       [...list.querySelectorAll('.story-item.remote-story')].forEach(x=>x.remove());
       Array.from(byUser.values()).forEach(({user,items}) => {
-        if (user.username === `@${me?.username}`) return;
         const el = document.createElement('div');
         el.className = 'story-item remote-story';
         el.innerHTML = `<div class="story-avatar"><div class="story-avatar-inner">${user.avatarUrl?`<img class="story-avatar-img" src="${user.avatarUrl}">`:`<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:white;background:linear-gradient(135deg,#0078FF 0%,#23D4F9 100%)">${user.avatar}</div>`}</div></div><div class="story-username">${user.username}</div>`;
@@ -4240,6 +4238,9 @@
       try {
         await api('/posts', { method: 'POST', body: JSON.stringify({ text, media: composerMedia }) });
         postInput.value = ''; composerMedia = []; renderComposerPreviews();
+        charCounter.textContent = '0/280';
+        charCounter.classList.remove('visible','warning','danger');
+        document.getElementById('post-submit').disabled = true;
         await syncPosts();
       } catch (err) { alert(err.message); }
       return;
@@ -4257,7 +4258,6 @@
         const r = await api(`/posts/${currentPostId}/comments`);
         postComments[currentPostId] = buildCommentTree(r.comments || []);
         renderComments();
-        await syncPosts();
       } catch (err) { alert(err.message); }
       return;
     }
@@ -4265,7 +4265,12 @@
     const likeBtn = e.target.closest('.action-btn[data-action="like"]');
     if (likeBtn) {
       e.stopImmediatePropagation();
-      try { await api(`/posts/${Number(likeBtn.dataset.id)}/like`, { method: 'POST' }); await syncPosts(); } catch {}
+      try {
+        const id = Number(likeBtn.dataset.id);
+        const p = posts.find(x => x.id === id);
+        if (p) { p.liked = !p.liked; p.likes += p.liked ? 1 : -1; renderPosts(); }
+        await api(`/posts/${id}/like`, { method: 'POST' });
+      } catch {}
       return;
     }
 
@@ -4304,7 +4309,7 @@
       };
       renderUserProfileBody(uname, userData, body);
     } catch (e) {
-      body.innerHTML = '<div style="padding:20px;color:rgba(255,255,255,.6)">404: Пользователь не найден</div>';
+      body.innerHTML = '<div style="padding:40px 20px;text-align:center;color:rgba(255,255,255,.5);font-size:14px;">Пользователь не найден</div>';
     }
   };
 
@@ -4326,9 +4331,12 @@
 
 
   document.addEventListener('click', (e) => {
-    const ownProfileLink = e.target.closest('[data-open-profile="@username"]');
-    if (!ownProfileLink) return;
+    const ownLinks = e.target.closest('[data-open-profile]');
+    if (!ownLinks || !me) return;
+    const v = ownLinks.getAttribute('data-open-profile') || '';
+    if (v.toLowerCase() !== `@${me.username}`.toLowerCase()) return;
     e.stopImmediatePropagation();
+    if (typeof closePostModal === 'function') closePostModal();
     const btn = document.querySelector('.nav-btn[data-tab="profile"]');
     if (btn) btn.click();
   }, true);
@@ -4353,6 +4361,22 @@
     }
   };
 
+
+  window.postOptsPin = async function postOptsPin() {
+    const id = postOptsId;
+    closePostOptions();
+    if (id === null || !me) return;
+    const post = posts.find(p => p.id === id);
+    if (!post) return;
+    if (post.isRepost) pinnedRepostId = pinnedRepostId === id ? null : id;
+    else pinnedPostId = pinnedPostId === id ? null : id;
+    try {
+      const r = await api('/me', { method: 'PATCH', body: JSON.stringify({ pinnedPostId, pinnedRepostId }) });
+      me = r.user;
+    } catch (e) { showToast(e.message); }
+    renderPosts();
+  };
+
   (async () => {
     posts = [];
     renderPosts();
@@ -4360,6 +4384,7 @@
     try {
       await syncMe();
       hideLoginScreen();
+      const homeBtn = document.querySelector('.nav-btn[data-tab="home"]'); if (homeBtn) homeBtn.click();
       await Promise.all([syncPosts(), syncTrends(), syncStories()]);
     } catch {
       dropToken();
