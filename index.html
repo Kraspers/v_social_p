@@ -113,6 +113,7 @@
             display: none;
         }
         .creator-done:hover { background: #0066dd; }
+        .creator-done.is-loading { opacity: 0.85; cursor: wait; }
         .creator-content { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px; padding: 20px; }
         .creator-preview { max-width: 100%; max-height: 60vh; object-fit: contain; display: none; }
         .creator-preview.active { display: block; }
@@ -1363,10 +1364,14 @@
             z-index: 500;
             flex-direction: column; align-items: flex-end; gap: 4px;
         }
-        .desktop-footer span {
+        .desktop-footer span,
+        .desktop-footer a {
             font-size: 11px; color: rgba(255,255,255,0.22);
             cursor: default; line-height: 1.4;
+            text-decoration: none;
         }
+        .desktop-footer a { cursor: pointer; }
+        .desktop-footer a:hover { color: rgba(255,255,255,0.32); }
         @media (min-width: 900px) {
             .desktop-logout-btn { display: flex; }
             .desktop-footer { display: flex; }
@@ -3972,8 +3977,8 @@
 </button>
 <!-- Desktop footer (bottom-right, desktop only) -->
 <div class="desktop-footer">
-    <a href="privacy.html" style="color:inherit;text-decoration:none;">Политика конфиденциальности</a>
-    <a href="terms.html" style="color:inherit;text-decoration:none;">Условия использования</a>
+    <a href="privacy.html">Политика конфиденциальности</a>
+    <a href="terms.html">Условия использования</a>
     <span>© ВПизде</span>
 </div>
 
@@ -4167,6 +4172,22 @@
   };
 
   function formatStoryTime(iso){const d=Math.max(0,Date.now()-new Date(iso).getTime());const m=Math.floor(d/60000);const h=Math.floor(d/3600000); if(d<60000)return 'Только что'; if(m<60)return `${m} мин`; if(h<24)return `${h} ч`; return `${Math.floor(d/86400000)} д`; }
+  function isOwnPost(post) {
+    return !!(me && post && String(post.username || '').toLowerCase() === `@${me.username}`.toLowerCase());
+  }
+  function segmentedStoryRing(count, viewed) {
+    const parts = Math.max(1, Math.min(12, Number(count) || 1));
+    const segment = 360 / parts;
+    const gap = Math.min(6, segment * 0.22);
+    const color = viewed ? '#5f5f67' : '#0D7EFF';
+    const slices = [];
+    for (let i = 0; i < parts; i++) {
+      const start = i * segment;
+      const end = start + segment - gap;
+      slices.push(`${color} ${start}deg ${end}deg`, `transparent ${end}deg ${(i + 1) * segment}deg`);
+    }
+    return `conic-gradient(${slices.join(',')})`;
+  }
 
   async function syncStories() {
     try {
@@ -4192,13 +4213,15 @@
           document.getElementById('viewer-name').textContent = user.username;
           document.getElementById('viewer-time').textContent = items[start]?.time ? '· ' + formatStoryTime(items[start].time) : '';
           document.getElementById('viewer-avatar').innerHTML = user.avatarUrl ? `<img src="${user.avatarUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">` : user.avatar;
+          window.__vpStoryMeta = { key: user.username, total: items.length, element: el };
           openStoryViewer(items,start);
-          viewed[user.username] = start + 1;
-          localStorage.setItem('vp_story_viewed', JSON.stringify(viewed));
-          if ((start + 1) >= items.length) el.classList.add('viewed');
         };
         const viewed = JSON.parse(localStorage.getItem('vp_story_viewed')||'{}');
-        if (Number(viewed[user.username] || 0) >= items.length) el.classList.add('viewed');
+        const seenCount = Number(viewed[user.username] || 0);
+        const done = seenCount >= items.length;
+        if (done) el.classList.add('viewed');
+        const ring = el.querySelector('.story-avatar');
+        if (ring) ring.style.background = segmentedStoryRing(items.length, done);
         list.appendChild(el);
       });
     } catch {}
@@ -4206,12 +4229,30 @@
 
   document.getElementById('creator-done')?.addEventListener('click', async (e) => {
     e.stopImmediatePropagation();
+    const btn = e.currentTarget;
+    if (btn.disabled) return;
     const img = document.getElementById('creator-preview');
     const vid = document.getElementById('creator-video-preview');
     const storyText = document.getElementById('creator-text-input').value.trim();
     const payload = img.classList.contains('active') ? { mediaType:'image', src: img.dataset.src, caption: storyText } : (vid.classList.contains('active') ? { mediaType:'video', src: vid.dataset.src, caption: storyText } : null);
     if (!payload) return;
-    try { await api('/stories', { method: 'POST', body: JSON.stringify(payload) }); await syncStories(); const sc=document.getElementById('story-creator'); sc.classList.remove('visible'); setTimeout(()=>{sc.classList.remove('active'); resetCreator(); document.body.style.overflow='';}, 380); } catch(err){ alert(err.message); }
+    const prevText = btn.textContent;
+    btn.disabled = true;
+    btn.classList.add('is-loading');
+    btn.textContent = 'Загрузка...';
+    try {
+      await api('/stories', { method: 'POST', body: JSON.stringify(payload) });
+      await syncStories();
+      const sc=document.getElementById('story-creator');
+      sc.classList.remove('visible');
+      setTimeout(()=>{sc.classList.remove('active'); resetCreator(); document.body.style.overflow='';}, 380);
+    } catch(err){
+      alert(err.message);
+    } finally {
+      btn.disabled = false;
+      btn.classList.remove('is-loading');
+      btn.textContent = prevText;
+    }
   }, true);
 
   function buildCommentTree(flat) {
@@ -4340,8 +4381,21 @@
 
 
   document.addEventListener('click', (e) => {
+    if (!me) return;
+    const mention = e.target.closest('.mention');
+    if (mention) {
+      const mentioned = mention.textContent.replace(/^@/, '').trim().toLowerCase();
+      if (mentioned === String(me.username || '').toLowerCase()) {
+        e.stopImmediatePropagation();
+        e.preventDefault();
+        if (typeof closePostModal === 'function') closePostModal();
+        const btn = document.querySelector('.nav-btn[data-tab="profile"]');
+        if (btn) btn.click();
+        return;
+      }
+    }
     const ownLinks = e.target.closest('[data-open-profile]');
-    if (!ownLinks || !me) return;
+    if (!ownLinks) return;
     const v = ownLinks.getAttribute('data-open-profile') || '';
     if (v.toLowerCase() !== `@${me.username}`.toLowerCase()) return;
     e.stopImmediatePropagation();
@@ -4377,11 +4431,13 @@
     if (id === null || !me) return;
     const post = posts.find(p => p.id === id);
     if (!post) return;
-    if (post.isRepost) pinnedRepostId = pinnedRepostId === id ? null : id;
-    else pinnedPostId = pinnedPostId === id ? null : id;
+    const wasPinned = post.isRepost ? pinnedRepostId === id : pinnedPostId === id;
+    if (post.isRepost) pinnedRepostId = wasPinned ? null : id;
+    else pinnedPostId = wasPinned ? null : id;
     try {
       const r = await api('/me', { method: 'PATCH', body: JSON.stringify({ pinnedPostId, pinnedRepostId }) });
       me = r.user;
+      showToast(post.isRepost ? (wasPinned ? 'Репост откреплён' : 'Репост закреплён в Репостах') : (wasPinned ? 'Пост откреплён' : 'Пост закреплён в Постах'));
     } catch (e) { showToast(e.message); }
     renderPosts();
   };
@@ -4405,6 +4461,76 @@
   }
   const _renderPosts = window.renderPosts;
   window.renderPosts = function renderPostsWrapped() { _renderPosts(); patchOwnerButtons(); };
+
+  const originalRenderProfileFeeds = window.renderProfileFeeds;
+  window.renderProfileFeeds = function renderProfileFeedsPatched() {
+    if (!me) return originalRenderProfileFeeds();
+    const myFeed = document.getElementById('profile-feed');
+    if (!myFeed) return;
+    myFeed.innerHTML = '';
+    let myPosts = posts.filter((p) => !p.isRepost && isOwnPost(p));
+    if (pinnedPostId) myPosts = [...myPosts.filter((p) => p.id === pinnedPostId), ...myPosts.filter((p) => p.id !== pinnedPostId)];
+    if (!myPosts.length) myFeed.innerHTML = '<div style="text-align:center;color:rgba(255,255,255,0.3);padding:40px 20px;font-size:14px;">Вы ещё ничего не опубликовали</div>';
+    else myPosts.forEach((post) => {
+      const el = createPostElement(post);
+      if (post.id === pinnedPostId) {
+        const badge = document.createElement('div');
+        badge.style.cssText = 'font-size:12px;color:rgba(255,255,255,0.4);display:flex;align-items:center;gap:5px;padding:0 0 8px 0;';
+        badge.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V17z"/></svg> Закреплено';
+        el.insertBefore(badge, el.firstChild);
+      }
+      myFeed.appendChild(el);
+    });
+    if (typeof renderMyReposts === 'function') renderMyReposts();
+  };
+
+  const originalRenderMyReposts = window.renderMyReposts;
+  window.renderMyReposts = function renderMyRepostsPatched() {
+    if (!me) return originalRenderMyReposts();
+    const feed = document.getElementById('profile-reposts-feed');
+    if (!feed) return;
+    feed.innerHTML = '';
+    let repostPosts = posts.filter((p) => p.isRepost && isOwnPost(p));
+    if (pinnedRepostId) repostPosts = [...repostPosts.filter((p) => p.id === pinnedRepostId), ...repostPosts.filter((p) => p.id !== pinnedRepostId)];
+    if (!repostPosts.length) {
+      feed.innerHTML = '<div style="text-align:center;color:rgba(255,255,255,0.3);padding:40px 20px;font-size:14px;">Вы ещё ничего не репостили</div>';
+      return;
+    }
+    repostPosts.forEach((post) => {
+      const el = createPostElement(post);
+      if (post.id === pinnedRepostId) {
+        const badge = document.createElement('div');
+        badge.style.cssText = 'font-size:12px;color:rgba(255,255,255,0.4);display:flex;align-items:center;gap:5px;padding:0 0 8px 0;';
+        badge.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V17z"/></svg> Закреплено';
+        el.insertBefore(badge, el.firstChild);
+      }
+      feed.appendChild(el);
+    });
+  };
+
+  const originalCloseStoryViewer = window.closeStoryViewer;
+  if (typeof originalCloseStoryViewer === 'function') {
+    window.closeStoryViewer = function closeStoryViewerPatched() {
+      const meta = window.__vpStoryMeta;
+      if (meta && meta.key) {
+        const viewed = JSON.parse(localStorage.getItem('vp_story_viewed') || '{}');
+        const next = Math.max(Number(viewed[meta.key] || 0), currentMediaIndex + 1);
+        viewed[meta.key] = Math.min(meta.total || next, next);
+        localStorage.setItem('vp_story_viewed', JSON.stringify(viewed));
+      }
+      originalCloseStoryViewer();
+      if (meta && meta.element) {
+        const viewed = JSON.parse(localStorage.getItem('vp_story_viewed') || '{}');
+        const done = Number(viewed[meta.key] || 0) >= Number(meta.total || 0);
+        if (done) meta.element.classList.add('viewed');
+        const ring = meta.element.querySelector('.story-avatar');
+        if (ring) ring.style.background = segmentedStoryRing(meta.total, done);
+      }
+      window.__vpStoryMeta = null;
+    };
+  }
+
+  setInterval(() => { if (token()) syncPosts().catch(() => {}); }, 4000);
 
   (async () => {
     posts = [];
