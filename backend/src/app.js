@@ -1,4 +1,4 @@
-const cors = require('cors');
+const expressLib = require('express');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const cookieParser = require('cookie-parser');
@@ -7,10 +7,10 @@ const routes = require('./routes');
 const errorMiddleware = require('./middleware/error.middleware');
 const notFoundMiddleware = require('./middleware/not-found.middleware');
 
-const app = express();
+const app = expressLib();
 app.use(helmet());
 app.use(cors({ origin: env.corsOrigin, credentials: true }));
-app.use(express.json({ limit: '2mb' }));
+app.use(expressLib.json({ limit: '2mb' }));
 app.use(cookieParser());
 app.use(morgan('dev'));
 
