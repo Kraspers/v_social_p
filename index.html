@@ -3988,6 +3988,10 @@
   const setToken = (t) => localStorage.setItem(TOKEN_KEY, t);
   const dropToken = () => localStorage.removeItem(TOKEN_KEY);
 
+  const style = document.createElement('style');
+  style.textContent = `.story-avatar{padding:.5px!important}.story-item.viewed .story-avatar{background:#5f5f67!important;animation:none!important}`;
+  document.head.appendChild(style);
+
   async function api(path, opts = {}) {
     const headers = { 'Content-Type': 'application/json', ...(opts.headers || {}) };
     if (token()) headers.Authorization = `Bearer ${token()}`;
@@ -3997,16 +4001,56 @@
     return data;
   }
 
+  function syncProfileUi() {
+    if (!me) return;
+    if (window.profileData) {
+      profileData.name = me.displayName || profileData.name;
+      profileData.username = `@${me.username}`;
+      profileData.bio = me.bio || '';
+      profileData.avatarUrl = me.avatarUrl || null;
+      profileData.bannerUrl = me.bannerUrl || null;
+      profileData.vpsc = me.vpsc || profileData.vpsc;
+      if (typeof applyProfileData === 'function') applyProfileData();
+    }
+    const nameEl = document.querySelector('.profile-name'); if (nameEl) nameEl.textContent = me.displayName || '';
+    const uEl = document.querySelector('.profile-username'); if (uEl) uEl.textContent = `@${me.username}`;
+    const bEl = document.querySelector('.profile-bio'); if (bEl) bEl.textContent = me.bio || '';
+    const st = document.querySelectorAll('.stat-item .stat-value');
+    if (st[0] && typeof me.following==='number') st[0].textContent = me.following;
+    if (st[1] && typeof me.followers==='number') st[1].textContent = me.followers;
+    const vpsc = document.getElementById('ep-vpsc-code'); if (vpsc) vpsc.textContent = me.vpsc || '';
+  }
+
   async function syncMe() {
     const r = await api('/me');
     me = r.user;
+    syncProfileUi();
   }
 
   async function syncPosts() {
     const r = await api('/posts');
     posts = r.posts || [];
     renderPosts();
+    const feed = document.getElementById('feed');
+    if (feed && posts.length === 0) feed.innerHTML = '<div style="text-align:center;color:rgba(255,255,255,0.35);padding:40px 20px;font-size:14px;">Лента пуста</div>';
   }
+
+  async function syncTrends() {
+    const wrap = document.getElementById('trends-section-wrap');
+    if (!wrap) return;
+    try {
+      const r = await api('/trends');
+      const list = (r.trends || []).slice(0,8);
+      wrap.innerHTML = '<div class="trends-section"><div class="section-title">Актуальные хэштеги</div>' +
+        (list.length ? list.map(t => `<div class="trend-item"><div class="trend-hashtag">${t.tag}</div><div class="trend-count">${t.count} постов</div></div>`).join('') : '<div style="color:rgba(255,255,255,.45)">Пока нет данных</div>') +
+        '</div>';
+    } catch {}
+  }
+
+  window.doLogout = function doLogout() {
+    dropToken();
+    showLoginScreen();
+  };
 
   window.doLogin = async function doLogin() {
     const u = document.getElementById('login-username').value.trim();
@@ -4019,7 +4063,20 @@
       setToken(r.token);
       await syncMe();
       hideLoginScreen();
-      await syncPosts();
+      await Promise.all([syncPosts(), syncTrends(), syncStories()]);
+    } catch (e) { err.textContent = e.message; }
+  };
+
+  window.doVpscLogin = async function doVpscLogin() {
+    const err = document.getElementById('vpsc-error');
+    err.textContent = '';
+    if (!vpscValue || vpscValue.length !== 6) { err.textContent = 'Введите 6-значный код'; return; }
+    try {
+      const r = await api('/auth/vpsc', { method: 'POST', body: JSON.stringify({ code: vpscValue }) });
+      setToken(r.token);
+      await syncMe();
+      hideLoginScreen();
+      await Promise.all([syncPosts(), syncTrends(), syncStories()]);
     } catch (e) { err.textContent = e.message; }
   };
 
@@ -4036,13 +4093,102 @@
       setToken(r.token);
       await syncMe();
       hideLoginScreen();
-      await syncPosts();
+      await Promise.all([syncPosts(), syncTrends(), syncStories()]);
     } catch (e) { err.textContent = e.message; }
   };
 
-  window.doVpscLogin = function doVpscLogin() {
-    document.getElementById('vpsc-error').textContent = 'VPSC отключен: используйте логин/пароль через backend';
+  window.saveProfile = async function saveProfile() {
+    const err = document.getElementById('ep-error');
+    const payload = {
+      displayName: document.getElementById('ep-name').value.trim(),
+      username: document.getElementById('ep-username').value.trim(),
+      bio: document.getElementById('ep-bio').value,
+      avatarUrl: window.profileData?.avatarUrl || '',
+      bannerUrl: window.profileData?.bannerUrl || ''
+    };
+    if (err) err.textContent = '';
+    try {
+      const r = await api('/me', { method: 'PATCH', body: JSON.stringify(payload) });
+      me = r.user;
+      closeEditModal();
+      syncProfileUi();
+      await syncPosts();
+      showToast('Профиль сохранён');
+    } catch (e) {
+      if (err) err.textContent = e.message;
+    }
   };
+
+  window.submitChangePassword = async function submitChangePassword() {
+    const oldPw = document.getElementById('pw-old').value;
+    const newPw = document.getElementById('pw-new').value;
+    const newPw2 = document.getElementById('pw-new2').value;
+    const err = document.getElementById('pw-error');
+    err.textContent = '';
+    if (newPw !== newPw2) { err.textContent = 'Пароли не совпадают'; return; }
+    try {
+      await api('/me/password', { method: 'POST', body: JSON.stringify({ oldPassword: oldPw, newPassword: newPw }) });
+      closeChangePasswordModal();
+      showToast('Пароль изменён');
+    } catch (e) { err.textContent = e.message; }
+  };
+
+  window.submitDeleteAccount = async function submitDeleteAccount() {
+    const pw = document.getElementById('delete-confirm-pw').value;
+    const err = document.getElementById('delete-error');
+    err.textContent = '';
+    try {
+      await api('/me/delete', { method: 'POST', body: JSON.stringify({ password: pw }) });
+      dropToken();
+      location.reload();
+    } catch (e) { err.textContent = e.message; }
+  };
+
+  window.copyVPSC = function copyVPSC() {
+    const text = me?.vpsc || document.getElementById('ep-vpsc-code')?.textContent || '';
+    navigator.clipboard.writeText(text).then(() => showToast('VPSC скопирован'));
+  };
+
+  async function syncStories() {
+    try {
+      const r = await api('/stories');
+      const byUser = new Map();
+      (r.stories || []).forEach(s => {
+        const key = s.username;
+        if (!byUser.has(key)) byUser.set(key, { user: s, items: [] });
+        byUser.get(key).items.push({ type: s.mediaType, src: s.src, text: s.caption || '', time: 'Только что' });
+      });
+      const list = document.getElementById('stories-list');
+      if (!list) return;
+      [...list.querySelectorAll('.story-item.remote-story')].forEach(x=>x.remove());
+      Array.from(byUser.values()).forEach(({user,items}) => {
+        if (user.username === `@${me?.username}`) return;
+        const el = document.createElement('div');
+        el.className = 'story-item remote-story';
+        el.innerHTML = `<div class="story-avatar"><div class="story-avatar-inner">${user.avatarUrl?`<img class="story-avatar-img" src="${user.avatarUrl}">`:`<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:white;background:linear-gradient(135deg,#0078FF 0%,#23D4F9 100%)">${user.avatar}</div>`}</div></div><div class="story-username">${user.username}</div>`;
+        el.onclick = () => {
+          const viewed = JSON.parse(localStorage.getItem('vp_story_viewed')||'{}');
+          viewed[user.username] = Date.now();
+          localStorage.setItem('vp_story_viewed', JSON.stringify(viewed));
+          el.classList.add('viewed');
+          openStoryViewer(items,0);
+        };
+        const viewed = JSON.parse(localStorage.getItem('vp_story_viewed')||'{}');
+        if (viewed[user.username]) el.classList.add('viewed');
+        list.appendChild(el);
+      });
+    } catch {}
+  }
+
+  document.getElementById('creator-done')?.addEventListener('click', async (e) => {
+    e.stopImmediatePropagation();
+    const img = document.getElementById('creator-preview');
+    const vid = document.getElementById('creator-video-preview');
+    const storyText = document.getElementById('creator-text-input').value.trim();
+    const payload = img.classList.contains('active') ? { mediaType:'image', src: img.dataset.src, caption: storyText } : (vid.classList.contains('active') ? { mediaType:'video', src: vid.dataset.src, caption: storyText } : null);
+    if (!payload) return;
+    try { await api('/stories', { method: 'POST', body: JSON.stringify(payload) }); await syncStories(); } catch(err){ alert(err.message); }
+  }, true);
 
   const originalOpenPostModal = window.openPostModal;
   window.openPostModal = async function(post) {
@@ -4063,50 +4209,60 @@
     } catch (_) {}
   };
 
-  const postBtn = document.getElementById('post-submit');
-  const postBtnClone = postBtn.cloneNode(true);
-  postBtn.parentNode.replaceChild(postBtnClone, postBtn);
-  postBtnClone.addEventListener('click', async () => {
-    const text = postInput.value.trim();
-    if (!text && composerMedia.length === 0) return;
-    try {
-      await api('/posts', { method: 'POST', body: JSON.stringify({ text, media: composerMedia }) });
-      postInput.value = '';
-      composerMedia = [];
-      renderComposerPreviews();
-      charCounter.textContent = '0/280';
-      charCounter.classList.remove('visible','warning','danger');
-      await syncPosts();
-    } catch (e) { alert(e.message); }
-  });
-
-  const cbtn = document.getElementById('comment-submit');
-  const cbtnClone = cbtn.cloneNode(true);
-  cbtn.parentNode.replaceChild(cbtnClone, cbtn);
-  cbtnClone.addEventListener('click', async () => {
-    const text = document.getElementById('comment-input').value.trim();
-    if (!text || !currentPostId) return;
-    try {
-      await api(`/posts/${currentPostId}/comments`, { method: 'POST', body: JSON.stringify({ text, parentId: replyTargetCommentId || null }) });
-      document.getElementById('comment-input').value = '';
-      replyTargetCommentId = null;
-      const r = await api(`/posts/${currentPostId}/comments`);
-      postComments[currentPostId] = r.comments || [];
-      renderComments();
-      await syncPosts();
-    } catch (e) { alert(e.message); }
-  });
-
+  // publish/comment/like/repost via backend (no mocks)
   document.addEventListener('click', async (e) => {
-    const btn = e.target.closest('.action-btn[data-action="like"]');
-    if (!btn) return;
-    e.stopImmediatePropagation();
-    const id = Number(btn.dataset.id);
-    try {
-      await api(`/posts/${id}/like`, { method: 'POST' });
-      await syncPosts();
-    } catch (err) { console.error(err); }
+    const postBtn = e.target.closest('#post-submit');
+    if (postBtn) {
+      e.preventDefault(); e.stopImmediatePropagation();
+      const text = postInput.value.trim();
+      if (!text && composerMedia.length === 0) return;
+      try {
+        await api('/posts', { method: 'POST', body: JSON.stringify({ text, media: composerMedia }) });
+        postInput.value = ''; composerMedia = []; renderComposerPreviews();
+        await syncPosts();
+      } catch (err) { alert(err.message); }
+      return;
+    }
+
+    const cbtn = e.target.closest('#comment-submit');
+    if (cbtn) {
+      e.preventDefault(); e.stopImmediatePropagation();
+      const text = document.getElementById('comment-input').value.trim();
+      if (!text || !currentPostId) return;
+      try {
+        await api(`/posts/${currentPostId}/comments`, { method: 'POST', body: JSON.stringify({ text, parentId: replyTargetCommentId || null }) });
+        document.getElementById('comment-input').value = '';
+        replyTargetCommentId = null;
+        const r = await api(`/posts/${currentPostId}/comments`);
+        postComments[currentPostId] = r.comments || [];
+        renderComments();
+        await syncPosts();
+      } catch (err) { alert(err.message); }
+      return;
+    }
+
+    const likeBtn = e.target.closest('.action-btn[data-action="like"]');
+    if (likeBtn) {
+      e.stopImmediatePropagation();
+      try { await api(`/posts/${Number(likeBtn.dataset.id)}/like`, { method: 'POST' }); await syncPosts(); } catch {}
+      return;
+    }
+
+    const repostBtn = e.target.closest('.action-btn[data-action="repost"]');
+    if (repostBtn) {
+      e.stopImmediatePropagation();
+      try { await api(`/posts/${Number(repostBtn.dataset.id)}/repost`, { method: 'POST' }); await syncPosts(); } catch {}
+    }
   }, true);
+
+  // post button unlock bug fix
+  const recalcPostBtn = () => {
+    const b = document.getElementById('post-submit');
+    if (!b) return;
+    b.disabled = postInput.value.trim().length === 0 && composerMedia.length === 0;
+  };
+  postInput?.addEventListener('input', recalcPostBtn);
+  document.getElementById('composer-file-input')?.addEventListener('change', () => setTimeout(recalcPostBtn, 0));
 
   (async () => {
     posts = [];
@@ -4115,7 +4271,7 @@
     try {
       await syncMe();
       hideLoginScreen();
-      await syncPosts();
+      await Promise.all([syncPosts(), syncTrends(), syncStories()]);
     } catch {
       dropToken();
       showLoginScreen();

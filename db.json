@@ -3,5 +3,10 @@
   "posts": [],
   "comments": [],
   "likes": [],
-  "follows": []
+  "follows": [],
+  "stories": [],
+  "meta": {
+    "postSeq": 1,
+    "commentSeq": 1
+  }
 }
