@@ -3994,7 +3994,7 @@
   const dropToken = () => localStorage.removeItem(TOKEN_KEY);
 
   const style = document.createElement('style');
-  style.textContent = `.story-avatar{padding:.5px!important}.story-item.viewed .story-avatar{background:#5f5f67!important;animation:none!important}#edit-modal-overlay.visible #edit-profile-wrap{transform:translateY(26px)!important}`;
+  style.textContent = `.story-item.viewed .story-avatar{background:#5f5f67!important;animation:none!important}#edit-modal-overlay.visible #edit-profile-wrap{transform:translateY(26px)!important}`;
   document.head.appendChild(style);
 
   async function api(path, opts = {}) {
@@ -4012,11 +4012,11 @@
       profileData.name = me.displayName || profileData.name;
       profileData.username = `@${me.username}`;
       profileData.bio = me.bio || '';
-      profileData.avatarUrl = me.avatarUrl || null;
-      profileData.bannerUrl = me.bannerUrl || null;
+      profileData.avatarUrl = absoluteUrl(me.avatarUrl || '') || null;
+      profileData.bannerUrl = absoluteUrl(me.bannerUrl || '') || null;
       profileData.vpsc = me.vpsc || profileData.vpsc;
     }
-    const nameEl = document.querySelector('.profile-name'); if (nameEl) nameEl.textContent = me.displayName || '';
+    const nameEl = document.querySelector('.profile-name'); if (nameEl) nameEl.textContent = me.displayName || 'Без имени';
     const uEl = document.querySelector('.profile-username'); if (uEl) uEl.textContent = `@${me.username}`;
     const bEl = document.querySelector('.profile-bio'); if (bEl) bEl.textContent = me.bio || '';
     const st = document.querySelectorAll('.stat-item .stat-number');
@@ -4027,15 +4027,17 @@
     const epu = document.getElementById('ep-username'); if (epu) epu.value = me.username || '';
     const epbio = document.getElementById('ep-bio'); if (epbio) epbio.value = me.bio || '';
     const nav = document.getElementById('nav-profile-avatar');
-    if (nav) nav.innerHTML = me.avatarUrl ? `<img src="${me.avatarUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">` : (me.displayName||'Я')[0].toUpperCase();
+    const avatarUrl = absoluteUrl(me.avatarUrl || '');
+    const bannerUrl = absoluteUrl(me.bannerUrl || '');
+    if (nav) nav.innerHTML = avatarUrl ? `<img src="${avatarUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">` : (me.displayName||'Я')[0].toUpperCase();
     const pa = document.querySelector('.profile-avatar');
-    if (pa) pa.innerHTML = me.avatarUrl ? `<img src="${me.avatarUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">` : (me.displayName||'Я')[0].toUpperCase();
+    if (pa) pa.innerHTML = avatarUrl ? `<img src="${avatarUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">` : (me.displayName||'Я')[0].toUpperCase();
     const cover = document.querySelector('.profile-cover');
-    if (cover && me.bannerUrl) cover.style.background = `url('${me.bannerUrl}') center/cover no-repeat`;
+    if (cover) cover.style.background = bannerUrl ? `url('${bannerUrl}') center/cover no-repeat` : 'linear-gradient(135deg, #0078FF 0%, #23D4F9 100%)';
     const epi = document.getElementById('ep-avatar-img');
-    if (epi && me.avatarUrl) { epi.src = me.avatarUrl; epi.classList.add('loaded'); const l = document.getElementById('ep-avatar-letter'); if (l) l.style.display='none'; }
+    if (epi && avatarUrl) { epi.src = avatarUrl; epi.classList.add('loaded'); const l = document.getElementById('ep-avatar-letter'); if (l) l.style.display='none'; }
     const epb = document.getElementById('ep-banner-img');
-    if (epb && me.bannerUrl) { epb.src = me.bannerUrl; epb.classList.add('loaded'); }
+    if (epb && bannerUrl) { epb.src = bannerUrl; epb.classList.add('loaded'); }
   }
 
   async function syncMe() {
@@ -4081,6 +4083,7 @@
       const r = await api('/auth/login', { method: 'POST', body: JSON.stringify({ username: u, password: p }) });
       setToken(r.token);
       await syncMe();
+      syncProfileUi();
       hideLoginScreen();
       const homeBtn = document.querySelector('.nav-btn[data-tab="home"]'); if (homeBtn) homeBtn.click();
       await Promise.all([syncPosts(), syncTrends(), syncStories()]);
@@ -4095,6 +4098,7 @@
       const r = await api('/auth/vpsc', { method: 'POST', body: JSON.stringify({ code: vpscValue }) });
       setToken(r.token);
       await syncMe();
+      syncProfileUi();
       hideLoginScreen();
       const homeBtn = document.querySelector('.nav-btn[data-tab="home"]'); if (homeBtn) homeBtn.click();
       await Promise.all([syncPosts(), syncTrends(), syncStories()]);
@@ -4113,11 +4117,25 @@
       const r = await api('/auth/register', { method: 'POST', body: JSON.stringify({ username: u, password: p, displayName: dn }) });
       setToken(r.token);
       await syncMe();
+      syncProfileUi();
       hideLoginScreen();
       const homeBtn = document.querySelector('.nav-btn[data-tab="home"]'); if (homeBtn) homeBtn.click();
       await Promise.all([syncPosts(), syncTrends(), syncStories()]);
     } catch (e) { err.textContent = e.message; }
   };
+
+  function absoluteUrl(u) {
+    if (!u) return '';
+    return /^https?:\/\//i.test(u) || u.startsWith('data:') ? u : `${location.origin}${u}`;
+  }
+
+  async function uploadImageIfNeeded(value, kind) {
+    const src = String(value || '');
+    if (!src) return '';
+    if (!src.startsWith('data:image/')) return src;
+    const r = await api('/upload', { method: 'POST', body: JSON.stringify({ dataUrl: src, kind }) });
+    return r.url || '';
+  }
 
   window.saveProfile = async function saveProfile() {
     const err = document.getElementById('ep-error');
@@ -4130,8 +4148,14 @@
     };
     if (err) err.textContent = '';
     try {
+      payload.avatarUrl = await uploadImageIfNeeded(payload.avatarUrl, 'avatar');
+      payload.bannerUrl = await uploadImageIfNeeded(payload.bannerUrl, 'banner');
       const r = await api('/me', { method: 'PATCH', body: JSON.stringify(payload) });
       me = r.user;
+      if (window.profileData) {
+        profileData.avatarUrl = absoluteUrl(me.avatarUrl || '');
+        profileData.bannerUrl = absoluteUrl(me.bannerUrl || '');
+      }
       closeEditModal();
       syncProfileUi();
       await syncPosts();
@@ -4175,20 +4199,6 @@
   function isOwnPost(post) {
     return !!(me && post && String(post.username || '').toLowerCase() === `@${me.username}`.toLowerCase());
   }
-  function segmentedStoryRing(count, viewed) {
-    const parts = Math.max(1, Math.min(12, Number(count) || 1));
-    const segment = 360 / parts;
-    const gap = Math.min(6, segment * 0.22);
-    const color = viewed ? '#5f5f67' : '#0D7EFF';
-    const slices = [];
-    for (let i = 0; i < parts; i++) {
-      const start = i * segment;
-      const end = start + segment - gap;
-      slices.push(`${color} ${start}deg ${end}deg`, `transparent ${end}deg ${(i + 1) * segment}deg`);
-    }
-    return `conic-gradient(${slices.join(',')})`;
-  }
-
   async function syncStories() {
     try {
       const r = await api('/stories');
@@ -4213,15 +4223,13 @@
           document.getElementById('viewer-name').textContent = user.username;
           document.getElementById('viewer-time').textContent = items[start]?.time ? '· ' + formatStoryTime(items[start].time) : '';
           document.getElementById('viewer-avatar').innerHTML = user.avatarUrl ? `<img src="${user.avatarUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">` : user.avatar;
-          window.__vpStoryMeta = { key: user.username, total: items.length, element: el };
           openStoryViewer(items,start);
+          viewed[user.username] = start + 1;
+          localStorage.setItem('vp_story_viewed', JSON.stringify(viewed));
+          if ((start + 1) >= items.length) el.classList.add('viewed');
         };
         const viewed = JSON.parse(localStorage.getItem('vp_story_viewed')||'{}');
-        const seenCount = Number(viewed[user.username] || 0);
-        const done = seenCount >= items.length;
-        if (done) el.classList.add('viewed');
-        const ring = el.querySelector('.story-avatar');
-        if (ring) ring.style.background = segmentedStoryRing(items.length, done);
+        if (Number(viewed[user.username] || 0) >= items.length) el.classList.add('viewed');
         list.appendChild(el);
       });
     } catch {}
@@ -4407,8 +4415,7 @@
   const originalOpenEditModal = window.openEditModal;
   if (typeof originalOpenEditModal === 'function') {
     window.openEditModal = function openEditModal() {
-      syncProfileUi();
-      originalOpenEditModal();
+      syncMe().catch(() => {}).finally(() => { syncProfileUi(); originalOpenEditModal(); });
     };
   }
 
@@ -4508,29 +4515,9 @@
     });
   };
 
-  const originalCloseStoryViewer = window.closeStoryViewer;
-  if (typeof originalCloseStoryViewer === 'function') {
-    window.closeStoryViewer = function closeStoryViewerPatched() {
-      const meta = window.__vpStoryMeta;
-      if (meta && meta.key) {
-        const viewed = JSON.parse(localStorage.getItem('vp_story_viewed') || '{}');
-        const next = Math.max(Number(viewed[meta.key] || 0), currentMediaIndex + 1);
-        viewed[meta.key] = Math.min(meta.total || next, next);
-        localStorage.setItem('vp_story_viewed', JSON.stringify(viewed));
-      }
-      originalCloseStoryViewer();
-      if (meta && meta.element) {
-        const viewed = JSON.parse(localStorage.getItem('vp_story_viewed') || '{}');
-        const done = Number(viewed[meta.key] || 0) >= Number(meta.total || 0);
-        if (done) meta.element.classList.add('viewed');
-        const ring = meta.element.querySelector('.story-avatar');
-        if (ring) ring.style.background = segmentedStoryRing(meta.total, done);
-      }
-      window.__vpStoryMeta = null;
-    };
-  }
 
   setInterval(() => { if (token()) syncPosts().catch(() => {}); }, 4000);
+  setInterval(() => { if (token()) syncMe().catch(() => {}); }, 5000);
 
   (async () => {
     posts = [];
@@ -4538,6 +4525,7 @@
     if (!token()) { showLoginScreen(); return; }
     try {
       await syncMe();
+      syncProfileUi();
       hideLoginScreen();
       const homeBtn = document.querySelector('.nav-btn[data-tab="home"]'); if (homeBtn) homeBtn.click();
       await Promise.all([syncPosts(), syncTrends(), syncStories()]);

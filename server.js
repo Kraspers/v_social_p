@@ -140,7 +140,8 @@ function serveFile(res, pathname) {
     '.png': 'image/png',
     '.jpg': 'image/jpeg',
     '.jpeg': 'image/jpeg',
-    '.svg': 'image/svg+xml'
+    '.svg': 'image/svg+xml',
+    '.webp': 'image/webp'
   }[ext] || 'application/octet-stream';
   res.writeHead(200, { 'Content-Type': type });
   fs.createReadStream(fp).pipe(res);
@@ -442,6 +443,25 @@ const server = http.createServer(async (req, res) => {
     db.stories.push({ id: uid(), authorId: me.id, src, mediaType, caption, createdAt: nowIso() });
     writeDb(db);
     return sendJson(res, 201, { ok: true });
+  }
+
+  if (u.pathname === '/api/upload' && req.method === 'POST') {
+    if (!me) return sendJson(res, 401, { error: 'Unauthorized' });
+    const b = await parseBody(req);
+    const dataUrl = String(b.dataUrl || '');
+    const kind = b.kind === 'banner' ? 'banner' : 'avatar';
+    const m = dataUrl.match(/^data:(image\/(png|jpeg|jpg|webp));base64,(.+)$/i);
+    if (!m) return sendJson(res, 400, { error: 'Неверный формат изображения' });
+    const subtype = m[2].toLowerCase() === 'jpg' ? 'jpeg' : m[2].toLowerCase();
+    const ext = subtype === 'jpeg' ? 'jpg' : subtype;
+    const raw = Buffer.from(m[3], 'base64');
+    const max = kind === 'banner' ? 8 * 1024 * 1024 : 5 * 1024 * 1024;
+    if (raw.length > max) return sendJson(res, 400, { error: 'Файл слишком большой' });
+    const uploadDir = path.join(ROOT, 'uploads');
+    if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+    const filename = `${me.id}_${kind}_${Date.now()}_${uid().slice(0,6)}.${ext}`;
+    fs.writeFileSync(path.join(uploadDir, filename), raw);
+    return sendJson(res, 201, { url: `/uploads/${filename}` });
   }
 
   if (u.pathname === '/api/trends' && req.method === 'GET') {
