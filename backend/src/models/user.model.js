@@ -95,6 +95,21 @@ const searchUsers = async (query, limit) => {
   return rows;
 };
 
+
+const findWithPasswordById = async (id) => {
+  const q = `SELECT * FROM users WHERE id = $1 LIMIT 1`;
+  const { rows } = await db.query(q, [id]);
+  return rows[0] || null;
+};
+
+const updatePassword = async ({ userId, passwordHash }) => {
+  await db.query('UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2', [passwordHash, userId]);
+};
+
+const deleteUser = async (userId) => {
+  await db.query('DELETE FROM users WHERE id = $1', [userId]);
+};
+
 module.exports = {
   createUser,
   createProfile,
@@ -102,5 +117,8 @@ module.exports = {
   findById,
   findByUsername,
   updateProfile,
-  searchUsers
+  searchUsers,
+  findWithPasswordById,
+  updatePassword,
+  deleteUser
 };

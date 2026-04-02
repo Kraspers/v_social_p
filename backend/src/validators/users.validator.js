@@ -8,4 +8,9 @@ const updateProfileSchema = z.object({
   website: z.string().url().optional().nullable()
 });
 
-module.exports = { updateProfileSchema };
+const changePasswordSchema = z.object({
+  oldPassword: z.string().min(1),
+  newPassword: z.string().min(8).max(100)
+});
+
+module.exports = { updateProfileSchema, changePasswordSchema };

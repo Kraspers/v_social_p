@@ -2019,13 +2019,45 @@
     // ===== POSTS =====
     let pinnedPostId = null;
     let pinnedRepostId = null;
-    const samplePosts = [
-        { id: 1, author: "Artem", username: "@overdork", avatar: "А", text: "Пока илья новки создаёт вирус и убивает людей, ВП идёт к успеху💪", time: "Только что", likes: 24, reposts: 5, comments: 8, liked: false, reposted: false },
-        { id: 2, author: "Подсосок", username: "@podsosok", avatar: "П", text: "Продристань", time: "4 часа назад", likes: 156, reposts: 23, comments: 34, liked: true, reposted: false },
-        { id: 3, author: "Дмитрий", username: "@dmitry", avatar: "Д", text: "Кто-нибудь ещё думает, что #впизде — это лучший микроблог года? 🔥", time: "6 часов назад", likes: 89, reposts: 12, comments: 45, liked: false, reposted: false },
-        { id: 4, author: "Катя", username: "@katya_photo", avatar: "К", text: "Sunset vibes 🌅 Сегодня поймала идеальный момент! @alex_dev что скажешь?", time: "8 часов назад", likes: 234, reposts: 45, comments: 67, liked: true, reposted: true }
-    ];
+    const samplePosts = [];
     let posts = [...samplePosts];
+
+    function humanTime(dt) {
+        const d = new Date(dt);
+        if (Number.isNaN(d.getTime())) return 'Только что';
+        const diff = Math.floor((Date.now() - d.getTime()) / 1000);
+        if (diff < 60) return 'Только что';
+        if (diff < 3600) return `${Math.floor(diff/60)} мин назад`;
+        if (diff < 86400) return `${Math.floor(diff/3600)} ч назад`;
+        return `${Math.floor(diff/86400)} д назад`;
+    }
+
+    function mapApiPost(p) {
+        const dn = p.display_name || p.username || 'Пользователь';
+        return {
+            id: p.id,
+            author: dn,
+            username: '@' + p.username,
+            avatar: (dn[0] || 'U').toUpperCase(),
+            avatarUrl: p.avatar_url || null,
+            text: p.text || '',
+            media: p.media_url ? [{ type: p.media_type === 'video' ? 'video' : 'image', src: p.media_url }] : [],
+            time: humanTime(p.created_at),
+            likes: Number(p.likes_count || 0),
+            reposts: 0,
+            comments: Number(p.comments_count || 0),
+            liked: false,
+            reposted: false
+        };
+    }
+
+    async function loadFeed() {
+        try {
+            const data = await apiRequest('/feed?limit=50');
+            posts = (data || []).map(mapApiPost);
+            renderPosts();
+        } catch (e) {}
+    }
 
     function formatPostText(text) {
         return text.replace(/#(\w+)/g, '<span class="hashtag">#$1</span>').replace(/@(\w+)/g, '<span class="mention">@$1</span>');
@@ -2255,6 +2287,7 @@
                     </div>
                 </div>
             </div>`;
+        loadComments(post.id);
         renderComments();
         // Show 3-dot for own posts in modal header
         const optsBtnSlot = document.getElementById('modal-post-options-btn');
@@ -2320,42 +2353,47 @@
         comments.forEach(c => { commentsList.innerHTML += makeHTML(c); });
     }
 
+
+    async function loadComments(postId) {
+        try {
+            const data = await apiRequest(`/posts/${postId}/comments?limit=100`);
+            postComments[postId] = (data || []).map(c => ({
+                id: c.id,
+                author: c.display_name || c.username,
+                username: '@' + c.username,
+                avatar: ((c.display_name || c.username || 'U')[0] || 'U').toUpperCase(),
+                text: c.text,
+                time: humanTime(c.created_at),
+                likes: 0,
+                liked: false,
+                replies: []
+            }));
+            renderComments();
+        } catch (e) {}
+    }
+
     function toggleRepliesVisibility(commentId) {
         expandedReplies[commentId] = !expandedReplies[commentId];
         renderComments();
     }
 
     commentInput.addEventListener('input', () => { commentSubmit.disabled = !commentInput.value.trim(); });
-    commentSubmit.addEventListener('click', () => {
+    commentSubmit.addEventListener('click', async () => {
         const text = commentInput.value.trim();
         if (!text) return;
-        if (!postComments[currentPostId]) postComments[currentPostId] = [];
-        if (replyTargetCommentId) {
-            const comments = postComments[currentPostId];
-            function findRoot(list, targetId) {
-                for (let c of list) {
-                    if (c.id === targetId) return c;
-                    if (c.replies) {
-                        for (let r of c.replies) if (r.id === targetId) return c;
-                        const found = findRoot(c.replies, targetId);
-                        if (found) return found;
-                    }
-                }
-                return null;
-            }
-            const rootComment = findRoot(comments, replyTargetCommentId);
-            if (rootComment) {
-                rootComment.replies.push({ id: Date.now(), author:"Вы", username:"@username", avatar:"Я", text, time:"Только что", likes:0, liked:false, replies:[] });
-            } else {
-                postComments[currentPostId].unshift({ id: Date.now(), author:"Вы", username:"@username", avatar:"Я", text, time:"Только что", likes:0, liked:false, replies:[] });
-            }
-        } else {
-            postComments[currentPostId].unshift({ id: Date.now(), author:"Вы", username:"@username", avatar:"Я", text, time:"Только что", likes:0, liked:false, replies:[] });
+        try {
+            await apiRequest(`/posts/${currentPostId}/comments`, {
+                method: 'POST',
+                body: JSON.stringify({ text, parentCommentId: replyTargetCommentId || null })
+            });
+            await loadComments(currentPostId);
+            const post = posts.find(p => p.id === currentPostId);
+            if (post) post.comments += 1;
+            if (post) renderPosts();
+        } catch (e) {
+            showToast(e.message || 'Ошибка комментария');
+            return;
         }
-        const post = posts.find(p => p.id === currentPostId);
-        if (!replyTargetCommentId && post) post.comments++;
-        if (post) renderPosts();
-        if (postModal.classList.contains('active')) openPostModal(post || upmLocalPosts.get(currentPostId));
         commentInput.value = '';
         commentInput.style.height = '40px';
         commentSubmit.disabled = true;
@@ -2364,15 +2402,61 @@
     });
 
     // ===== LOGIN SCREEN =====
-    const USERS_KEY = 'vp_users';
     const SESSION_KEY = 'vp_session';
+    const ACCESS_TOKEN_KEY = 'vp_access_token';
+    const REFRESH_TOKEN_KEY = 'vp_refresh_token';
+    const API_BASE = (window.__API_BASE__ || 'http://localhost:4000') + '/api/v1';
+    const usersCache = {};
 
-    function getUsers() {
-        try { return JSON.parse(localStorage.getItem(USERS_KEY) || '{}'); } catch(e) { return {}; }
-    }
-    function saveUsers(u) { try { localStorage.setItem(USERS_KEY, JSON.stringify(u)); } catch(e){} }
+    function getUsers() { return usersCache; }
+    function saveUsers(u) { Object.assign(usersCache, u || {}); }
     function getSession() { try { return localStorage.getItem(SESSION_KEY); } catch(e){ return null; } }
     function setSession(u) { try { localStorage.setItem(SESSION_KEY, u); } catch(e){} }
+
+    function getAccessToken() { try { return localStorage.getItem(ACCESS_TOKEN_KEY); } catch(e){ return null; } }
+    function setTokens(accessToken, refreshToken) {
+        try {
+            if (accessToken) localStorage.setItem(ACCESS_TOKEN_KEY, accessToken);
+            if (refreshToken) localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+        } catch(e) {}
+    }
+    function clearTokens() {
+        try {
+            localStorage.removeItem(ACCESS_TOKEN_KEY);
+            localStorage.removeItem(REFRESH_TOKEN_KEY);
+        } catch(e) {}
+    }
+
+    async function apiRequest(path, options = {}, retry = true) {
+        const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) };
+        const access = getAccessToken();
+        if (access) headers.Authorization = `Bearer ${access}`;
+
+        const res = await fetch(API_BASE + path, { ...options, headers });
+        if (res.status === 401 && retry) {
+            const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
+            if (refreshToken) {
+                const r = await fetch(API_BASE + '/auth/refresh', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ refreshToken })
+                });
+                if (r.ok) {
+                    const refreshJson = await r.json();
+                    const data = refreshJson.data || {};
+                    setTokens(data.accessToken, data.refreshToken);
+                    return apiRequest(path, options, false);
+                }
+            }
+            throw new Error('UNAUTHORIZED');
+        }
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) {
+            const msg = (json.error && json.error.message) ? json.error.message : 'Ошибка запроса';
+            throw new Error(msg);
+        }
+        return json.data;
+    }
 
     function showLoginScreen() { document.getElementById('login-screen').classList.remove('hidden'); }
     function hideLoginScreen() {
@@ -2401,29 +2485,32 @@
         document.getElementById('reg-panel').classList.add('active');
     }
 
-    function doLogin() {
+    async function doLogin() {
         const u = document.getElementById('login-username').value.trim();
         const p = document.getElementById('login-password').value;
         const err = document.getElementById('login-error');
         if (!u || !p) { err.textContent = 'Введите логин и пароль'; return; }
-        const users = getUsers();
-        if (!users[u.toLowerCase()]) { err.textContent = 'Пользователь не найден'; return; }
-        if (users[u.toLowerCase()].password !== p) { err.textContent = 'Неверный пароль'; return; }
-        setSession(u.toLowerCase());
-        hideLoginScreen();
+        try {
+            const data = await apiRequest('/auth/login', {
+                method: 'POST',
+                body: JSON.stringify({ usernameOrEmail: u, password: p })
+            });
+            setSession(data.user.username);
+            setTokens(data.accessToken, data.refreshToken);
+            usersCache[data.user.username] = { username: data.user.username, displayname: data.user.displayName, avatarUrl: data.user.avatarUrl };
+            hideLoginScreen();
+            loadFeed();
+        } catch (e) {
+            err.textContent = e.message || 'Ошибка входа';
+        }
     }
 
     function doVpscLogin() {
         const err = document.getElementById('vpsc-error');
-        if (vpscValue.length < 6) { err.textContent = 'Введите 6-значный код'; return; }
-        const users = getUsers();
-        const found = Object.values(users).find(u => u.vpsc === vpscValue.toUpperCase());
-        if (!found) { err.textContent = 'Неверный VPSC-код'; return; }
-        setSession(found.username);
-        hideLoginScreen();
+        err.textContent = 'VPSC-вход отключён. Используйте логин/пароль.';
     }
 
-    function doRegister() {
+    async function doRegister() {
         const dn = document.getElementById('reg-displayname').value.trim();
         const u = document.getElementById('reg-username').value.trim();
         const p = document.getElementById('reg-password').value;
@@ -2433,15 +2520,21 @@
         if (!u) { err.textContent = 'Введите логин'; return; }
         if (u.length < 3) { err.textContent = 'Логин минимум 3 символа'; return; }
         if (!p) { err.textContent = 'Введите пароль'; return; }
-        if (p.length < 4) { err.textContent = 'Пароль минимум 4 символа'; return; }
+        if (p.length < 8) { err.textContent = 'Пароль минимум 8 символов'; return; }
         if (p !== p2) { err.textContent = 'Пароли не совпадают'; return; }
-        const users = getUsers();
-        if (users[u.toLowerCase()]) { err.textContent = 'Логин уже занят'; return; }
-        const vpsc = Array.from({length:6}, () => 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[Math.floor(Math.random()*32)]).join('');
-        users[u.toLowerCase()] = { username: u.toLowerCase(), displayname: dn, password: p, vpsc };
-        saveUsers(users);
-        setSession(u.toLowerCase());
-        hideLoginScreen();
+        try {
+            const data = await apiRequest('/auth/register', {
+                method: 'POST',
+                body: JSON.stringify({ username: u, password: p, displayName: dn })
+            });
+            setSession(data.user.username);
+            setTokens(data.accessToken, data.refreshToken);
+            usersCache[data.user.username] = { username: data.user.username, displayname: data.user.displayName, avatarUrl: data.user.avatarUrl };
+            hideLoginScreen();
+            loadFeed();
+        } catch (e) {
+            err.textContent = e.message || 'Ошибка регистрации';
+        }
     }
 
     let vpscValue = '';
@@ -2465,7 +2558,20 @@
     document.getElementById('login-username').addEventListener('keydown', e => { if(e.key==='Enter') document.getElementById('login-password').focus(); });
     document.getElementById('login-password').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
 
-    (function() { const sess = getSession(); if (!sess) showLoginScreen(); })();
+    (async function() {
+        const sess = getSession();
+        const access = getAccessToken();
+        if (!sess || !access) { showLoginScreen(); return; }
+        try {
+            const me = await apiRequest('/auth/me');
+            usersCache[me.username] = { username: me.username, displayname: me.display_name, avatarUrl: me.avatar_url, bio: me.bio };
+            hideLoginScreen();
+            loadFeed();
+        } catch (e) {
+            clearTokens();
+            showLoginScreen();
+        }
+    })();
 
     window.toggleCommentLike = id => {
         function toggle(list) {
@@ -2594,12 +2700,19 @@
         saveBtn.disabled = text.length === 0 && editPostMedia.length === 0;
     }
 
-    postSubmit.addEventListener('click', () => {
+    postSubmit.addEventListener('click', async () => {
         const text = postInput.value.trim();
         if (!text && composerMedia.length === 0) return;
-        const mediaSnap = [...composerMedia];
-        posts.unshift({ id: posts.length+1, author:"Вы", username:"@username", avatar:"Я", text: text || '', media: mediaSnap, time:"Только что", likes:0, reposts:0, comments:0, liked:false, reposted:false });
-        renderPosts();
+        try {
+            await apiRequest('/posts', {
+                method: 'POST',
+                body: JSON.stringify({ text: text || ' ', mediaUrl: null, mediaType: 'none', visibility: 'public' })
+            });
+            await loadFeed();
+        } catch (e) {
+            alert(e.message || 'Ошибка публикации');
+            return;
+        }
         postInput.value = '';
         composerMedia = [];
         renderComposerPreviews();
@@ -2613,26 +2726,21 @@
         const btn = e.target.closest('.action-btn');
         if (!btn) return;
         const action = btn.dataset.action;
-        const id = parseInt(btn.dataset.id);
+        const id = btn.dataset.id;
         const post = posts.find(p => p.id === id) || upmLocalPosts.get(id);
         if (!post) return;
         if (action === 'like') {
-            post.liked = !post.liked;
-            post.likes += post.liked ? 1 : -1;
-            if (upmLocalPosts.has(id) && currentViewedProfile) {
-                const upmIdx = id - 900000;
-                const sourcePost = currentViewedProfile.userData && Array.isArray(currentViewedProfile.userData.posts)
-                    ? currentViewedProfile.userData.posts[upmIdx]
-                    : null;
-                if (sourcePost) {
-                    sourcePost.liked = post.liked;
-                    sourcePost.likes = post.likes;
-                }
-                renderUserProfileBody(currentViewedProfile.uname, currentViewedProfile.userData, document.getElementById('upm-body'));
-            } else {
+            const wasLiked = !!post.liked;
+            const path = `/posts/${id}/likes`;
+            const req = wasLiked
+                ? apiRequest(path, { method: 'DELETE' })
+                : apiRequest(path, { method: 'POST' });
+            req.then(async () => {
+                post.liked = !wasLiked;
+                post.likes += post.liked ? 1 : -1;
                 renderPosts();
-            }
-            if (postModal.classList.contains('active')) openPostModal(post);
+                if (postModal.classList.contains('active')) openPostModal(post);
+            }).catch(err => alert(err.message || 'Ошибка лайка'));
         }
         else if (action === 'repost') {
             if (upmLocalPosts.has(id)) {
@@ -3236,17 +3344,9 @@
     })();
     // ===== USER SEARCH =====
     // All searchable users: localStorage + mock
-    function getAllSearchableUsers() {
-        const lsUsers = getUsers();
-        const all = {};
-        // mock users
-        Object.entries(mockUsers).forEach(([k,v]) => { all[k] = v; });
-        // localStorage users
-        Object.entries(lsUsers).forEach(([k,v]) => { all[k] = v; });
-        return all;
-    }
+    function getAllSearchableUsers() { return getUsers(); }
 
-    function doUserSearch(query) {
+    async function doUserSearch(query) {
         const q = query.trim().toLowerCase().replace(/^@/, '');
         const clearBtn = document.getElementById('search-clear-btn');
         const resultsList = document.getElementById('search-results-list');
@@ -3260,11 +3360,14 @@
         trendsWrap.style.display = 'none';
         resultsList.style.display = 'block';
 
-        const all = getAllSearchableUsers();
-        const results = Object.entries(all).filter(([uname, u]) => {
-            const dn = (u.displayname || uname).toLowerCase();
-            return uname.includes(q) || dn.includes(q);
-        });
+        let results = [];
+        try {
+            const data = await apiRequest(`/users/search?q=${encodeURIComponent(q)}&limit=20`);
+            results = (data || []).map(u => [u.username, { username: u.username, displayname: u.display_name || u.username, avatarUrl: u.avatar_url }]);
+            results.forEach(([uname, u]) => { usersCache[uname] = { ...usersCache[uname], ...u }; });
+        } catch (e) {
+            results = [];
+        }
 
         if (!results.length) {
             resultsList.innerHTML = `<div style="text-align:center;padding:40px 20px;color:rgba(255,255,255,0.35);font-size:15px;">Пользователь не найден</div>`;
@@ -3525,16 +3628,21 @@
         renderPosts();
         renderProfileFeeds();
     }
-    function postOptsDelete() {
+    async function postOptsDelete() {
         const id = postOptsId;
         closePostOptions();
         if (id === null) return;
-        posts = posts.filter(p => p.id !== id);
-        if (pinnedPostId === id) pinnedPostId = null;
-        if (pinnedRepostId === id) pinnedRepostId = null;
-        closePostModal();
-        renderPosts();
-        showToast('Пост удалён');
+        try {
+            await apiRequest(`/posts/${id}`, { method: 'DELETE' });
+            posts = posts.filter(p => p.id !== id);
+            if (pinnedPostId === id) pinnedPostId = null;
+            if (pinnedRepostId === id) pinnedRepostId = null;
+            closePostModal();
+            renderPosts();
+            showToast('Пост удалён');
+        } catch (e) {
+            showToast(e.message || 'Ошибка удаления');
+        }
     }
 
     function showToast(msg) {
@@ -3546,8 +3654,13 @@
     }
 
     // ===== LOGOUT =====
-    function doLogout() {
+    async function doLogout() {
+        try {
+            const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
+            await apiRequest('/auth/logout', { method: 'POST', body: JSON.stringify({ refreshToken }) });
+        } catch (e) {}
         try { localStorage.removeItem(SESSION_KEY); } catch(e) {}
+        clearTokens();
         location.reload();
     }
 
@@ -3571,21 +3684,19 @@
         const newPw = document.getElementById('pw-new').value;
         const newPw2 = document.getElementById('pw-new2').value;
         const err = document.getElementById('pw-error');
-        const sess = getSession();
-        const users = getUsers();
-        if (!sess || !users[sess]) { err.textContent = 'Ошибка сессии'; return; }
         if (!oldPw) { err.textContent = 'Введите старый пароль'; return; }
-        if (users[sess].password !== oldPw) { err.textContent = 'Неверный старый пароль'; return; }
-        if (!newPw || newPw.length < 4) { err.textContent = 'Новый пароль минимум 4 символа'; return; }
+        if (!newPw || newPw.length < 8) { err.textContent = 'Новый пароль минимум 8 символов'; return; }
         if (newPw !== newPw2) { err.textContent = 'Пароли не совпадают'; return; }
-        users[sess].password = newPw;
-        saveUsers(users);
-        closeChangePasswordModal();
-        const toast = document.getElementById('copy-toast');
-        toast.textContent = 'Пароль изменён';
-        toast.classList.add('show');
-        clearTimeout(toast._t);
-        toast._t = setTimeout(() => { toast.classList.remove('show'); }, 2000);
+        apiRequest('/users/me/password', { method: 'PUT', body: JSON.stringify({ oldPassword: oldPw, newPassword: newPw }) })
+            .then(() => {
+                closeChangePasswordModal();
+                const toast = document.getElementById('copy-toast');
+                toast.textContent = 'Пароль изменён';
+                toast.classList.add('show');
+                clearTimeout(toast._t);
+                toast._t = setTimeout(() => { toast.classList.remove('show'); }, 2000);
+            })
+            .catch(e => { err.textContent = e.message || 'Ошибка смены пароля'; });
     }
 
     // ===== DELETE ACCOUNT =====
@@ -3604,41 +3715,23 @@
     function submitDeleteAccount() {
         const pw = document.getElementById('delete-confirm-pw').value;
         const err = document.getElementById('delete-error');
-        const sess = getSession();
-        const users = getUsers();
-        if (!sess || !users[sess]) { err.textContent = 'Ошибка сессии'; return; }
         if (!pw) { err.textContent = 'Введите пароль'; return; }
-        if (users[sess].password !== pw) { err.textContent = 'Неверный пароль'; return; }
-        delete users[sess];
-        saveUsers(users);
-        try { localStorage.removeItem(SESSION_KEY); } catch(e) {}
-        location.reload();
+        apiRequest('/users/me', { method: 'DELETE' })
+            .then(() => {
+                try { localStorage.removeItem(SESSION_KEY); } catch(e) {}
+                clearTokens();
+                location.reload();
+            })
+            .catch(e => { err.textContent = e.message || 'Ошибка удаления аккаунта'; });
     }
 
     // ===== USER PROFILE VIEWER =====
     // Mock users for demo (not registered via localStorage)
-    const mockUsers = {
-        'podsosok': {
-            username: 'podsosok',
-            displayname: 'Подсосок',
-            bio: 'Продристань и всё такое 💀',
-            postsCount: 69,
-            followers: 420,
-            following: 13,
-            avatarGradient: 'linear-gradient(135deg,#ff6b6b 0%,#ee5a24 100%)',
-            avatarLetter: 'П',
-            bannerGradient: 'linear-gradient(135deg,#ee5a24 0%,#f9ca24 100%)',
-            posts: [
-                { text: 'Продристань', time: '4 часа назад', likes: 156 },
-                { text: 'Когда нибудь я стану легендой этой соц сети 🔥', time: '2 дня назад', likes: 88 },
-                { text: 'Всем привет я подсосок', time: '5 дней назад', likes: 34 },
-            ]
-        }
-    };
+    const mockUsers = {};
     const upmLocalPosts = new Map();
     let currentViewedProfile = null;
 
-    function openUserProfile(username) {
+    async function openUserProfile(username) {
         const uname = username.replace(/^@/, '').toLowerCase();
         const sess = getSession();
         if (sess && sess.toLowerCase() === uname) {
@@ -3654,10 +3747,21 @@
         const modal = document.getElementById('user-profile-modal');
         const body = document.getElementById('upm-body');
 
-        // Check localStorage users first, then mock users
-        const lsUser = users[uname];
-        const mockUser = mockUsers[uname];
-        const userData = lsUser || mockUser;
+        let userData = users[uname] || mockUsers[uname];
+        if (!userData) {
+            try {
+                const data = await apiRequest(`/users/${encodeURIComponent(uname)}`);
+                userData = {
+                    username: data.username,
+                    displayname: data.display_name || data.username,
+                    bio: data.bio || '',
+                    avatarUrl: data.avatar_url || null,
+                    location: data.location || '',
+                    website: data.website || ''
+                };
+                usersCache[uname] = userData;
+            } catch (e) {}
+        }
 
         currentViewedProfile = { uname, userData };
 

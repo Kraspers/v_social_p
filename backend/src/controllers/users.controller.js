@@ -36,4 +36,22 @@ const posts = async (req, res, next) => {
   }
 };
 
-module.exports = { getByUsername, updateMe, search, posts };
+const changePassword = async (req, res, next) => {
+  try {
+    await usersService.changePassword({ userId: req.auth.sub, ...req.body });
+    return res.status(204).send();
+  } catch (e) {
+    return next(e);
+  }
+};
+
+const deleteMe = async (req, res, next) => {
+  try {
+    await usersService.deleteMe(req.auth.sub);
+    return res.status(204).send();
+  } catch (e) {
+    return next(e);
+  }
+};
+
+module.exports = { getByUsername, updateMe, search, posts, changePassword, deleteMe };
