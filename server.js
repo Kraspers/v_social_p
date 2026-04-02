@@ -75,6 +75,20 @@ function sanitizeUser(u) {
   return safe;
 }
 
+function relativeTime(iso) {
+  const t = new Date(iso).getTime();
+  const now = Date.now();
+  const d = Math.max(0, now - t);
+  const m = Math.floor(d / 60000);
+  const h = Math.floor(d / 3600000);
+  const day = Math.floor(d / 86400000);
+  if (d < 60000) return 'Только что';
+  if (m < 60) return `${m} мин`;
+  if (h < 24) return `${h} ч`;
+  if (day < 365) return `${day} д`;
+  return new Date(iso).toLocaleDateString('ru-RU');
+}
+
 function countAllComments(db, postId) {
   return db.comments.filter((c) => c.postId === postId).length;
 }
@@ -94,7 +108,7 @@ function postDto(db, post, viewerId) {
     username: author ? `@${author.username}` : '@deleted',
     avatar: author?.avatar || 'U',
     avatarUrl: author?.avatarUrl || '',
-    time: new Date(post.createdAt).toLocaleString('ru-RU'),
+    time: relativeTime(post.createdAt),
     createdAt: post.createdAt,
     likes,
     comments,
@@ -109,7 +123,7 @@ function postDto(db, post, viewerId) {
       author: sourceAuthor?.displayName || 'Удалённый пользователь',
       username: sourceAuthor ? `@${sourceAuthor.username}` : '@deleted',
       avatar: sourceAuthor?.avatar || 'U',
-      time: new Date(source.createdAt).toLocaleString('ru-RU')
+      time: relativeTime(source.createdAt)
     } : null
   };
 }
@@ -323,7 +337,7 @@ const server = http.createServer(async (req, res) => {
           likes: 0,
           liked: false,
           replies: [],
-          time: new Date(c.createdAt).toLocaleString('ru-RU')
+          time: relativeTime(c.createdAt)
         };
       });
     return sendJson(res, 200, { comments });
