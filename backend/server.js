@@ -5,10 +5,9 @@ const db = require('./src/config/db');
 let server;
 
 const start = async () => {
-  if (db.isConfigured) {
-    await db.query('SELECT 1');
-  } else {
-    console.warn('[startup] DATABASE_URL is not set. API routes requiring DB will fail until configured.');
+  await db.query('SELECT 1');
+  if (db.mode === 'memory') {
+    console.warn('[startup] DATABASE_URL is not set. Running with in-memory PostgreSQL (pg-mem). Data will reset on restart.');
   }
 
   server = app.listen(env.port, () => {
