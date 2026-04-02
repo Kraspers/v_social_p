@@ -1,0 +1,14 @@
+{
+  "name": "vp-backend",
+  "version": "1.0.0",
+  "private": true,
+  "main": "backend/server.js",
+  "scripts": {
+    "start": "node backend/server.js",
+    "dev": "node backend/server.js"
+  },
+  "dependencies": {
+    "cookie-parser": "^1.4.6",
+    "express": "^4.19.2"
+  }
+}

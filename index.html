@@ -23,13 +23,13 @@
         .stories-list { display: inline-flex; gap: 12px; }
         .story-item { display: flex; flex-direction: column; align-items: center; gap: 6px; cursor: pointer; }
         /* CHANGE 3: gradient 0078FF → 23D4F9 */
-        .story-avatar { width: 64px; height: 64px; border-radius: 50%; padding: 2px; background: linear-gradient(45deg, #0078FF 0%, #23D4F9 50%, #0060CC 100%); background-size: 200% 200%; animation: gradientShift 3s ease infinite; display: flex; align-items: center; justify-content: center; }
+        .story-avatar { width: 66px; height: 66px; border-radius: 50%; padding: 1px; background: linear-gradient(45deg, #0078FF 0%, #23D4F9 50%, #0060CC 100%); background-size: 200% 200%; animation: gradientShift 3s ease infinite; display: flex; align-items: center; justify-content: center; }
         @keyframes gradientShift { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
         .story-avatar.create { background: transparent; animation: none; }
-        .story-avatar-inner { width: 52px; height: 52px; border-radius: 50%; background: #0f0f11; border: 1px solid #0f0f11; display: flex; align-items: center; justify-content: center; overflow: hidden; }
-        .story-avatar.create .story-avatar-inner { width: 56px; height: 56px; background: transparent; border: none; }
+        .story-avatar-inner { width: 52px; height: 52px; border-radius: 50%; background: #0f0f11; border: 2px solid #0f0f11; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+        .story-avatar.create .story-avatar-inner { width: 58px; height: 58px; background: transparent; border: none; }
         .story-avatar-img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
-        .story-username { font-size: 12px; color: rgba(255,255,255,0.7); max-width: 64px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .story-username { font-size: 12px; color: rgba(255,255,255,0.7); max-width: 66px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .story-viewer { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: #000; z-index: 9999; display: none; flex-direction: column; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
         .story-viewer.active { display: flex; }
         .story-header { position: absolute; top: 0; left: 0; right: 0; z-index: 2; padding: 16px; background: linear-gradient(180deg, rgba(0,0,0,0.5) 0%, transparent 100%); }
@@ -50,6 +50,8 @@
         .story-creator {
             position: fixed; top: 0; left: 0; right: 0; bottom: 0;
             background: rgba(0,0,0,0.55);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
             z-index: 9999;
             display: none;
             align-items: flex-end;
@@ -340,6 +342,23 @@
 
         /* replies */
         .comment-replies-container { margin-top: 10px; padding-left: 12px; border-left: 1px solid rgba(255,255,255,0.06); overflow: hidden; }
+        .comment-replies-toggle {
+            margin-top: 10px;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 14px;
+            background: rgba(80,80,88,0.75);
+            border: none;
+            border-radius: 999px;
+            color: #e6e6e9;
+            font-size: 13px;
+            font-weight: 600;
+            font-family: inherit;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .comment-replies-toggle:hover { background: rgba(96,96,104,0.88); }
         .nested-reply { padding: 10px 0 0 0 !important; border-bottom: none !important; }
         .nested-reply .comment-avatar { width: 30px; height: 30px; font-size: 12px; }
         .nested-reply .comment-replies-container { padding-left: 0; border-left: none; }
@@ -352,6 +371,8 @@
         .reply-form .comment-submit svg { width: 14px; height: 14px; }
 
         .post-modal .action-btn { flex: 1; justify-content: center; }
+        #post-modal { z-index: 12050; }
+        #repost-modal-overlay { z-index: 12100 !important; }
         #user-profile-modal .post {
             background: rgba(255,255,255,0.03) !important;
             border-radius: 18px;
@@ -587,7 +608,7 @@
 
         @media (min-width: 900px) {
             .container { max-width: 660px; }
-            .bottom-nav { bottom: auto; right: auto; left: max(16px, calc(50% - 520px)); top: 80px; transform: translateY(0); width: 220px; height: auto; display: flex; flex-direction: column; padding: 8px; border-radius: 18px; gap: 2px; max-width: 220px; background: transparent; border: none; box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none; }
+            .bottom-nav { bottom: auto; right: auto; left: max(8px, calc(50% - 560px)); top: 80px; transform: translateY(0); width: 220px; height: auto; display: flex; flex-direction: column; padding: 8px; border-radius: 18px; gap: 2px; max-width: 220px; background: transparent; border: none; box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none; }
             .nav-slider { display: none; }
             .nav-btn { width: 100%; height: 56px; padding: 0 16px; border-radius: 14px; flex-direction: row; gap: 14px; flex: none; justify-content: flex-start; font-size: 17px; font-weight: 600; }
             .nav-btn span { display: block; }
@@ -666,6 +687,23 @@
             .edit-modal {
                 max-width: 660px;
             }
+            #edit-profile-wrap,
+            .edit-modal-topbar,
+            .edit-modal,
+            .edit-post-wrap {
+                width: 100%;
+            }
+            #change-pw-overlay .edit-modal,
+            #delete-acc-overlay .edit-modal {
+                max-width: 660px;
+            }
+            #edit-modal-overlay #edit-profile-wrap,
+            #edit-modal-overlay .edit-modal-topbar,
+            #edit-modal-overlay .edit-modal {
+                width: 100%;
+                max-width: 660px;
+            }
+            #edit-profile-wrap { padding: 0; }
             .edit-modal { max-height: 78vh; }
             /* Edit post sheet on desktop: centered dialog */
             .edit-post-wrap {
@@ -739,6 +777,11 @@
             overflow: hidden;
         }
         .edit-modal-overlay.visible .edit-modal { transform: translateY(0); }
+        #upm-posts-feed {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
         .edit-modal-handle {
             width: 36px; height: 4px;
             background: rgba(255,255,255,0.15);
@@ -945,7 +988,7 @@
         .repost-card-name { font-weight: 600; font-size: 14px; }
         .repost-card-uname { color: rgba(255,255,255,0.5); font-size: 13px; }
         .repost-card-time { color: rgba(255,255,255,0.4); font-size: 13px; }
-        .repost-card-text { font-size: 14px; line-height: 1.5; }
+        .repost-card-text { font-size: 14px; line-height: 1.5; overflow-wrap: anywhere; word-break: break-word; }
         /* Repost modal overlay */
         .repost-modal-overlay {
             position: fixed; inset: 0; background: rgba(0,0,0,0.7);
@@ -1305,7 +1348,7 @@
         /* ===== DESKTOP LOGOUT + FOOTER ===== */
         .desktop-logout-btn {
             display: none;
-            position: fixed; bottom: 32px; left: max(16px, calc(50% - 520px));
+            position: fixed; bottom: 32px; left: max(8px, calc(50% - 560px));
             z-index: 500;
             background: none; border: none; cursor: pointer;
             color: rgba(255,255,255,0.55); font-size: 15px; font-weight: 500;
@@ -1634,7 +1677,7 @@
                     <input type="file" class="creator-input" id="media-input" accept="image/*,video/*">
                 </div>
                 <div class="creator-caption-bar" id="creator-caption-bar" style="display:none;">
-                    <textarea class="creator-caption-input" id="creator-text-input" placeholder="Добавить описание..." maxlength="280" oninput="this.style.height='50px';if(this.scrollHeight>50)this.style.height=Math.min(this.scrollHeight,110)+'px';"></textarea>
+                    <textarea class="creator-caption-input" id="creator-text-input" placeholder="Добавить описание..." maxlength="280"></textarea>
                     <div class="creator-caption-actions">
                         <button class="creator-done" id="creator-done">Опубликовать</button>
                     </div>
@@ -2153,6 +2196,10 @@
             if (e.target.closest('[data-open-repost-id]')) return;
             if (e.target.closest('[data-open-profile]')) return;
             if (e.target.classList.contains('mention')) return;
+            if (upmLocalPosts.has(post.id)) {
+                runOutsideUserProfile(() => openPostModal(post));
+                return;
+            }
             openPostModal(post);
         });
         return el;
@@ -2167,6 +2214,11 @@
     let currentPostId = null;
     let replyTargetCommentId = null;
     const postComments = {};
+    const expandedReplies = {};
+
+    function runOutsideUserProfile(onReady) {
+        onReady();
+    }
 
     function openPostModal(post) {
         currentPostId = post.id;
@@ -2224,7 +2276,8 @@
     function closePostModal() {
         postModal.classList.remove('visible');
         postModal.classList.remove('active');
-        document.body.style.overflow = '';
+        const profileModal = document.getElementById('user-profile-modal');
+        document.body.style.overflow = (profileModal && profileModal.classList.contains('active')) ? 'hidden' : '';
         replyTargetCommentId = null;
         setTimeout(() => { postModal.style.display = 'none'; }, 400);
     }
@@ -2240,6 +2293,10 @@
             return;
         }
         function makeHTML(c, nested = false) {
+            const replies = Array.isArray(c.replies) ? c.replies : [];
+            const shouldCollapseReplies = !nested && replies.length > 5;
+            const isExpanded = !!expandedReplies[c.id];
+            const visibleReplies = shouldCollapseReplies && !isExpanded ? [] : replies;
             return `<div class="comment-item${nested?' nested-reply':''}" id="comment-${c.id}">
                 <div class="comment-avatar"${nested?' style="width:30px;height:30px;font-size:12px;"':''} data-open-profile="${c.username}">${c.avatar}</div>
                 <div class="comment-content">
@@ -2255,11 +2312,17 @@
                         </button>
                         <button class="comment-action-btn" onclick="prepareReplyInMainInput('${c.username.replace('@','')}', ${c.id})">Ответить</button>
                     </div>
-                    ${!nested && c.replies && c.replies.length ? `<div class="comment-replies-container" id="replies-${c.id}">${c.replies.map(r=>makeHTML(r,true)).join('')}</div>` : ''}
+                    ${!nested && replies.length ? `<div class="comment-replies-container" id="replies-${c.id}">${visibleReplies.map(r=>makeHTML(r,true)).join('')}</div>` : ''}
+                    ${shouldCollapseReplies ? `<button class="comment-replies-toggle" onclick="toggleRepliesVisibility(${c.id})">${isExpanded ? 'Свернуть ответы' : `Показать ответы (${replies.length})`}</button>` : ''}
                 </div>
             </div>`;
         }
         comments.forEach(c => { commentsList.innerHTML += makeHTML(c); });
+    }
+
+    function toggleRepliesVisibility(commentId) {
+        expandedReplies[commentId] = !expandedReplies[commentId];
+        renderComments();
     }
 
     commentInput.addEventListener('input', () => { commentSubmit.disabled = !commentInput.value.trim(); });
@@ -2290,8 +2353,9 @@
             postComments[currentPostId].unshift({ id: Date.now(), author:"Вы", username:"@username", avatar:"Я", text, time:"Только что", likes:0, liked:false, replies:[] });
         }
         const post = posts.find(p => p.id === currentPostId);
-        if (!replyTargetCommentId) post.comments++;
-        renderPosts(); if (postModal.classList.contains('active')) openPostModal(post);
+        if (!replyTargetCommentId && post) post.comments++;
+        if (post) renderPosts();
+        if (postModal.classList.contains('active')) openPostModal(post || upmLocalPosts.get(currentPostId));
         commentInput.value = '';
         commentInput.style.height = '40px';
         commentSubmit.disabled = true;
@@ -2311,7 +2375,10 @@
     function setSession(u) { try { localStorage.setItem(SESSION_KEY, u); } catch(e){} }
 
     function showLoginScreen() { document.getElementById('login-screen').classList.remove('hidden'); }
-    function hideLoginScreen() { document.getElementById('login-screen').classList.add('hidden'); }
+    function hideLoginScreen() {
+        document.getElementById('login-screen').classList.add('hidden');
+        window.scrollTo(0, 0);
+    }
     function showMainPanel() {
         document.getElementById('login-main-panel').style.display = 'flex';
         document.getElementById('vpsc-panel').classList.remove('active');
@@ -2553,6 +2620,14 @@
             post.liked = !post.liked;
             post.likes += post.liked ? 1 : -1;
             if (upmLocalPosts.has(id) && currentViewedProfile) {
+                const upmIdx = id - 900000;
+                const sourcePost = currentViewedProfile.userData && Array.isArray(currentViewedProfile.userData.posts)
+                    ? currentViewedProfile.userData.posts[upmIdx]
+                    : null;
+                if (sourcePost) {
+                    sourcePost.liked = post.liked;
+                    sourcePost.likes = post.likes;
+                }
                 renderUserProfileBody(currentViewedProfile.uname, currentViewedProfile.userData, document.getElementById('upm-body'));
             } else {
                 renderPosts();
@@ -2560,9 +2635,20 @@
             if (postModal.classList.contains('active')) openPostModal(post);
         }
         else if (action === 'repost') {
+            if (upmLocalPosts.has(id)) {
+                runOutsideUserProfile(() => openRepostModal(post));
+                return;
+            }
             openRepostModal(post);
         }
-        else if (action === 'comment') { if (!postModal.classList.contains('active')) openPostModal(post); }
+        else if (action === 'comment') {
+            if (postModal.classList.contains('active')) return;
+            if (upmLocalPosts.has(id)) {
+                runOutsideUserProfile(() => openPostModal(post));
+                return;
+            }
+            openPostModal(post);
+        }
         else if (action === 'share') { alert('Ссылка скопирована!'); }
     });
 
@@ -2598,7 +2684,7 @@
     (()=>{ const i = Array.from(navBtns).findIndex(b=>b.classList.contains('active')); if(i>=0) updateSlider(i); })();
 
     // ===== STORIES =====
-    let userStories = [], currentMediaIndex = 0, storyInterval, activeStories = [], lastStoryCloseTs = 0;
+    let userStories = [], currentMediaIndex = 0, storyInterval, activeStories = [], lastStoryCloseTs = 0, storyRenderToken = 0;
     let storyTodayCount = 0;
     const STORY_DAILY_LIMIT = 30;
 
@@ -2606,6 +2692,7 @@
         if (storyTodayCount >= STORY_DAILY_LIMIT) { alert('Вы достигли лимита историй на сегодня (30 шт.)'); return; }
         const sc = document.getElementById('story-creator');
         sc.classList.add('active');
+        document.body.style.overflow = 'hidden';
         requestAnimationFrame(() => requestAnimationFrame(() => sc.classList.add('visible')));
     });
     // Drag to close story creator
@@ -2627,14 +2714,14 @@
             if (d > 120) {
                 const sc = document.getElementById('story-creator');
                 sc.classList.remove('visible');
-                setTimeout(() => { sc.classList.remove('active'); inner.style.transform = ''; resetCreator(); }, 400);
+                setTimeout(() => { sc.classList.remove('active'); inner.style.transform = ''; resetCreator(); document.body.style.overflow = ''; }, 400);
             } else { inner.style.transform = ''; }
         });
     })();
     document.getElementById('creator-close').addEventListener('click', () => {
         const sc = document.getElementById('story-creator');
         sc.classList.remove('visible');
-        setTimeout(() => { sc.classList.remove('active'); resetCreator(); }, 400);
+        setTimeout(() => { sc.classList.remove('active'); resetCreator(); document.body.style.overflow = ''; }, 400);
     });
     document.getElementById('upload-media-btn').addEventListener('click', () => document.getElementById('media-input').click());
     document.getElementById('media-input').addEventListener('change', e => {
@@ -2686,7 +2773,7 @@
         renderUserStory();
         const sc = document.getElementById('story-creator');
         sc.classList.remove('visible');
-        setTimeout(() => { sc.classList.remove('active'); resetCreator(); }, 400);
+        setTimeout(() => { sc.classList.remove('active'); resetCreator(); document.body.style.overflow = ''; }, 400);
     }
 
     document.getElementById('creator-done').addEventListener('click', () => {
@@ -2702,7 +2789,7 @@
             renderUserStory();
             const sc = document.getElementById('story-creator');
             sc.classList.remove('visible');
-            setTimeout(() => { sc.classList.remove('active'); resetCreator(); }, 400);
+            setTimeout(() => { sc.classList.remove('active'); resetCreator(); document.body.style.overflow = ''; }, 400);
         }
     });
 
@@ -2742,7 +2829,9 @@
     }
 
     function showStory(stories) {
+        if (!stories || !stories.length) { closeStoryViewer(); return; }
         if (currentMediaIndex >= stories.length) { closeStoryViewer(); return; }
+        const token = ++storyRenderToken;
         const s = stories[currentMediaIndex];
         const img = document.getElementById('story-media');
         const vid = document.getElementById('story-video');
@@ -2754,21 +2843,46 @@
         if (s.text && s.text.trim()) { textContent.textContent = s.text; textOverlay.style.display = 'flex'; }
         else { textOverlay.style.display = 'none'; }
         if (s.type === 'image') {
+            img.onload = null; img.onerror = null;
             img.src = s.src; img.style.display = 'block'; vid.style.display = 'none';
             try { vid.pause(); } catch(e){} vid.removeAttribute('src'); try { vid.load(); } catch(e){}
-            let p = 0;
-            storyInterval = setInterval(() => { p += 2; document.querySelectorAll('.story-progress-fill')[currentMediaIndex].style.width = p+'%'; if(p>=100) nextStory(stories); }, 100);
+            const startImageProgress = () => {
+                if (token !== storyRenderToken) return;
+                clearInterval(storyInterval);
+                let p = 0;
+                storyInterval = setInterval(() => {
+                    if (token !== storyRenderToken) { clearInterval(storyInterval); return; }
+                    p += 2;
+                    document.querySelectorAll('.story-progress-fill')[currentMediaIndex].style.width = p+'%';
+                    if(p>=100) nextStory(stories);
+                }, 100);
+            };
+            if (img.complete && img.naturalWidth) startImageProgress();
+            else {
+                img.onload = startImageProgress;
+                img.onerror = () => { if (token === storyRenderToken) nextStory(stories); };
+            }
         } else {
             img.style.display = 'none'; vid.style.display = 'block';
             vid.pause(); vid.ontimeupdate = null; vid.onended = null; vid.oncanplay = null;
             vid.removeAttribute('src'); vid.load();
-            vid.setAttribute('playsinline', ''); vid.setAttribute('webkit-playsinline', ''); vid.muted = true;
+            vid.setAttribute('playsinline', ''); vid.setAttribute('webkit-playsinline', ''); vid.muted = false;
             vid.src = s.src;
             const capturedIndex = currentMediaIndex;
-            vid.oncanplay = () => { vid.oncanplay = null; vid.play().catch(()=>{}); };
+            vid.oncanplay = () => {
+                if (token !== storyRenderToken) return;
+                vid.oncanplay = null;
+                vid.play().catch(()=>{});
+            };
             vid.load();
-            vid.ontimeupdate = () => { if (vid.duration) document.querySelectorAll('.story-progress-fill')[capturedIndex].style.width = (vid.currentTime/vid.duration*100)+'%'; };
-            vid.onended = () => nextStory(stories);
+            vid.ontimeupdate = () => {
+                if (token !== storyRenderToken) return;
+                if (vid.duration) document.querySelectorAll('.story-progress-fill')[capturedIndex].style.width = (vid.currentTime/vid.duration*100)+'%';
+            };
+            vid.onended = () => {
+                if (token !== storyRenderToken) return;
+                nextStory(stories);
+            };
         }
         requestAnimationFrame(() => {
             const span = document.getElementById('story-text-content');
@@ -2778,14 +2892,30 @@
         });
     }
     function nextStory(s) { currentMediaIndex++; showStory(s); }
-    function prevStory(s) { currentMediaIndex = Math.max(0, currentMediaIndex-1); showStory(s); }
+    function prevStory(s) {
+        if (!Array.isArray(s) || !s.length) return;
+        if (s.length === 1 || currentMediaIndex === 0) { showStory(s); return; }
+        currentMediaIndex = Math.max(0, currentMediaIndex-1);
+        showStory(s);
+    }
     function closeStoryViewer() {
         lastStoryCloseTs = Date.now();
+        storyRenderToken++;
         document.getElementById('story-viewer').classList.remove('active');
         clearInterval(storyInterval);
         const vid = document.getElementById('story-video');
+        const img = document.getElementById('story-media');
+        const textOverlay = document.getElementById('story-text-overlay');
         try { vid.pause(); } catch(e){}
         vid.ontimeupdate = null; vid.onended = null; vid.oncanplay = null;
+        img.onload = null; img.onerror = null;
+        vid.removeAttribute('src');
+        try { vid.load(); } catch(e){}
+        img.removeAttribute('src');
+        textOverlay.classList.remove('expanded', 'story-text-overflow');
+        textOverlay.style.display = 'none';
+        activeStories = [];
+        currentMediaIndex = 0;
     }
     document.getElementById('story-prev').addEventListener('click', () => prevStory(activeStories));
     document.getElementById('story-next').addEventListener('click', () => nextStory(activeStories));
@@ -2940,7 +3070,7 @@
         const card = document.querySelector('.ep-vpsc-card');
         if (card) { card.style.background = '#0265d4'; setTimeout(() => { card.style.background = ''; }, 400); }
         const toast = document.getElementById('copy-toast');
-        if (toast) { toast.classList.add('show'); clearTimeout(toast._t); toast._t = setTimeout(() => toast.classList.remove('show'), 2000); }
+        if (toast) { toast.textContent = 'Скопировано'; toast.classList.add('show'); clearTimeout(toast._t); toast._t = setTimeout(() => toast.classList.remove('show'), 2000); }
     }
     function triggerCrop(mode) { cropMode = mode; document.getElementById('ep-file-input').click(); }
     function onFileSelected(e) { const file = e.target.files[0]; if (!file) return; e.target.value = ''; const reader = new FileReader(); reader.onload = ev => openCropModal(ev.target.result); reader.readAsDataURL(file); }
@@ -2974,18 +3104,52 @@
     function closeCropModal() { document.getElementById('crop-modal').classList.remove('active'); }
     function confirmCrop() {
         const canvas = document.getElementById('crop-canvas');
-        const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
+        const exportCanvas = document.createElement('canvas');
+        const isAvatar = cropMode === 'avatar';
+        exportCanvas.width = isAvatar ? 1024 : 1600;
+        exportCanvas.height = isAvatar ? 1024 : 800;
+        const ex = exportCanvas.getContext('2d');
+        ex.imageSmoothingEnabled = true;
+        ex.imageSmoothingQuality = 'high';
+        const sx = exportCanvas.width / canvas.width;
+        const sy = exportCanvas.height / canvas.height;
+        ex.clearRect(0, 0, exportCanvas.width, exportCanvas.height);
+        ex.drawImage(cropImage, cropOffsetX * sx, cropOffsetY * sy, cropNaturalW * cropZoom * sx, cropNaturalH * cropZoom * sy);
+        const dataUrl = exportCanvas.toDataURL('image/jpeg', 0.96);
         if (cropMode === 'avatar') { profileData.avatarUrl = dataUrl; const img = document.getElementById('ep-avatar-img'); img.src = dataUrl; img.classList.add('loaded'); document.getElementById('ep-avatar-letter').style.display = 'none'; updateNavAvatar(); }
         else { profileData.bannerUrl = dataUrl; const img = document.getElementById('ep-banner-img'); img.src = dataUrl; img.classList.add('loaded'); }
         closeCropModal();
     }
+    function getCropPointer(clientX, clientY) {
+        const rect = cropWrap.getBoundingClientRect();
+        const canvas = document.getElementById('crop-canvas');
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+        return { x: (clientX - rect.left) * scaleX, y: (clientY - rect.top) * scaleY };
+    }
     const cropWrap = document.getElementById('crop-canvas-wrap');
     if (cropWrap) {
-        cropWrap.addEventListener('mousedown', e => { cropDragging = true; cropStartX = e.clientX - cropOffsetX; cropStartY = e.clientY - cropOffsetY; cropWrap.style.cursor = 'grabbing'; });
-        document.addEventListener('mousemove', e => { if (!cropDragging) return; cropOffsetX = e.clientX - cropStartX; cropOffsetY = e.clientY - cropStartY; drawCrop(); });
+        cropWrap.addEventListener('mousedown', e => {
+            const p = getCropPointer(e.clientX, e.clientY);
+            cropDragging = true; cropStartX = p.x - cropOffsetX; cropStartY = p.y - cropOffsetY; cropWrap.style.cursor = 'grabbing';
+        });
+        document.addEventListener('mousemove', e => {
+            if (!cropDragging) return;
+            const p = getCropPointer(e.clientX, e.clientY);
+            cropOffsetX = p.x - cropStartX; cropOffsetY = p.y - cropStartY; drawCrop();
+        });
         document.addEventListener('mouseup', () => { cropDragging = false; cropWrap.style.cursor = 'grab'; });
-        cropWrap.addEventListener('touchstart', e => { const t = e.touches[0]; cropDragging = true; cropStartX = t.clientX - cropOffsetX; cropStartY = t.clientY - cropOffsetY; }, {passive:true});
-        cropWrap.addEventListener('touchmove', e => { if (!cropDragging) return; const t = e.touches[0]; cropOffsetX = t.clientX - cropStartX; cropOffsetY = t.clientY - cropStartY; drawCrop(); }, {passive:true});
+        cropWrap.addEventListener('touchstart', e => {
+            const t = e.touches[0];
+            const p = getCropPointer(t.clientX, t.clientY);
+            cropDragging = true; cropStartX = p.x - cropOffsetX; cropStartY = p.y - cropOffsetY;
+        }, {passive:true});
+        cropWrap.addEventListener('touchmove', e => {
+            if (!cropDragging) return;
+            const t = e.touches[0];
+            const p = getCropPointer(t.clientX, t.clientY);
+            cropOffsetX = p.x - cropStartX; cropOffsetY = p.y - cropStartY; drawCrop();
+        }, {passive:true});
         cropWrap.addEventListener('touchend', () => { cropDragging = false; });
     }
     document.querySelector('.edit-profile-btn').addEventListener('click', openEditModal);
@@ -3516,6 +3680,9 @@
         } else {
             renderUserProfileBody(uname, userData, body);
         }
+        const repostModal = document.getElementById('repost-modal-overlay');
+        const openAbovePostLayer = postModal.classList.contains('active') || (repostModal && repostModal.classList.contains('active'));
+        modal.style.zIndex = openAbovePostLayer ? '13050' : '11000';
         modal.style.display = 'flex';
         requestAnimationFrame(() => requestAnimationFrame(() => {
             modal.classList.add('active');
@@ -3526,11 +3693,12 @@
     function closeUserProfile() {
         const modal = document.getElementById('user-profile-modal');
         modal.classList.remove('visible');
-        modal.classList.remove('active');
-        document.body.style.overflow = '';
+        requestAnimationFrame(() => modal.classList.remove('active'));
+        const repostModal = document.getElementById('repost-modal-overlay');
+        document.body.style.overflow = (postModal.classList.contains('active') || (repostModal && repostModal.classList.contains('active'))) ? 'hidden' : '';
         upmLocalPosts.clear();
         currentViewedProfile = null;
-        setTimeout(() => { modal.style.display = 'none'; }, 350);
+        setTimeout(() => { modal.style.zIndex = '11000'; modal.style.display = 'none'; }, 350);
     }
 
     // Click on @mention anywhere in the app
@@ -3597,12 +3765,22 @@
 
     // ===== REPOST MODAL =====
     let repostTargetPost = null;
+    function renderRepostPreviewMedia(mediaArr) {
+        if (!Array.isArray(mediaArr) || !mediaArr.length) return '';
+        const items = mediaArr.map(m => {
+            if (m.type === 'video') {
+                return `<div style="width:100%;max-height:260px;display:flex;align-items:center;justify-content:center;background:#0f1014;border-radius:12px;overflow:hidden;"><video src="${m.src}" controls playsinline style="width:100%;max-height:260px;object-fit:contain;"></video></div>`;
+            }
+            return `<div style="width:100%;max-height:260px;display:flex;align-items:center;justify-content:center;background:#0f1014;border-radius:12px;overflow:hidden;"><img src="${m.src}" alt="" style="width:100%;max-height:260px;object-fit:contain;"></div>`;
+        }).join('<div style="height:8px;"></div>');
+        return `<div style="padding:0 12px 12px;">${items}</div>`;
+    }
     function openRepostModal(post) {
         repostTargetPost = post;
         document.getElementById('repost-comment-input').value = '';
         // Build preview card with author + text + media
         const mediaHtml = post.media && post.media.length
-            ? renderPostMedia(post.media)
+            ? renderRepostPreviewMedia(post.media)
             : '';
         document.getElementById('repost-preview-card').innerHTML = `
             <div style="padding:12px 12px 6px;display:flex;align-items:center;gap:8px;">
@@ -3610,8 +3788,8 @@
                 <span style="font-weight:700;font-size:14px;color:#e6e6e9;">${post.author}</span>
                 <span style="color:rgba(255,255,255,0.4);font-size:13px;">${post.time.replace('часа','дн.').replace('часов','дн.')}</span>
             </div>
-            ${post.text ? `<div style="padding:0 12px 10px;font-size:15px;color:#e6e6e9;line-height:1.5;">${formatPostText(post.text)}</div>` : ''}
-            ${mediaHtml ? `<div style="padding:0 0 0 0;">${mediaHtml}</div>` : ''}`;
+            ${post.text ? `<div style="padding:0 12px 10px;font-size:15px;color:#e6e6e9;line-height:1.5;overflow-wrap:anywhere;word-break:break-word;">${formatPostText(post.text)}</div>` : ''}
+            ${mediaHtml || ''}`;
         const modal = document.getElementById('repost-modal-overlay');
         modal.style.display = 'flex';
         requestAnimationFrame(() => requestAnimationFrame(() => {
@@ -3624,7 +3802,8 @@
         const modal = document.getElementById('repost-modal-overlay');
         modal.classList.remove('visible');
         modal.classList.remove('active');
-        document.body.style.overflow = '';
+        const profileModal = document.getElementById('user-profile-modal');
+        document.body.style.overflow = (profileModal && profileModal.classList.contains('active')) ? 'hidden' : '';
         setTimeout(() => { modal.style.display = 'none'; }, 400);
         repostTargetPost = null;
     }
@@ -3708,28 +3887,31 @@
             </div>`;
 
         const upmFeed = document.getElementById('upm-posts-feed');
-        const userPosts = (u.posts || []);
+        const feedLinkedPosts = posts.filter(p => p.username === '@' + uname && !p.isRepost);
+        const userPosts = feedLinkedPosts.length ? feedLinkedPosts : (u.posts || []);
         upmLocalPosts.clear();
         if (!userPosts.length) {
             upmFeed.innerHTML = '<div style="text-align:center;color:rgba(255,255,255,0.3);padding:40px 0;font-size:14px;">Нет постов</div>';
         } else {
             upmFeed.innerHTML = '';
             userPosts.forEach((p, idx) => {
-                const upmPost = {
-                    id: 900000 + idx,
-                    author: displayName,
-                    username: '@' + uname,
-                    avatar: letter,
-                    text: p.text || '',
-                    time: p.time || 'Недавно',
-                    likes: p.likes || 0,
-                    reposts: p.reposts || 0,
-                    comments: p.comments || 0,
-                    liked: !!p.liked,
-                    reposted: !!p.reposted,
-                    media: Array.isArray(p.media) ? p.media : [],
-                    avatarUrl: u.avatarUrl || null
-                };
+                const upmPost = feedLinkedPosts.length
+                    ? p
+                    : {
+                        id: 900000 + idx,
+                        author: displayName,
+                        username: '@' + uname,
+                        avatar: letter,
+                        text: p.text || '',
+                        time: p.time || 'Недавно',
+                        likes: p.likes || 0,
+                        reposts: p.reposts || 0,
+                        comments: p.comments || 0,
+                        liked: !!p.liked,
+                        reposted: !!p.reposted,
+                        media: Array.isArray(p.media) ? p.media : [],
+                        avatarUrl: u.avatarUrl || null
+                    };
                 upmLocalPosts.set(upmPost.id, upmPost);
                 const el = createPostElement(upmPost);
                 upmFeed.appendChild(el);
