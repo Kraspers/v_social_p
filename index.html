@@ -2344,7 +2344,7 @@
             const isExpanded = !!expandedReplies[c.id];
             const visibleReplies = shouldCollapseReplies && !isExpanded ? [] : replies;
             return `<div class="comment-item${nested?' nested-reply':''}" id="comment-${c.id}">
-                <div class="comment-avatar"${nested?' style="width:30px;height:30px;font-size:12px;"':''} data-open-profile="${c.username}">${c.avatar}</div>
+                <div class="comment-avatar"${nested?' style="width:30px;height:30px;font-size:12px;"':''} data-open-profile="${c.username}">${c.avatarUrl ? `<img src="${c.avatarUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">` : c.avatar}</div>
                 <div class="comment-content">
                     <div class="comment-header">
                         <span class="comment-author" data-open-profile="${c.username}">${c.author}</span>
@@ -4114,7 +4114,8 @@
   style.textContent = `.story-item.viewed .story-avatar{background:#5f5f67!important;animation:none!important}#edit-modal-overlay.visible #edit-profile-wrap{transform:translateY(26px)!important}`;
   document.head.appendChild(style);
   document.getElementById('no-vpid-login-btn')?.addEventListener('click', () => {
-    hideNoVpidScreen();
+    const splash = document.getElementById('splash-screen');
+    if (splash) splash.classList.remove('hidden');
     window.location.assign('/login');
   });
 
@@ -4126,6 +4127,34 @@
     if (!res.ok) throw new Error(data.error || 'API error');
     return data;
   }
+
+  window.doUserSearch = async function doUserSearch(query) {
+    const q = String(query || '').trim();
+    const clearBtn = document.getElementById('search-clear-btn');
+    const resultsList = document.getElementById('search-results-list');
+    const trendsWrap = document.getElementById('trends-section-wrap');
+    if (clearBtn) clearBtn.style.display = q ? 'flex' : 'none';
+    if (!q) {
+      if (resultsList) { resultsList.style.display = 'none'; resultsList.innerHTML = ''; }
+      if (trendsWrap) trendsWrap.style.display = '';
+      return;
+    }
+    try {
+      const res = await api(`/search?q=${encodeURIComponent(q)}`);
+      const users = res.users || [];
+      if (!resultsList) return;
+      resultsList.style.display = '';
+      if (trendsWrap) trendsWrap.style.display = 'none';
+      resultsList.innerHTML = users.length
+        ? users.map((u) => `<div onclick="openUserProfile('${String(u.username || '').replace('@','')}')" style="display:flex;align-items:center;gap:14px;padding:12px 14px;background:#1c1c1e;border-radius:20px;margin-bottom:8px;cursor:pointer;"><div style="width:42px;height:42px;border-radius:50%;overflow:hidden;background:linear-gradient(135deg,#0078FF 0%,#23D4F9 100%);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;">${u.avatarUrl ? `<img src='${absoluteUrl(u.avatarUrl)}' style='width:100%;height:100%;object-fit:cover;'>` : (u.avatar || 'U')}</div><div style="display:flex;flex-direction:column;"><div style="font-weight:700;color:#fff;">${u.displayname || ''}</div><div style="font-size:13px;color:rgba(255,255,255,0.65);">${u.username}</div></div></div>`).join('')
+        : '<div style="padding:20px;text-align:center;color:rgba(255,255,255,.45)">Ничего не найдено</div>';
+    } catch (_) {}
+  };
+  window.clearUserSearch = function clearUserSearch() {
+    const input = document.getElementById('user-search-input');
+    if (input) input.value = '';
+    window.doUserSearch('');
+  };
 
   function syncProfileUi() {
     if (!me) return;
@@ -4410,7 +4439,7 @@
 
   function buildCommentTree(flat) {
     const byId = new Map();
-    flat.forEach(c => byId.set(c.id, { ...c, replies: [] }));
+    flat.forEach(c => byId.set(c.id, { ...c, avatarUrl: absoluteUrl(c.avatarUrl || ''), replies: [] }));
     const roots = [];
     flat.forEach(c => {
       const node = byId.get(c.id);

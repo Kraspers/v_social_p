@@ -8,7 +8,7 @@ const PORT = process.env.PORT || 3000;
 const SECRET = process.env.JWT_SECRET || 'vp_dev_secret_change_me';
 const ROOT = __dirname;
 const DB_PATH = path.join(ROOT, 'db.json');
-const VPSC_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+const VPSC_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789!@#$%&*';
 
 function ensureDb() {
   if (!fs.existsSync(DB_PATH)) {
@@ -16,7 +16,8 @@ function ensureDb() {
   }
   const db = JSON.parse(fs.readFileSync(DB_PATH, 'utf8'));
   db.users ||= []; db.posts ||= []; db.comments ||= []; db.likes ||= []; db.follows ||= []; db.stories ||= []; db.commentLikes ||= [];
-  if (!db.meta) db.meta = { postSeq: 1, commentSeq: 1 };
+  if (!db.meta) db.meta = { postSeq: 1, commentSeq: 1, vpscAttempts: {} };
+  if (!db.meta.vpscAttempts) db.meta.vpscAttempts = {};
   fs.writeFileSync(DB_PATH, JSON.stringify(db, null, 2));
 }
 function readDb() { ensureDb(); return JSON.parse(fs.readFileSync(DB_PATH, 'utf8')); }
@@ -208,8 +209,24 @@ const server = http.createServer(async (req, res) => {
   if (u.pathname === '/api/auth/vpsc' && req.method === 'POST') {
     const b = await parseBody(req);
     const code = String(b.code || '').trim().toUpperCase();
+    const ipKey = String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown').split(',')[0].trim();
+    const limit = db.meta.vpscAttempts[ipKey] || { fails: 0, blockedUntil: 0 };
+    if (limit.blockedUntil && limit.blockedUntil > Date.now()) {
+      return sendJson(res, 429, { error: 'Вход по VPSC временно заблокирован на 24 часа' });
+    }
     const user = db.users.find((x) => x.vpsc === code);
-    if (!user) return sendJson(res, 401, { error: 'Неверный VPSC-код' });
+    if (!user) {
+      limit.fails = (limit.fails || 0) + 1;
+      if (limit.fails >= 10) {
+        limit.fails = 0;
+        limit.blockedUntil = Date.now() + 24 * 60 * 60 * 1000;
+      }
+      db.meta.vpscAttempts[ipKey] = limit;
+      writeDb(db);
+      return sendJson(res, 401, { error: 'Неверный VPSC-код' });
+    }
+    db.meta.vpscAttempts[ipKey] = { fails: 0, blockedUntil: 0 };
+    writeDb(db);
     return sendJson(res, 200, { token: signToken(user.id), user: sanitizeUser(user) });
   }
 
@@ -562,6 +579,23 @@ const server = http.createServer(async (req, res) => {
     });
     const trends = [...map.entries()].sort((a, b) => b[1] - a[1]).slice(0, 20).map(([tag, count]) => ({ tag, count }));
     return sendJson(res, 200, { trends });
+  }
+
+  if (u.pathname === '/api/search' && req.method === 'GET') {
+    if (!me) return sendJson(res, 401, { error: 'Unauthorized' });
+    const q = String(u.searchParams.get('q') || '').trim().toLowerCase().replace(/^@/, '');
+    if (!q) return sendJson(res, 200, { users: [] });
+    const users = db.users
+      .filter((usr) => usr.username.toLowerCase().includes(q) || String(usr.displayName || '').toLowerCase().includes(q))
+      .slice(0, 30)
+      .map((usr) => ({
+        username: `@${usr.username}`,
+        displayname: usr.displayName || '',
+        bio: usr.bio || '',
+        avatar: usr.avatar || 'U',
+        avatarUrl: usr.avatarUrl || ''
+      }));
+    return sendJson(res, 200, { users });
   }
 
   if (u.pathname.startsWith('/api/')) return sendJson(res, 404, { error: 'Not found' });
