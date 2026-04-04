@@ -278,8 +278,14 @@ const server = http.createServer(async (req, res) => {
       me.username = n;
     }
     if (typeof b.bio === 'string') me.bio = b.bio.slice(0, 300);
-    if (typeof b.avatarUrl === 'string') me.avatarUrl = normalizeProfileImageUrl(b.avatarUrl);
-    if (typeof b.bannerUrl === 'string') me.bannerUrl = normalizeProfileImageUrl(b.bannerUrl);
+    if (typeof b.avatarUrl === 'string') {
+      const nextAvatarUrl = normalizeProfileImageUrl(b.avatarUrl);
+      if (nextAvatarUrl) me.avatarUrl = nextAvatarUrl;
+    }
+    if (typeof b.bannerUrl === 'string') {
+      const nextBannerUrl = normalizeProfileImageUrl(b.bannerUrl);
+      if (nextBannerUrl) me.bannerUrl = nextBannerUrl;
+    }
     if (Object.prototype.hasOwnProperty.call(b, 'pinnedPostId')) me.pinnedPostId = b.pinnedPostId || null;
     if (Object.prototype.hasOwnProperty.call(b, 'pinnedRepostId')) me.pinnedRepostId = b.pinnedRepostId || null;
     writeDb(db);
