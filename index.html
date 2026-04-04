@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <base href="/">
     <title>VP 2.0</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -201,6 +202,18 @@
             overflow-y: auto;
         }
         .login-screen.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+        .no-vpid-screen {
+            position: fixed; inset: 0; z-index: 19100; background: #0b0b0d;
+            display: none; flex-direction: column; align-items: center; justify-content: center;
+            padding: 20px; text-align: center;
+        }
+        .no-vpid-screen.active { display: flex; }
+        .no-vpid-screen img { width: 120px; height: 120px; object-fit: contain; margin-bottom: 18px; }
+        .no-vpid-title { font-size: 24px; font-weight: 800; margin-bottom: 18px; }
+        .no-vpid-btn {
+            border: none; border-radius: 999px; padding: 14px 24px; font-weight: 700; font-size: 16px;
+            background: #fff; color: #000; cursor: pointer;
+        }
         .login-logo-wrap {
             display: flex; align-items: center; gap: 14px; margin-bottom: 52px;
         }
@@ -1486,6 +1499,12 @@
     </div>
 </div>
 
+<div class="no-vpid-screen" id="no-vpid-screen">
+    <img src="assets/vp_id.png" alt="VP ID" onerror="this.style.display='none'">
+    <div class="no-vpid-title">У вас отсутвует VP ID</div>
+    <button class="no-vpid-btn" id="no-vpid-login-btn">Авторизоватся</button>
+</div>
+
 <div class="container">
     <div class="header">
         <div class="logo-container">
@@ -2663,7 +2682,12 @@
             }
             openPostModal(post);
         }
-        else if (action === 'share') { alert('Ссылка скопирована!'); }
+        else if (action === 'share') {
+            const postPublicId = post?.publicId || `vp_${id.toString(36)}`;
+            const postUrl = `${location.origin}/post/${postPublicId}`;
+            if (navigator.clipboard?.writeText) navigator.clipboard.writeText(postUrl).catch(() => {});
+            showToast('Ссылка скопирована');
+        }
     });
 
     // ===== NAV =====
@@ -3464,6 +3488,12 @@
     document.getElementById('post-opts-overlay').addEventListener('click', closePostOptions);
 
     function postOptsCopyLink() {
+        if (postOptsId !== null) {
+            const sourcePost = posts.find((p) => p.id === postOptsId) || upmLocalPosts.get(postOptsId);
+            const postPublicId = sourcePost?.publicId || `vp_${postOptsId.toString(36)}`;
+            const postUrl = `${location.origin}/post/${postPublicId}`;
+            if (navigator.clipboard?.writeText) navigator.clipboard.writeText(postUrl).catch(() => {});
+        }
         closePostOptions();
         showToast('Ссылка скопирована');
     }
@@ -3987,8 +4017,8 @@
 </button>
 <!-- Desktop footer (bottom-right, desktop only) -->
 <div class="desktop-footer">
-    <a href="privacy.html">Политика конфиденциальности</a>
-    <a href="terms.html">Условия использования</a>
+    <a href="/privacy">Политика конфиденциальности</a>
+    <a href="/terms">Условия использования</a>
     <span>© ВПизде</span>
 </div>
 
@@ -4002,6 +4032,26 @@
   const token = () => localStorage.getItem(TOKEN_KEY);
   const setToken = (t) => localStorage.setItem(TOKEN_KEY, t);
   const dropToken = () => localStorage.removeItem(TOKEN_KEY);
+  let pendingPostRouteId = null;
+
+  function routePath() {
+    return location.pathname.replace(/\/+$/, '') || '/';
+  }
+
+  function navigateTo(path, replace = false) {
+    const next = path.startsWith('/') ? path : `/${path}`;
+    if (routePath() === next) return;
+    const method = replace ? 'replaceState' : 'pushState';
+    history[method]({}, '', next);
+  }
+  function showNoVpidScreen() {
+    document.getElementById('no-vpid-screen')?.classList.add('active');
+    showLoginScreen();
+    document.getElementById('login-screen')?.classList.add('hidden');
+  }
+  function hideNoVpidScreen() {
+    document.getElementById('no-vpid-screen')?.classList.remove('active');
+  }
 
   function resetClientUiState() {
     ['login-username','login-password','reg-displayname','reg-username','reg-password','reg-password2'].forEach((id) => {
@@ -4025,6 +4075,11 @@
   const style = document.createElement('style');
   style.textContent = `.story-item.viewed .story-avatar{background:#5f5f67!important;animation:none!important}#edit-modal-overlay.visible #edit-profile-wrap{transform:translateY(26px)!important}`;
   document.head.appendChild(style);
+  document.getElementById('no-vpid-login-btn')?.addEventListener('click', () => {
+    hideNoVpidScreen();
+    navigateTo('/login', true);
+    showLoginScreen();
+  });
 
   async function api(path, opts = {}) {
     const headers = { 'Content-Type': 'application/json', ...(opts.headers || {}) };
@@ -4037,6 +4092,8 @@
 
   function syncProfileUi() {
     if (!me) return;
+    pinnedPostId = me.pinnedPostId || null;
+    pinnedRepostId = me.pinnedRepostId || null;
     if (window.profileData) {
       profileData.name = me.displayName || profileData.name;
       profileData.username = `@${me.username}`;
@@ -4105,7 +4162,9 @@
   window.doLogout = function doLogout() {
     dropToken();
     resetClientUiState();
+    hideNoVpidScreen();
     showLoginScreen();
+    navigateTo('/login', true);
     const homeBtn = document.querySelector('.nav-btn[data-tab="home"]'); if (homeBtn) homeBtn.click();
   };
 
@@ -4120,7 +4179,9 @@
       setToken(r.token);
       await syncMe();
       syncProfileUi();
+      hideNoVpidScreen();
       hideLoginScreen();
+      navigateTo('/tape', true);
       const homeBtn = document.querySelector('.nav-btn[data-tab="home"]'); if (homeBtn) homeBtn.click();
       await Promise.all([syncPosts(), syncTrends(), syncStories()]);
     } catch (e) { err.textContent = e.message; }
@@ -4135,7 +4196,9 @@
       setToken(r.token);
       await syncMe();
       syncProfileUi();
+      hideNoVpidScreen();
       hideLoginScreen();
+      navigateTo('/tape', true);
       const homeBtn = document.querySelector('.nav-btn[data-tab="home"]'); if (homeBtn) homeBtn.click();
       await Promise.all([syncPosts(), syncTrends(), syncStories()]);
     } catch (e) { err.textContent = e.message; }
@@ -4154,7 +4217,9 @@
       setToken(r.token);
       await syncMe();
       syncProfileUi();
+      hideNoVpidScreen();
       hideLoginScreen();
+      navigateTo('/tape', true);
       const homeBtn = document.querySelector('.nav-btn[data-tab="home"]'); if (homeBtn) homeBtn.click();
       await Promise.all([syncPosts(), syncTrends(), syncStories()]);
     } catch (e) { err.textContent = e.message; }
@@ -4183,6 +4248,10 @@
       bannerUrl: window.profileData?.bannerUrl || ''
     };
     if (err) err.textContent = '';
+    if (!payload.displayName || !payload.username) {
+      if (err) err.textContent = 'Имя и username не могут быть пустыми';
+      return;
+    }
     try {
       payload.avatarUrl = await uploadImageIfNeeded(payload.avatarUrl, 'avatar');
       payload.bannerUrl = await uploadImageIfNeeded(payload.bannerUrl, 'banner');
@@ -4313,7 +4382,9 @@
   }
 
   const originalOpenPostModal = window.openPostModal;
+  const originalClosePostModal = window.closePostModal;
   window.openPostModal = async function(post) {
+    if (post?.publicId || post?.id) navigateTo(`/post/${post.publicId || `vp_${post.id.toString(36)}`}`);
     originalOpenPostModal(post);
     const modalOwn = me && post && String(post.username || '').toLowerCase() === `@${me.username}`.toLowerCase();
     const optsWrap = document.getElementById('modal-post-options-btn');
@@ -4335,6 +4406,10 @@
       postComments[post.id] = buildCommentTree(flat);
       renderComments();
     } catch (_) {}
+  };
+  window.closePostModal = function closePostModalPatched() {
+    if (routePath().startsWith('/post/')) navigateTo('/tape');
+    return originalClosePostModal();
   };
 
   // publish/comment/like/repost via backend (no mocks)
@@ -4494,21 +4569,20 @@
 
   const originalOpenEditModal = window.openEditModal;
   if (typeof originalOpenEditModal === 'function') {
-    window.openEditModal = async function openEditModal() {
+    window.openEditModal = function openEditModal() {
       const err = document.getElementById('ep-error');
-      const saveBtn = document.querySelector('.edit-modal-save');
-      if (!me) {
-        try { await syncMe(); } catch (_) {}
-      }
-      syncProfileUi();
+      const profileName = document.querySelector('.profile-name')?.textContent?.trim() || '';
+      const profileUsername = (document.querySelector('.profile-username')?.textContent || '').replace(/^@/, '').trim();
+      const profileBio = document.querySelector('.profile-bio')?.textContent || '';
       originalOpenEditModal();
-      if (saveBtn) saveBtn.disabled = true;
-      syncMe().then(() => {
-        syncProfileUi();
-      }).catch(() => {}).finally(() => {
-        if (saveBtn) saveBtn.disabled = false;
-        if (err) err.textContent = '';
-      });
+      const epn = document.getElementById('ep-name');
+      const epu = document.getElementById('ep-username');
+      const epbio = document.getElementById('ep-bio');
+      if (epn) epn.value = me?.displayName || profileData?.name || profileName || epn.value;
+      if (epu) epu.value = me?.username || String(profileData?.username || '').replace(/^@/, '') || profileUsername || epu.value;
+      if (epbio) epbio.value = me?.bio || profileData?.bio || profileBio || '';
+      syncProfileUi();
+      if (err) err.textContent = '';
     };
   }
 
@@ -4655,6 +4729,59 @@
     });
   };
 
+  async function openPostByRoute(postIdentifier) {
+    if (!token()) return;
+    try {
+      const r = await api(`/posts/${encodeURIComponent(postIdentifier)}`);
+      const post = r.post;
+      const idx = posts.findIndex((p) => p.id === post.id);
+      if (idx >= 0) posts[idx] = { ...posts[idx], ...post };
+      else posts.unshift(post);
+      renderPosts();
+      openPostModal(post);
+    } catch (e) {
+      if (String(e.message).includes('Post not found')) {
+        alert('404: пост не найден');
+        navigateTo('/tape', true);
+      }
+    }
+  }
+
+  function applyRoute() {
+    const p = routePath();
+    if (!token()) {
+      if (/^\/post\/[a-zA-Z0-9_-]+$/.test(p)) {
+        showNoVpidScreen();
+        return;
+      }
+      hideNoVpidScreen();
+      showLoginScreen();
+      return;
+    }
+    hideNoVpidScreen();
+    if (p === '/login') {
+      showLoginScreen();
+      return;
+    }
+    if (p === '/tape' || p === '/') {
+      const homeBtn = document.querySelector('.nav-btn[data-tab="home"]');
+      if (homeBtn) homeBtn.click();
+      return;
+    }
+    const postMatch = p.match(/^\/post\/([a-zA-Z0-9_-]+)$/);
+    if (postMatch) {
+      const homeBtn = document.querySelector('.nav-btn[data-tab="home"]');
+      if (homeBtn) homeBtn.click();
+      pendingPostRouteId = postMatch[1];
+    }
+  }
+  window.addEventListener('popstate', applyRoute);
+  navBtns.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      if (btn.dataset.tab === 'home') navigateTo('/tape');
+    });
+  });
+
 
   setInterval(() => { if (token()) syncPosts().catch(() => {}); }, 4000);
   setInterval(() => { if (token()) syncMe().catch(() => {}); }, 5000);
@@ -4663,17 +4790,29 @@
   (async () => {
     posts = [];
     renderPosts();
-    if (!token()) { resetClientUiState(); showLoginScreen(); return; }
+    if (!token()) {
+      resetClientUiState();
+      applyRoute();
+      if (!routePath().startsWith('/post/') && routePath() !== '/login') navigateTo('/login', true);
+      return;
+    }
     try {
       await syncMe();
       syncProfileUi();
       hideLoginScreen();
       const homeBtn = document.querySelector('.nav-btn[data-tab="home"]'); if (homeBtn) homeBtn.click();
       await Promise.all([syncPosts(), syncTrends(), syncStories()]);
+      applyRoute();
+      if (pendingPostRouteId) {
+        const toOpen = pendingPostRouteId;
+        pendingPostRouteId = null;
+        await openPostByRoute(toOpen);
+      }
     } catch {
       dropToken();
       resetClientUiState();
       showLoginScreen();
+      navigateTo('/login', true);
     }
   })();
 })();
