@@ -1886,6 +1886,27 @@
         Удалить
     </button>
 </div>
+<div class="post-opts-overlay" id="media-opts-overlay"></div>
+<div class="post-opts-wrap" id="media-opts-wrap">
+    <div class="post-opts-outer-header">
+        <button class="post-opts-outer-back" onclick="closeProfileMediaHoldMenu()">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+            Действия
+        </button>
+    </div>
+    <div class="post-opts-sheet">
+        <div class="post-opts-handle"></div>
+        <div class="post-opts-header"></div>
+        <div class="post-opts-body">
+            <div class="post-opts-group">
+                <button class="post-opts-item danger" onclick="deleteHeldProfileMedia()">
+                    <span class="post-opts-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ff453a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg></span>
+                    Удалить
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 
 <!-- Change Password Modal -->
 <div class="edit-modal-overlay" id="change-pw-overlay" style="z-index:13000;">
@@ -3171,7 +3192,22 @@
         document.getElementById('ep-file-input').click();
     }
     function openProfileMediaHoldMenu(kind, x, y) {
+        const hasAvatar = !!String(profileData.avatarUrl || '').trim();
+        const hasBanner = !!String(profileData.bannerUrl || '').trim();
+        if ((kind === 'avatar' && !hasAvatar) || (kind === 'banner' && !hasBanner)) return;
         heldProfileMediaKind = kind;
+        const isDesktop = window.matchMedia('(min-width: 900px)').matches;
+        if (!isDesktop) {
+            const ov = document.getElementById('media-opts-overlay');
+            const wrap = document.getElementById('media-opts-wrap');
+            ov?.classList.add('active');
+            requestAnimationFrame(() => requestAnimationFrame(() => {
+                ov?.classList.add('visible');
+                wrap?.classList.add('visible');
+            }));
+            document.body.style.overflow = 'hidden';
+            return;
+        }
         const menu = document.getElementById('ep-media-hold-menu');
         if (!menu) return;
         menu.style.display = 'block';
@@ -3183,6 +3219,14 @@
     function closeProfileMediaHoldMenu() {
         const menu = document.getElementById('ep-media-hold-menu');
         if (menu) menu.style.display = 'none';
+        const ov = document.getElementById('media-opts-overlay');
+        const wrap = document.getElementById('media-opts-wrap');
+        ov?.classList.remove('visible');
+        wrap?.classList.remove('visible');
+        setTimeout(() => ov?.classList.remove('active'), 260);
+        if (!document.getElementById('post-opts-overlay')?.classList.contains('active') && !document.getElementById('comment-opts-overlay')?.classList.contains('active')) {
+            document.body.style.overflow = '';
+        }
         heldProfileMediaKind = null;
     }
     function deleteHeldProfileMedia() {
@@ -3214,13 +3258,16 @@
         el.addEventListener('touchstart', (e) => {
             const t = e.touches && e.touches[0];
             if (!t) return;
+            if (window.matchMedia('(min-width: 900px)').matches) return;
             startHold(t.clientX, t.clientY);
         }, { passive: true });
         el.addEventListener('touchend', clearHold, { passive: true });
         el.addEventListener('touchcancel', clearHold, { passive: true });
-        el.addEventListener('mousedown', (e) => startHold(e.clientX, e.clientY));
-        el.addEventListener('mouseup', clearHold);
-        el.addEventListener('mouseleave', clearHold);
+        el.addEventListener('contextmenu', (e) => {
+            if (!window.matchMedia('(min-width: 900px)').matches) return;
+            e.preventDefault();
+            openProfileMediaHoldMenu(kind, e.clientX, e.clientY);
+        });
     }
     bindProfileMediaHold(document.getElementById('ep-avatar-wrap'), 'avatar');
     bindProfileMediaHold(document.getElementById('ep-banner-wrap'), 'banner');
@@ -3228,6 +3275,7 @@
         if (e.target.closest('#ep-media-hold-menu')) return;
         closeProfileMediaHoldMenu();
     });
+    document.getElementById('media-opts-overlay')?.addEventListener('click', closeProfileMediaHoldMenu);
     function onFileSelected(e) { const file = e.target.files[0]; if (!file) return; e.target.value = ''; const reader = new FileReader(); reader.onload = ev => openCropModal(ev.target.result); reader.readAsDataURL(file); }
     function openCropModal(src) {
         const canvas = document.getElementById('crop-canvas');
@@ -4436,12 +4484,16 @@
 
   window.saveProfile = async function saveProfile() {
     const err = document.getElementById('ep-error');
+    const epAvatarImg = document.getElementById('ep-avatar-img');
+    const epBannerImg = document.getElementById('ep-banner-img');
+    const avatarPreview = (epAvatarImg && epAvatarImg.classList.contains('loaded')) ? String(epAvatarImg.src || '') : '';
+    const bannerPreview = (epBannerImg && epBannerImg.classList.contains('loaded')) ? String(epBannerImg.src || '') : '';
     const payload = {
       displayName: document.getElementById('ep-name').value.trim(),
       username: document.getElementById('ep-username').value.trim(),
       bio: document.getElementById('ep-bio').value,
-      avatarUrl: profileData?.avatarUrl || '',
-      bannerUrl: profileData?.bannerUrl || ''
+      avatarUrl: avatarPreview || profileData?.avatarUrl || '',
+      bannerUrl: bannerPreview || profileData?.bannerUrl || ''
     };
     if (err) err.textContent = '';
     if (!payload.displayName || !payload.username) {
