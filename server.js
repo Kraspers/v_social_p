@@ -78,6 +78,17 @@ function sanitizeUser(u) {
   return safe;
 }
 
+function normalizeProfileImageUrl(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  if (/^data:image\/(png|jpeg|jpg|webp);base64,/i.test(raw)) return raw;
+  if (/^https?:\/\//i.test(raw)) return raw;
+  const cleaned = raw.replace(/\\/g, '/').replace(/^\.?\//, '');
+  if (cleaned.startsWith('uploads/')) return `/${cleaned}`;
+  if (cleaned.startsWith('/uploads/')) return cleaned;
+  return raw;
+}
+
 function relativeTime(iso) {
   const t = new Date(iso).getTime();
   const now = Date.now();
@@ -256,8 +267,8 @@ const server = http.createServer(async (req, res) => {
       me.username = n;
     }
     if (typeof b.bio === 'string') me.bio = b.bio.slice(0, 300);
-    if (typeof b.avatarUrl === 'string') me.avatarUrl = b.avatarUrl;
-    if (typeof b.bannerUrl === 'string') me.bannerUrl = b.bannerUrl;
+    if (typeof b.avatarUrl === 'string') me.avatarUrl = normalizeProfileImageUrl(b.avatarUrl);
+    if (typeof b.bannerUrl === 'string') me.bannerUrl = normalizeProfileImageUrl(b.bannerUrl);
     if (Object.prototype.hasOwnProperty.call(b, 'pinnedPostId')) me.pinnedPostId = b.pinnedPostId || null;
     if (Object.prototype.hasOwnProperty.call(b, 'pinnedRepostId')) me.pinnedRepostId = b.pinnedRepostId || null;
     writeDb(db);

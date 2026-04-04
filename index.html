@@ -2079,13 +2079,7 @@
     // ===== POSTS =====
     let pinnedPostId = null;
     let pinnedRepostId = null;
-    const samplePosts = [
-        { id: 1, author: "Artem", username: "@overdork", avatar: "А", text: "Пока илья новки создаёт вирус и убивает людей, ВП идёт к успеху💪", time: "Только что", likes: 24, reposts: 5, comments: 8, liked: false, reposted: false },
-        { id: 2, author: "Подсосок", username: "@podsosok", avatar: "П", text: "Продристань", time: "4 часа назад", likes: 156, reposts: 23, comments: 34, liked: true, reposted: false },
-        { id: 3, author: "Дмитрий", username: "@dmitry", avatar: "Д", text: "Кто-нибудь ещё думает, что #впизде — это лучший микроблог года? 🔥", time: "6 часов назад", likes: 89, reposts: 12, comments: 45, liked: false, reposted: false },
-        { id: 4, author: "Катя", username: "@katya_photo", avatar: "К", text: "Sunset vibes 🌅 Сегодня поймала идеальный момент! @alex_dev что скажешь?", time: "8 часов назад", likes: 234, reposts: 45, comments: 67, liked: true, reposted: true }
-    ];
-    let posts = [...samplePosts];
+    let posts = [];
 
     function formatPostText(text) {
         return text.replace(/#(\w+)/g, '<span class="hashtag">#$1</span>').replace(/@(\w+)/g, '<span class="mention">@$1</span>');
@@ -4336,8 +4330,12 @@
   };
 
   function absoluteUrl(u) {
-    if (!u) return '';
-    return /^https?:\/\//i.test(u) || u.startsWith('data:') ? u : `${location.origin}${u}`;
+    const raw = String(u || '').trim();
+    if (!raw) return '';
+    if (/^https?:\/\//i.test(raw) || raw.startsWith('data:')) return raw;
+    if (raw.startsWith('//')) return `${location.protocol}${raw}`;
+    if (raw.startsWith('/')) return `${location.origin}${raw}`;
+    return `${location.origin}/${raw.replace(/^\/+/, '')}`;
   }
 
   async function uploadImageIfNeeded(value, kind) {
