@@ -1792,7 +1792,7 @@
         <div class="edit-modal-handle"></div>
         <div class="edit-modal-header">
             <div></div>
-            <button class="edit-modal-save" onclick="saveProfile()">
+            <button class="edit-modal-save" onclick="window.saveProfile()">
                 Сохранить
             </button>
         </div>
@@ -1880,6 +1880,33 @@
     </div>
 </div>
 <input type="file" id="ep-file-input" accept="image/*" style="display:none" onchange="onFileSelected(event)">
+<div id="ep-media-hold-menu" style="display:none;position:fixed;z-index:20500;background:#2a2a2e;border:1px solid rgba(255,255,255,0.08);border-radius:12px;overflow:hidden;min-width:170px;box-shadow:0 8px 28px rgba(0,0,0,0.55);">
+    <button class="post-opts-dropdown-item danger" id="ep-media-delete-btn" style="width:100%;text-align:left;" onclick="deleteHeldProfileMedia()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ff453a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+        Удалить
+    </button>
+</div>
+<div class="post-opts-overlay" id="media-opts-overlay"></div>
+<div class="post-opts-wrap" id="media-opts-wrap">
+    <div class="post-opts-outer-header">
+        <button class="post-opts-outer-back" onclick="closeProfileMediaHoldMenu()">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+            Действия
+        </button>
+    </div>
+    <div class="post-opts-sheet">
+        <div class="post-opts-handle"></div>
+        <div class="post-opts-header"></div>
+        <div class="post-opts-body">
+            <div class="post-opts-group">
+                <button class="post-opts-item danger" onclick="deleteHeldProfileMedia()">
+                    <span class="post-opts-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ff453a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg></span>
+                    Удалить
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 
 <!-- Change Password Modal -->
 <div class="edit-modal-overlay" id="change-pw-overlay" style="z-index:13000;">
@@ -2009,18 +2036,28 @@
 </div><!-- end post-opts-wrap -->
 <div class="post-opts-overlay" id="comment-opts-overlay"></div>
 <div class="post-opts-wrap" id="comment-opts-wrap">
+    <div class="post-opts-outer-header">
+        <button class="post-opts-outer-back" onclick="closeCommentOptions()">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+            Действия
+        </button>
+    </div>
     <div class="post-opts-sheet">
-        <div class="post-opts-group">
-            <button class="post-opts-item" onclick="editCommentFromMenu()">
-                <span class="post-opts-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></span>
-                <span class="post-opts-label">Редактировать</span>
-            </button>
-        </div>
-        <div class="post-opts-group">
-            <button class="post-opts-item danger" onclick="deleteCommentFromMenu()">
-                <span class="post-opts-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ff453a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg></span>
-                <span class="post-opts-label">Удалить</span>
-            </button>
+        <div class="post-opts-handle"></div>
+        <div class="post-opts-header"></div>
+        <div class="post-opts-body">
+            <div class="post-opts-group">
+                <button class="post-opts-item" onclick="editCommentFromMenu()">
+                    <span class="post-opts-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></span>
+                    <span class="post-opts-label">Редактировать</span>
+                </button>
+            </div>
+            <div class="post-opts-group">
+                <button class="post-opts-item danger" onclick="deleteCommentFromMenu()">
+                    <span class="post-opts-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ff453a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg></span>
+                    <span class="post-opts-label">Удалить</span>
+                </button>
+            </div>
         </div>
     </div>
 </div>
@@ -2079,13 +2116,7 @@
     // ===== POSTS =====
     let pinnedPostId = null;
     let pinnedRepostId = null;
-    const samplePosts = [
-        { id: 1, author: "Artem", username: "@overdork", avatar: "А", text: "Пока илья новки создаёт вирус и убивает людей, ВП идёт к успеху💪", time: "Только что", likes: 24, reposts: 5, comments: 8, liked: false, reposted: false },
-        { id: 2, author: "Подсосок", username: "@podsosok", avatar: "П", text: "Продристань", time: "4 часа назад", likes: 156, reposts: 23, comments: 34, liked: true, reposted: false },
-        { id: 3, author: "Дмитрий", username: "@dmitry", avatar: "Д", text: "Кто-нибудь ещё думает, что #впизде — это лучший микроблог года? 🔥", time: "6 часов назад", likes: 89, reposts: 12, comments: 45, liked: false, reposted: false },
-        { id: 4, author: "Катя", username: "@katya_photo", avatar: "К", text: "Sunset vibes 🌅 Сегодня поймала идеальный момент! @alex_dev что скажешь?", time: "8 часов назад", likes: 234, reposts: 45, comments: 67, liked: true, reposted: true }
-    ];
-    let posts = [...samplePosts];
+    let posts = [];
 
     function formatPostText(text) {
         return text.replace(/#(\w+)/g, '<span class="hashtag">#$1</span>').replace(/@(\w+)/g, '<span class="mention">@$1</span>');
@@ -3131,7 +3162,7 @@
         }
     }
 
-    function saveProfile() {
+    function saveProfileLegacyPreview() {
         const oldUsername = profileData.username;
         profileData.name = document.getElementById('ep-name').value || 'Ваше Имя';
         const rawU = document.getElementById('ep-username').value.replace(/^@+/,'') || 'username'; profileData.username = '@' + rawU;
@@ -3153,7 +3184,98 @@
         const toast = document.getElementById('copy-toast');
         if (toast) { toast.textContent = 'Скопировано'; toast.classList.add('show'); clearTimeout(toast._t); toast._t = setTimeout(() => toast.classList.remove('show'), 2000); }
     }
-    function triggerCrop(mode) { cropMode = mode; document.getElementById('ep-file-input').click(); }
+    let heldProfileMediaKind = null;
+    let suppressCropTap = false;
+    function triggerCrop(mode) {
+        if (suppressCropTap) { suppressCropTap = false; return; }
+        cropMode = mode;
+        document.getElementById('ep-file-input').click();
+    }
+    function openProfileMediaHoldMenu(kind, x, y) {
+        const hasAvatar = !!String(profileData.avatarUrl || '').trim();
+        const hasBanner = !!String(profileData.bannerUrl || '').trim();
+        if ((kind === 'avatar' && !hasAvatar) || (kind === 'banner' && !hasBanner)) return;
+        heldProfileMediaKind = kind;
+        const isDesktop = window.matchMedia('(min-width: 900px)').matches;
+        if (!isDesktop) {
+            const ov = document.getElementById('media-opts-overlay');
+            const wrap = document.getElementById('media-opts-wrap');
+            ov?.classList.add('active');
+            requestAnimationFrame(() => requestAnimationFrame(() => {
+                ov?.classList.add('visible');
+                wrap?.classList.add('visible');
+            }));
+            document.body.style.overflow = 'hidden';
+            return;
+        }
+        const menu = document.getElementById('ep-media-hold-menu');
+        if (!menu) return;
+        menu.style.display = 'block';
+        const maxLeft = window.innerWidth - menu.offsetWidth - 8;
+        const maxTop = window.innerHeight - menu.offsetHeight - 8;
+        menu.style.left = Math.min(maxLeft, Math.max(8, x)) + 'px';
+        menu.style.top = Math.min(maxTop, Math.max(8, y)) + 'px';
+    }
+    function closeProfileMediaHoldMenu() {
+        const menu = document.getElementById('ep-media-hold-menu');
+        if (menu) menu.style.display = 'none';
+        const ov = document.getElementById('media-opts-overlay');
+        const wrap = document.getElementById('media-opts-wrap');
+        ov?.classList.remove('visible');
+        wrap?.classList.remove('visible');
+        setTimeout(() => ov?.classList.remove('active'), 260);
+        if (!document.getElementById('post-opts-overlay')?.classList.contains('active') && !document.getElementById('comment-opts-overlay')?.classList.contains('active')) {
+            document.body.style.overflow = '';
+        }
+        heldProfileMediaKind = null;
+    }
+    function deleteHeldProfileMedia() {
+        if (heldProfileMediaKind === 'avatar') {
+            profileData.avatarUrl = '';
+            const img = document.getElementById('ep-avatar-img');
+            if (img) { img.src = ''; img.classList.remove('loaded'); }
+            const letter = document.getElementById('ep-avatar-letter');
+            if (letter) letter.style.display = '';
+            updateNavAvatar();
+        } else if (heldProfileMediaKind === 'banner') {
+            profileData.bannerUrl = '';
+            const img = document.getElementById('ep-banner-img');
+            if (img) { img.src = ''; img.classList.remove('loaded'); }
+        }
+        closeProfileMediaHoldMenu();
+    }
+    function bindProfileMediaHold(el, kind) {
+        if (!el) return;
+        let holdTimer = null;
+        const clearHold = () => { if (holdTimer) { clearTimeout(holdTimer); holdTimer = null; } };
+        const startHold = (clientX, clientY) => {
+            clearHold();
+            holdTimer = setTimeout(() => {
+                suppressCropTap = true;
+                openProfileMediaHoldMenu(kind, clientX, clientY);
+            }, 520);
+        };
+        el.addEventListener('touchstart', (e) => {
+            const t = e.touches && e.touches[0];
+            if (!t) return;
+            if (window.matchMedia('(min-width: 900px)').matches) return;
+            startHold(t.clientX, t.clientY);
+        }, { passive: true });
+        el.addEventListener('touchend', clearHold, { passive: true });
+        el.addEventListener('touchcancel', clearHold, { passive: true });
+        el.addEventListener('contextmenu', (e) => {
+            if (!window.matchMedia('(min-width: 900px)').matches) return;
+            e.preventDefault();
+            openProfileMediaHoldMenu(kind, e.clientX, e.clientY);
+        });
+    }
+    bindProfileMediaHold(document.getElementById('ep-avatar-wrap'), 'avatar');
+    bindProfileMediaHold(document.getElementById('ep-banner-wrap'), 'banner');
+    document.addEventListener('click', (e) => {
+        if (e.target.closest('#ep-media-hold-menu')) return;
+        closeProfileMediaHoldMenu();
+    });
+    document.getElementById('media-opts-overlay')?.addEventListener('click', closeProfileMediaHoldMenu);
     function onFileSelected(e) { const file = e.target.files[0]; if (!file) return; e.target.value = ''; const reader = new FileReader(); reader.onload = ev => openCropModal(ev.target.result); reader.readAsDataURL(file); }
     function openCropModal(src) {
         const canvas = document.getElementById('crop-canvas');
@@ -3877,7 +3999,7 @@
             : '';
         document.getElementById('repost-preview-card').innerHTML = `
             <div style="padding:12px 12px 6px;display:flex;align-items:center;gap:8px;">
-                <div style="width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#0078FF 0%,#23D4F9 100%);display:flex;align-items:center;justify-content:center;color:white;font-size:11px;font-weight:700;flex-shrink:0;">${post.avatar}</div>
+                <div style="width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#0078FF 0%,#23D4F9 100%);display:flex;align-items:center;justify-content:center;color:white;font-size:11px;font-weight:700;flex-shrink:0;overflow:hidden;">${post.avatarUrl ? `<img src=\"${post.avatarUrl}\" style=\"width:100%;height:100%;object-fit:cover;border-radius:50%;\">` : post.avatar}</div>
                 <span style="font-weight:700;font-size:14px;color:#e6e6e9;">${post.author}</span>
                 <span style="color:rgba(255,255,255,0.4);font-size:13px;">${post.time.replace('часа','дн.').replace('часов','дн.')}</span>
             </div>
@@ -4197,14 +4319,12 @@
     const safeName = String(me.displayName || '').trim() || 'Без имени';
     const safeUsername = String(me.username || '').trim();
     const safeBio = typeof me.bio === 'string' ? me.bio : '';
-    if (window.profileData) {
-      profileData.name = safeName;
-      profileData.username = safeUsername ? `@${safeUsername}` : '@username';
-      profileData.bio = safeBio;
-      profileData.avatarUrl = absoluteUrl(me.avatarUrl || '') || null;
-      profileData.bannerUrl = absoluteUrl(me.bannerUrl || '') || null;
-      profileData.vpsc = me.vpsc || profileData.vpsc;
-    }
+    profileData.name = safeName;
+    profileData.username = safeUsername ? `@${safeUsername}` : '@username';
+    profileData.bio = safeBio;
+    profileData.avatarUrl = absoluteUrl(me.avatarUrl || '') || null;
+    profileData.bannerUrl = absoluteUrl(me.bannerUrl || '') || null;
+    profileData.vpsc = me.vpsc || profileData.vpsc;
     const nameEl = document.querySelector('.profile-name'); if (nameEl) nameEl.textContent = safeName;
     const uEl = document.querySelector('.profile-username'); if (uEl) uEl.textContent = safeUsername ? `@${safeUsername}` : '@username';
     const bEl = document.querySelector('.profile-bio'); if (bEl) bEl.textContent = safeBio;
@@ -4230,16 +4350,26 @@
         if (String(p.username || '').toLowerCase() === mine) p.avatarUrl = avatarUrl;
         if (p.repostOf && String(p.repostOf.username || '').toLowerCase() === mine) p.repostOf.avatarUrl = avatarUrl;
       });
+      const patchCommentTree = (arr) => {
+        (arr || []).forEach((c) => {
+          if (String(c.username || '').toLowerCase() === mine) c.avatarUrl = avatarUrl;
+          if (Array.isArray(c.replies) && c.replies.length) patchCommentTree(c.replies);
+        });
+      };
+      Object.values(postComments).forEach((tree) => patchCommentTree(tree));
     }
     if (nav) nav.innerHTML = avatarUrl ? `<img src="${avatarUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">` : (safeName[0]||'Я').toUpperCase();
     const pa = document.querySelector('.profile-avatar');
     if (pa) pa.innerHTML = avatarUrl ? `<img src="${avatarUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">` : (safeName[0]||'Я').toUpperCase();
+    const repostMy = document.getElementById('repost-my-avatar');
+    if (repostMy) repostMy.innerHTML = avatarUrl ? `<img src="${avatarUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">` : (safeName[0]||'Я').toUpperCase();
     const cover = document.querySelector('.profile-cover');
     if (cover) cover.style.background = bannerUrl ? `url('${bannerUrl}') center/cover no-repeat` : 'linear-gradient(135deg, #0078FF 0%, #23D4F9 100%)';
     const epi = document.getElementById('ep-avatar-img');
     if (epi && avatarUrl) { epi.src = avatarUrl; epi.classList.add('loaded'); const l = document.getElementById('ep-avatar-letter'); if (l) l.style.display='none'; }
     const epb = document.getElementById('ep-banner-img');
     if (epb && bannerUrl) { epb.src = bannerUrl; epb.classList.add('loaded'); }
+    if (currentPostId) renderComments();
   }
 
   async function syncMe() {
@@ -4336,8 +4466,12 @@
   };
 
   function absoluteUrl(u) {
-    if (!u) return '';
-    return /^https?:\/\//i.test(u) || u.startsWith('data:') ? u : `${location.origin}${u}`;
+    const raw = String(u || '').trim();
+    if (!raw) return '';
+    if (/^https?:\/\//i.test(raw) || raw.startsWith('data:')) return raw;
+    if (raw.startsWith('//')) return `${location.protocol}${raw}`;
+    if (raw.startsWith('/')) return `${location.origin}${raw}`;
+    return `${location.origin}/${raw.replace(/^\/+/, '')}`;
   }
 
   async function uploadImageIfNeeded(value, kind) {
@@ -4350,12 +4484,16 @@
 
   window.saveProfile = async function saveProfile() {
     const err = document.getElementById('ep-error');
+    const epAvatarImg = document.getElementById('ep-avatar-img');
+    const epBannerImg = document.getElementById('ep-banner-img');
+    const avatarPreview = (epAvatarImg && epAvatarImg.classList.contains('loaded')) ? String(epAvatarImg.src || '') : '';
+    const bannerPreview = (epBannerImg && epBannerImg.classList.contains('loaded')) ? String(epBannerImg.src || '') : '';
     const payload = {
       displayName: document.getElementById('ep-name').value.trim(),
       username: document.getElementById('ep-username').value.trim(),
       bio: document.getElementById('ep-bio').value,
-      avatarUrl: window.profileData?.avatarUrl || '',
-      bannerUrl: window.profileData?.bannerUrl || ''
+      avatarUrl: avatarPreview || profileData?.avatarUrl || '',
+      bannerUrl: bannerPreview || profileData?.bannerUrl || ''
     };
     if (err) err.textContent = '';
     if (!payload.displayName || !payload.username) {
@@ -4368,13 +4506,11 @@
       payload.bannerUrl = await uploadImageIfNeeded(payload.bannerUrl, 'banner');
       const r = await api('/me', { method: 'PATCH', body: JSON.stringify(payload) });
       me = r.user;
-      if (window.profileData) {
-        profileData.avatarUrl = absoluteUrl(me.avatarUrl || '');
-        profileData.bannerUrl = absoluteUrl(me.bannerUrl || '');
-      }
+      profileData.avatarUrl = absoluteUrl(me.avatarUrl || '');
+      profileData.bannerUrl = absoluteUrl(me.bannerUrl || '');
       closeEditModal();
       syncProfileUi();
-      await syncPosts();
+      await Promise.all([syncPosts(), syncStories()]);
       showToast('Профиль сохранён');
     } catch (e) {
       if (err) err.textContent = e.message;
@@ -4762,6 +4898,7 @@
       ov?.classList.add('visible');
       wrap?.classList.add('visible');
     }));
+    document.body.style.overflow = 'hidden';
   };
   window.closeCommentOptions = function closeCommentOptions() {
     const ov = document.getElementById('comment-opts-overlay');
@@ -4770,7 +4907,7 @@
     ov?.classList.remove('visible');
     wrap?.classList.remove('visible');
     if (dd) dd.style.display = 'none';
-    setTimeout(() => ov?.classList.remove('active'), 260);
+    setTimeout(() => { ov?.classList.remove('active'); document.body.style.overflow = ''; }, 260);
   };
   window.editCommentFromMenu = async function editCommentFromMenu() {
     const id = commentOptsId;

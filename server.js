@@ -78,6 +78,17 @@ function sanitizeUser(u) {
   return safe;
 }
 
+function normalizeProfileImageUrl(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  if (/^data:image\/(png|jpeg|jpg|webp);base64,/i.test(raw)) return raw;
+  if (/^https?:\/\//i.test(raw)) return raw;
+  const cleaned = raw.replace(/\\/g, '/').replace(/^\.?\//, '');
+  if (cleaned.startsWith('uploads/')) return `/${cleaned}`;
+  if (cleaned.startsWith('/uploads/')) return cleaned;
+  return raw;
+}
+
 function relativeTime(iso) {
   const t = new Date(iso).getTime();
   const now = Date.now();
@@ -120,7 +131,7 @@ function postDto(db, post, viewerId) {
     liked: !!db.likes.find((l) => l.postId === post.id && l.userId === viewerId),
     reposted: !!db.posts.find((p) => p.repostOf === post.id && p.authorId === viewerId),
     isRepost: !!post.repostOf,
-    repostOf: source ? {
+    repostOf: post.repostOf ? (source ? {
       id: source.id,
       publicId: source.publicId || `vp_${source.id.toString(36)}`,
       text: source.text,
@@ -128,8 +139,19 @@ function postDto(db, post, viewerId) {
       author: sourceAuthor?.displayName || 'Удалённый пользователь',
       username: sourceAuthor ? `@${sourceAuthor.username}` : '@deleted',
       avatar: sourceAuthor?.avatar || 'U',
+      avatarUrl: sourceAuthor?.avatarUrl || '',
       time: relativeTime(source.createdAt)
-    } : null
+    } : {
+      id: post.repostOf,
+      publicId: '',
+      text: '',
+      media: [],
+      author: 'Удалённый пользователь',
+      username: '@deleted',
+      avatar: 'U',
+      avatarUrl: '',
+      time: ''
+    }) : null
   };
 }
 
@@ -256,8 +278,14 @@ const server = http.createServer(async (req, res) => {
       me.username = n;
     }
     if (typeof b.bio === 'string') me.bio = b.bio.slice(0, 300);
-    if (typeof b.avatarUrl === 'string') me.avatarUrl = b.avatarUrl;
-    if (typeof b.bannerUrl === 'string') me.bannerUrl = b.bannerUrl;
+    if (typeof b.avatarUrl === 'string') {
+      const nextAvatarUrl = normalizeProfileImageUrl(b.avatarUrl);
+      if (nextAvatarUrl) me.avatarUrl = nextAvatarUrl;
+    }
+    if (typeof b.bannerUrl === 'string') {
+      const nextBannerUrl = normalizeProfileImageUrl(b.bannerUrl);
+      if (nextBannerUrl) me.bannerUrl = nextBannerUrl;
+    }
     if (Object.prototype.hasOwnProperty.call(b, 'pinnedPostId')) me.pinnedPostId = b.pinnedPostId || null;
     if (Object.prototype.hasOwnProperty.call(b, 'pinnedRepostId')) me.pinnedRepostId = b.pinnedRepostId || null;
     writeDb(db);
