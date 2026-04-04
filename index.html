@@ -2357,7 +2357,7 @@
                             <span>${c.likes}</span>
                         </button>
                         <button class="comment-action-btn" onclick="prepareReplyInMainInput('${c.username.replace('@','')}', ${c.id})">Ответить</button>
-                        ${c.canManage ? `<button class="comment-action-btn" onclick="openCommentOptions(${c.id})">•••</button>` : ''}
+                        ${c.canManage ? `<button class="post-options-btn" onclick="openCommentOptions(event, ${c.id}, this)" style="margin-left:auto;"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"></circle><circle cx="12" cy="12" r="2"></circle><circle cx="19" cy="12" r="2"></circle></svg></button>` : ''}
                     </div>
                     ${replies.length ? `<div class="comment-replies-container" id="replies-${c.id}">${visibleReplies.map(r=>makeHTML(r,true)).join('')}</div>` : ''}
                     ${shouldCollapseReplies ? `<button class="comment-replies-toggle" onclick="toggleRepliesVisibility(${c.id})">${isExpanded ? 'Свернуть ответы' : `Показать ответы (${replies.length})`}</button>` : ''}
@@ -3267,7 +3267,7 @@
     }
     document.addEventListener('click', e => {
         if (document.getElementById('post-opts-overlay')?.classList.contains('active')) return;
-        if (e.target.closest('#post-opts-wrap, #global-post-dd, .post-options-btn')) return;
+        if (e.target.closest('#post-opts-wrap, #global-post-dd, #global-comment-dd, .post-options-btn')) return;
         const item = e.target.closest('.post-media-item');
         if (!item) return;
         e.stopPropagation(); // prevent post from opening
@@ -3468,15 +3468,21 @@
     // Close dropdown on outside click
     document.addEventListener('click', e => {
         const dd = document.getElementById('global-post-dd');
+        const cdd = document.getElementById('global-comment-dd');
         if (dd && !dd.contains(e.target)) dd.style.display = 'none';
+        if (cdd && !cdd.contains(e.target)) cdd.style.display = 'none';
     });
     window.addEventListener('resize', () => {
         const dd = document.getElementById('global-post-dd');
+        const cdd = document.getElementById('global-comment-dd');
         if (dd) dd.style.display = 'none';
+        if (cdd) cdd.style.display = 'none';
     });
     window.addEventListener('scroll', () => {
         const dd = document.getElementById('global-post-dd');
+        const cdd = document.getElementById('global-comment-dd');
         if (dd) dd.style.display = 'none';
+        if (cdd) cdd.style.display = 'none';
     }, { passive: true });
 
     function openPostOptions(e, postId) {
@@ -4029,6 +4035,16 @@
         Удалить
     </button>
 </div>
+<div id="global-comment-dd" style="display:none;position:fixed;z-index:19000;background:#2a2a2e;border-radius:14px;overflow:hidden;min-width:210px;box-shadow:0 8px 32px rgba(0,0,0,0.6);border:1px solid rgba(255,255,255,0.08);">
+    <button class="post-opts-dropdown-item" onclick="editCommentFromMenu();document.getElementById('global-comment-dd').style.display='none';">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        Редактировать
+    </button>
+    <button class="post-opts-dropdown-item danger" onclick="deleteCommentFromMenu();document.getElementById('global-comment-dd').style.display='none';">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ff453a" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+        Удалить
+    </button>
+</div>
 
 <!-- Desktop logout button (bottom-left, desktop only) -->
 <button class="desktop-logout-btn" onclick="doLogout()">
@@ -4270,6 +4286,7 @@
     if (err) err.textContent = '';
     if (!payload.displayName || !payload.username) {
       if (err) err.textContent = 'Имя и username не могут быть пустыми';
+      showToast('Имя и username не могут быть пустыми');
       return;
     }
     try {
@@ -4287,6 +4304,8 @@
       showToast('Профиль сохранён');
     } catch (e) {
       if (err) err.textContent = e.message;
+      if (String(e.message).includes('Username already exists')) showToast('Этот username уже занят');
+      else if (String(e.message).includes('не могут быть пустыми')) showToast('Имя и username не могут быть пустыми');
     }
   };
 
@@ -4647,8 +4666,20 @@
     }
   };
 
-  window.openCommentOptions = function openCommentOptions(commentId) {
+  window.openCommentOptions = function openCommentOptions(e, commentId, btn) {
+    if (e?.stopPropagation) e.stopPropagation();
     commentOptsId = commentId;
+    if (window.matchMedia('(min-width: 900px)').matches) {
+      const dd = document.getElementById('global-comment-dd');
+      const rect = (btn || e?.currentTarget)?.getBoundingClientRect?.();
+      if (dd && rect) {
+        dd.style.display = 'block';
+        const maxLeft = window.innerWidth - dd.offsetWidth - 8;
+        dd.style.top = (rect.bottom + 8) + 'px';
+        dd.style.left = Math.min(maxLeft, Math.max(8, rect.right - dd.offsetWidth)) + 'px';
+      }
+      return;
+    }
     const ov = document.getElementById('comment-opts-overlay');
     const wrap = document.getElementById('comment-opts-wrap');
     ov?.classList.add('active');
@@ -4660,8 +4691,10 @@
   window.closeCommentOptions = function closeCommentOptions() {
     const ov = document.getElementById('comment-opts-overlay');
     const wrap = document.getElementById('comment-opts-wrap');
+    const dd = document.getElementById('global-comment-dd');
     ov?.classList.remove('visible');
     wrap?.classList.remove('visible');
+    if (dd) dd.style.display = 'none';
     setTimeout(() => ov?.classList.remove('active'), 260);
   };
   window.editCommentFromMenu = async function editCommentFromMenu() {
