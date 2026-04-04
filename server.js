@@ -8,7 +8,7 @@ const PORT = process.env.PORT || 3000;
 const SECRET = process.env.JWT_SECRET || 'vp_dev_secret_change_me';
 const ROOT = __dirname;
 const DB_PATH = path.join(ROOT, 'db.json');
-const VPSC_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+const VPSC_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789!@#$%&*';
 
 function ensureDb() {
   if (!fs.existsSync(DB_PATH)) {
@@ -16,7 +16,8 @@ function ensureDb() {
   }
   const db = JSON.parse(fs.readFileSync(DB_PATH, 'utf8'));
   db.users ||= []; db.posts ||= []; db.comments ||= []; db.likes ||= []; db.follows ||= []; db.stories ||= []; db.commentLikes ||= [];
-  if (!db.meta) db.meta = { postSeq: 1, commentSeq: 1 };
+  if (!db.meta) db.meta = { postSeq: 1, commentSeq: 1, vpscAttempts: {} };
+  if (!db.meta.vpscAttempts) db.meta.vpscAttempts = {};
   fs.writeFileSync(DB_PATH, JSON.stringify(db, null, 2));
 }
 function readDb() { ensureDb(); return JSON.parse(fs.readFileSync(DB_PATH, 'utf8')); }
@@ -25,7 +26,9 @@ const nowIso = () => new Date().toISOString();
 const uid = () => crypto.randomBytes(12).toString('hex');
 const sha = (s) => crypto.createHash('sha256').update(s).digest('hex');
 const usernameRe = /^[a-zA-Z0-9_.]{5,24}$/;
+const postIdRe = /^[a-zA-Z0-9_-]{6,64}$/;
 const makeVpsc = () => Array.from({ length: 6 }, () => VPSC_ALPHABET[Math.floor(Math.random() * VPSC_ALPHABET.length)]).join('');
+const makePostId = () => crypto.randomBytes(9).toString('base64url');
 
 function gc(db) {
   const ttl = Date.now() - 24 * 60 * 60 * 1000;
@@ -102,6 +105,7 @@ function postDto(db, post, viewerId) {
   const sourceAuthor = source ? db.users.find((u) => u.id === source.authorId) : null;
   return {
     id: post.id,
+    publicId: post.publicId || `vp_${post.id.toString(36)}`,
     text: post.text,
     media: post.media || [],
     author: author?.displayName || 'Удалённый пользователь',
@@ -118,6 +122,7 @@ function postDto(db, post, viewerId) {
     isRepost: !!post.repostOf,
     repostOf: source ? {
       id: source.id,
+      publicId: source.publicId || `vp_${source.id.toString(36)}`,
       text: source.text,
       media: source.media || [],
       author: sourceAuthor?.displayName || 'Удалённый пользователь',
@@ -130,6 +135,9 @@ function postDto(db, post, viewerId) {
 
 function serveFile(res, pathname) {
   let f = pathname === '/' ? '/index.html' : pathname;
+  if (pathname === '/privacy') f = '/privacy.html';
+  if (pathname === '/terms') f = '/terms.html';
+  if (pathname === '/login' || pathname === '/tape' || /^\/post\/[a-zA-Z0-9_-]+$/.test(pathname)) f = '/index.html';
   const fp = path.join(ROOT, decodeURIComponent(f));
   if (!fp.startsWith(ROOT) || !fs.existsSync(fp) || fs.statSync(fp).isDirectory()) return false;
   const ext = path.extname(fp).toLowerCase();
@@ -201,8 +209,24 @@ const server = http.createServer(async (req, res) => {
   if (u.pathname === '/api/auth/vpsc' && req.method === 'POST') {
     const b = await parseBody(req);
     const code = String(b.code || '').trim().toUpperCase();
+    const ipKey = String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown').split(',')[0].trim();
+    const limit = db.meta.vpscAttempts[ipKey] || { fails: 0, blockedUntil: 0 };
+    if (limit.blockedUntil && limit.blockedUntil > Date.now()) {
+      return sendJson(res, 429, { error: 'Вход по VPSC временно заблокирован на 24 часа' });
+    }
     const user = db.users.find((x) => x.vpsc === code);
-    if (!user) return sendJson(res, 401, { error: 'Неверный VPSC-код' });
+    if (!user) {
+      limit.fails = (limit.fails || 0) + 1;
+      if (limit.fails >= 10) {
+        limit.fails = 0;
+        limit.blockedUntil = Date.now() + 24 * 60 * 60 * 1000;
+      }
+      db.meta.vpscAttempts[ipKey] = limit;
+      writeDb(db);
+      return sendJson(res, 401, { error: 'Неверный VPSC-код' });
+    }
+    db.meta.vpscAttempts[ipKey] = { fails: 0, blockedUntil: 0 };
+    writeDb(db);
     return sendJson(res, 200, { token: signToken(user.id), user: sanitizeUser(user) });
   }
 
@@ -218,8 +242,9 @@ const server = http.createServer(async (req, res) => {
   if (u.pathname === '/api/me' && req.method === 'PATCH') {
     if (!me) return sendJson(res, 401, { error: 'Unauthorized' });
     const b = await parseBody(req);
-    if (typeof b.displayName === 'string' && b.displayName.trim()) {
+    if (typeof b.displayName === 'string') {
       const display = b.displayName.trim();
+      if (!display) return sendJson(res, 400, { error: 'Имя не может быть пустым' });
       if (display.length > 60) return sendJson(res, 400, { error: 'Имя слишком длинное' });
       me.displayName = display;
       me.avatar = (display[0] || 'U').toUpperCase();
@@ -281,7 +306,9 @@ const server = http.createServer(async (req, res) => {
     const text = String(b.text || '');
     const media = Array.isArray(b.media) ? b.media.slice(0, 5) : [];
     if (!text.trim() && media.length === 0) return sendJson(res, 400, { error: 'text or media required' });
-    const post = { id: db.meta.postSeq++, authorId: me.id, text, media, repostOf: b.repostOf || null, createdAt: nowIso() };
+    let publicId = makePostId();
+    while (db.posts.some((p) => p.publicId === publicId)) publicId = makePostId();
+    const post = { id: db.meta.postSeq++, publicId, authorId: me.id, text, media, repostOf: b.repostOf || null, createdAt: nowIso() };
     db.posts.push(post);
     writeDb(db);
     return sendJson(res, 201, { post: postDto(db, post, me.id) });
@@ -315,7 +342,9 @@ const server = http.createServer(async (req, res) => {
       db.likes = db.likes.filter((l) => l.postId !== repostId);
       reposted = false;
     } else {
-      db.posts.push({ id: db.meta.postSeq++, authorId: me.id, text: '', media: [], repostOf: postId, createdAt: nowIso() });
+      let publicId = makePostId();
+      while (db.posts.some((p) => p.publicId === publicId)) publicId = makePostId();
+      db.posts.push({ id: db.meta.postSeq++, publicId, authorId: me.id, text: '', media: [], repostOf: postId, createdAt: nowIso() });
       reposted = true;
     }
     writeDb(db);
@@ -331,6 +360,8 @@ const server = http.createServer(async (req, res) => {
       .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt))
       .map((c) => {
         const au = db.users.find((x) => x.id === c.authorId);
+        const createdTs = new Date(c.createdAt).getTime();
+        const canManage = !!me && c.authorId === me.id && (Date.now() - createdTs) <= 24 * 60 * 60 * 1000;
         return {
           id: c.id,
           postId: c.postId,
@@ -342,6 +373,9 @@ const server = http.createServer(async (req, res) => {
           text: c.text,
           likes: db.commentLikes.filter((l) => l.commentId === c.id).length,
           liked: !!db.commentLikes.find((l) => l.commentId === c.id && l.userId === me.id),
+          mine: !!me && c.authorId === me.id,
+          canManage,
+          createdAt: c.createdAt,
           replies: [],
           time: relativeTime(c.createdAt)
         };
@@ -373,6 +407,47 @@ const server = http.createServer(async (req, res) => {
     return sendJson(res, 200, { liked, likes: db.commentLikes.filter((l) => l.commentId === commentId).length });
   }
 
+  const mCommentPatch = u.pathname.match(/^\/api\/comments\/(\d+)$/);
+  if (mCommentPatch && req.method === 'PATCH') {
+    if (!me) return sendJson(res, 401, { error: 'Unauthorized' });
+    const commentId = Number(mCommentPatch[1]);
+    const comment = db.comments.find((c) => c.id === commentId);
+    if (!comment || comment.authorId !== me.id) return sendJson(res, 404, { error: 'Comment not found' });
+    if ((Date.now() - new Date(comment.createdAt).getTime()) > 24 * 60 * 60 * 1000) return sendJson(res, 403, { error: 'Срок редактирования истёк' });
+    const b = await parseBody(req);
+    const text = String(b.text || '').trim();
+    if (!text) return sendJson(res, 400, { error: 'text required' });
+    comment.text = text.slice(0, 2000);
+    writeDb(db);
+    return sendJson(res, 200, { ok: true });
+  }
+
+  const mCommentDel = u.pathname.match(/^\/api\/comments\/(\d+)$/);
+  if (mCommentDel && req.method === 'DELETE') {
+    if (!me) return sendJson(res, 401, { error: 'Unauthorized' });
+    const commentId = Number(mCommentDel[1]);
+    const comment = db.comments.find((c) => c.id === commentId);
+    if (!comment || comment.authorId !== me.id) return sendJson(res, 404, { error: 'Comment not found' });
+    if ((Date.now() - new Date(comment.createdAt).getTime()) > 24 * 60 * 60 * 1000) return sendJson(res, 403, { error: 'Срок удаления истёк' });
+    db.comments = db.comments.filter((c) => c.id !== commentId && c.parentId !== commentId);
+    db.commentLikes = db.commentLikes.filter((l) => l.commentId !== commentId);
+    writeDb(db);
+    return sendJson(res, 200, { ok: true });
+  }
+
+  const mPostById = u.pathname.match(/^\/api\/posts\/([^/]+)$/);
+  if (mPostById && req.method === 'GET') {
+    if (!me) return sendJson(res, 401, { error: 'Unauthorized' });
+    const identifier = String(mPostById[1] || '');
+    let post = db.posts.find((p) => p.publicId === identifier);
+    if (!post && /^vp_[a-z0-9]+$/i.test(identifier)) {
+      const legacyId = Number.parseInt(identifier.slice(3), 36);
+      if (Number.isFinite(legacyId)) post = db.posts.find((p) => p.id === legacyId);
+    }
+    if (!post && !postIdRe.test(identifier)) post = db.posts.find((p) => p.id === Number(identifier));
+    if (!post) return sendJson(res, 404, { error: 'Post not found' });
+    return sendJson(res, 200, { post: postDto(db, post, me.id) });
+  }
   const mPatch = u.pathname.match(/^\/api\/posts\/(\d+)$/);
   if (mPatch && req.method === 'PATCH') {
     if (!me) return sendJson(res, 401, { error: 'Unauthorized' });
@@ -504,6 +579,23 @@ const server = http.createServer(async (req, res) => {
     });
     const trends = [...map.entries()].sort((a, b) => b[1] - a[1]).slice(0, 20).map(([tag, count]) => ({ tag, count }));
     return sendJson(res, 200, { trends });
+  }
+
+  if (u.pathname === '/api/search' && req.method === 'GET') {
+    if (!me) return sendJson(res, 401, { error: 'Unauthorized' });
+    const q = String(u.searchParams.get('q') || '').trim().toLowerCase().replace(/^@/, '');
+    if (!q) return sendJson(res, 200, { users: [] });
+    const users = db.users
+      .filter((usr) => usr.username.toLowerCase().includes(q) || String(usr.displayName || '').toLowerCase().includes(q))
+      .slice(0, 30)
+      .map((usr) => ({
+        username: `@${usr.username}`,
+        displayname: usr.displayName || '',
+        bio: usr.bio || '',
+        avatar: usr.avatar || 'U',
+        avatarUrl: usr.avatarUrl || ''
+      }));
+    return sendJson(res, 200, { users });
   }
 
   if (u.pathname.startsWith('/api/')) return sendJson(res, 404, { error: 'Not found' });

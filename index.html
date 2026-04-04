@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <base href="/">
     <title>VP 2.0</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -201,6 +202,18 @@
             overflow-y: auto;
         }
         .login-screen.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+        .no-vpid-screen {
+            position: fixed; inset: 0; z-index: 19100; background: #0b0b0d;
+            display: none; flex-direction: column; align-items: center; justify-content: center;
+            padding: 20px; text-align: center;
+        }
+        .no-vpid-screen.active { display: flex; }
+        .no-vpid-screen img { width: 120px; height: 120px; object-fit: contain; margin-bottom: 18px; }
+        .no-vpid-title { font-size: 24px; font-weight: 800; margin-bottom: 18px; }
+        .no-vpid-btn {
+            border: none; border-radius: 999px; padding: 14px 24px; font-weight: 700; font-size: 16px;
+            background: #fff; color: #000; cursor: pointer;
+        }
         .login-logo-wrap {
             display: flex; align-items: center; gap: 14px; margin-bottom: 52px;
         }
@@ -1486,6 +1499,12 @@
     </div>
 </div>
 
+<div class="no-vpid-screen" id="no-vpid-screen">
+    <img src="assets/vp_id.png" alt="VP ID" onerror="this.style.display='none'">
+    <div class="no-vpid-title">У вас отсутвует VP ID</div>
+    <button class="no-vpid-btn" id="no-vpid-login-btn">Авторизоваться</button>
+</div>
+
 <div class="container">
     <div class="header">
         <div class="logo-container">
@@ -1906,7 +1925,7 @@
 </div>
 
 <!-- User Profile Viewer Modal -->
-<div class="post-modal" id="user-profile-modal" style="z-index:11000;">
+<div class="post-modal" id="user-profile-modal" style="z-index:13050;">
     <div class="post-modal-wrap">
         <div class="post-modal-outer-header">
             <button class="post-modal-outer-back" onclick="closeUserProfile()">
@@ -1988,6 +2007,23 @@
         </div>
 </div>
 </div><!-- end post-opts-wrap -->
+<div class="post-opts-overlay" id="comment-opts-overlay"></div>
+<div class="post-opts-wrap" id="comment-opts-wrap">
+    <div class="post-opts-sheet">
+        <div class="post-opts-group">
+            <button class="post-opts-item" onclick="editCommentFromMenu()">
+                <span class="post-opts-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></span>
+                <span class="post-opts-label">Редактировать</span>
+            </button>
+        </div>
+        <div class="post-opts-group">
+            <button class="post-opts-item danger" onclick="deleteCommentFromMenu()">
+                <span class="post-opts-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ff453a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg></span>
+                <span class="post-opts-label">Удалить</span>
+            </button>
+        </div>
+    </div>
+</div>
 
 <!-- Edit Post Sheet -->
 <div class="edit-post-overlay" id="edit-post-overlay"></div>
@@ -2008,6 +2044,25 @@
         <div class="edit-post-media-preview" id="edit-post-media-preview"></div>
         <div class="edit-post-save-row">
             <button class="edit-post-save-btn" id="edit-post-save-btn" onclick="saveEditedPost()">Сохранить</button>
+        </div>
+    </div>
+</div>
+<div class="edit-post-overlay" id="edit-comment-overlay"></div>
+<div class="edit-post-wrap" id="edit-comment-wrap">
+    <div class="edit-post-topbar">
+        <button class="post-modal-outer-back" onclick="closeEditCommentSheet()">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+            Редактировать комментарий
+        </button>
+    </div>
+    <div class="edit-post-sheet">
+        <div class="post-opts-handle"></div>
+        <div style="padding:16px 16px 12px;">
+            <textarea id="edit-comment-textarea" placeholder="Редактировать комментарий..."
+                style="width:100%;box-sizing:border-box;background:#2a2a2e;border:none;border-radius:16px;padding:16px;color:#e6e6e9;font-size:16px;font-family:inherit;outline:none;resize:none;min-height:120px;line-height:1.5;-webkit-user-select:text;user-select:text;"></textarea>
+        </div>
+        <div class="edit-post-save-row">
+            <button class="edit-post-save-btn" id="edit-comment-save-btn" onclick="saveEditedComment()">Сохранить</button>
         </div>
     </div>
 </div>
@@ -2053,7 +2108,7 @@
             <div class="repost-card-header">${repostIcon} Репост</div>
             <div class="repost-card-body">
                 <div class="repost-card-author">
-                    <div class="repost-card-avatar">${repostOf.avatar}</div>
+                    <div class="repost-card-avatar" style="${repostOf.avatarUrl ? 'padding:0;overflow:hidden;' : ''}">${repostOf.avatarUrl ? `<img src="${repostOf.avatarUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">` : repostOf.avatar}</div>
                     <span class="repost-card-name">${repostOf.author}</span>
                     <span class="repost-card-uname">${repostOf.username}</span>
                     <span class="repost-card-time">· ${repostOf.time}</span>
@@ -2312,7 +2367,7 @@
             const isExpanded = !!expandedReplies[c.id];
             const visibleReplies = shouldCollapseReplies && !isExpanded ? [] : replies;
             return `<div class="comment-item${nested?' nested-reply':''}" id="comment-${c.id}">
-                <div class="comment-avatar"${nested?' style="width:30px;height:30px;font-size:12px;"':''} data-open-profile="${c.username}">${c.avatar}</div>
+                <div class="comment-avatar"${nested?' style="width:30px;height:30px;font-size:12px;"':''} data-open-profile="${c.username}">${c.avatarUrl ? `<img src="${c.avatarUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">` : c.avatar}</div>
                 <div class="comment-content">
                     <div class="comment-header">
                         <span class="comment-author" data-open-profile="${c.username}">${c.author}</span>
@@ -2325,6 +2380,7 @@
                             <span>${c.likes}</span>
                         </button>
                         <button class="comment-action-btn" onclick="prepareReplyInMainInput('${c.username.replace('@','')}', ${c.id})">Ответить</button>
+                        ${c.canManage ? `<button class="post-options-btn" onclick="openCommentOptions(event, ${c.id}, this)" style="margin-left:auto;"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"></circle><circle cx="12" cy="12" r="2"></circle><circle cx="19" cy="12" r="2"></circle></svg></button>` : ''}
                     </div>
                     ${replies.length ? `<div class="comment-replies-container" id="replies-${c.id}">${visibleReplies.map(r=>makeHTML(r,true)).join('')}</div>` : ''}
                     ${shouldCollapseReplies ? `<button class="comment-replies-toggle" onclick="toggleRepliesVisibility(${c.id})">${isExpanded ? 'Свернуть ответы' : `Показать ответы (${replies.length})`}</button>` : ''}
@@ -2479,7 +2535,7 @@
     document.getElementById('login-username').addEventListener('keydown', e => { if(e.key==='Enter') document.getElementById('login-password').focus(); });
     document.getElementById('login-password').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
 
-    (function() { const sess = getSession(); if (!sess) showLoginScreen(); })();
+    (function() { if (!localStorage.getItem('vp_token')) showLoginScreen(); })();
 
     window.toggleCommentLike = id => {
         function toggle(list) {
@@ -2663,7 +2719,12 @@
             }
             openPostModal(post);
         }
-        else if (action === 'share') { alert('Ссылка скопирована!'); }
+        else if (action === 'share') {
+            const postPublicId = post?.publicId || `vp_${id.toString(36)}`;
+            const postUrl = `${location.origin}/post/${postPublicId}`;
+            if (navigator.clipboard?.writeText) navigator.clipboard.writeText(postUrl).catch(() => {});
+            showToast('Ссылка скопирована');
+        }
     });
 
     // ===== NAV =====
@@ -3039,9 +3100,15 @@
         ov.classList.add('active');
         requestAnimationFrame(() => requestAnimationFrame(() => ov.classList.add('visible')));
         document.body.style.overflow = 'hidden';
-        document.getElementById('ep-name').value = profileData.name;
-        document.getElementById('ep-username').value = profileData.username.replace(/^@/,'');
-        document.getElementById('ep-bio').value = profileData.bio;
+        const realName = (document.querySelector('.profile-name')?.textContent || '').trim() || profileData.name || '';
+        const realUsername = (document.querySelector('.profile-username')?.textContent || '').replace(/^@/,'').trim() || profileData.username.replace(/^@/,'');
+        const realBio = (document.querySelector('.profile-bio')?.textContent || '') || profileData.bio || '';
+        profileData.name = realName;
+        profileData.username = realUsername ? `@${realUsername}` : profileData.username;
+        profileData.bio = realBio;
+        document.getElementById('ep-name').value = realName;
+        document.getElementById('ep-username').value = realUsername;
+        document.getElementById('ep-bio').value = realBio;
         // sync textarea height
         const bioEl = document.getElementById('ep-bio');
         if (bioEl) { bioEl.style.height = 'auto'; bioEl.style.height = bioEl.scrollHeight + 'px'; }
@@ -3223,7 +3290,7 @@
     }
     document.addEventListener('click', e => {
         if (document.getElementById('post-opts-overlay')?.classList.contains('active')) return;
-        if (e.target.closest('#post-opts-wrap, #global-post-dd, .post-options-btn')) return;
+        if (e.target.closest('#post-opts-wrap, #global-post-dd, #global-comment-dd, .post-options-btn')) return;
         const item = e.target.closest('.post-media-item');
         if (!item) return;
         e.stopPropagation(); // prevent post from opening
@@ -3424,15 +3491,21 @@
     // Close dropdown on outside click
     document.addEventListener('click', e => {
         const dd = document.getElementById('global-post-dd');
+        const cdd = document.getElementById('global-comment-dd');
         if (dd && !dd.contains(e.target)) dd.style.display = 'none';
+        if (cdd && !cdd.contains(e.target)) cdd.style.display = 'none';
     });
     window.addEventListener('resize', () => {
         const dd = document.getElementById('global-post-dd');
+        const cdd = document.getElementById('global-comment-dd');
         if (dd) dd.style.display = 'none';
+        if (cdd) cdd.style.display = 'none';
     });
     window.addEventListener('scroll', () => {
         const dd = document.getElementById('global-post-dd');
+        const cdd = document.getElementById('global-comment-dd');
         if (dd) dd.style.display = 'none';
+        if (cdd) cdd.style.display = 'none';
     }, { passive: true });
 
     function openPostOptions(e, postId) {
@@ -3464,6 +3537,12 @@
     document.getElementById('post-opts-overlay').addEventListener('click', closePostOptions);
 
     function postOptsCopyLink() {
+        if (postOptsId !== null) {
+            const sourcePost = posts.find((p) => p.id === postOptsId) || upmLocalPosts.get(postOptsId);
+            const postPublicId = sourcePost?.publicId || `vp_${postOptsId.toString(36)}`;
+            const postUrl = `${location.origin}/post/${postPublicId}`;
+            if (navigator.clipboard?.writeText) navigator.clipboard.writeText(postUrl).catch(() => {});
+        }
         closePostOptions();
         showToast('Ссылка скопирована');
     }
@@ -3979,6 +4058,16 @@
         Удалить
     </button>
 </div>
+<div id="global-comment-dd" style="display:none;position:fixed;z-index:19000;background:#2a2a2e;border-radius:14px;overflow:hidden;min-width:210px;box-shadow:0 8px 32px rgba(0,0,0,0.6);border:1px solid rgba(255,255,255,0.08);">
+    <button class="post-opts-dropdown-item" onclick="editCommentFromMenu();document.getElementById('global-comment-dd').style.display='none';">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        Редактировать
+    </button>
+    <button class="post-opts-dropdown-item danger" onclick="deleteCommentFromMenu();document.getElementById('global-comment-dd').style.display='none';">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ff453a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+        Удалить
+    </button>
+</div>
 
 <!-- Desktop logout button (bottom-left, desktop only) -->
 <button class="desktop-logout-btn" onclick="doLogout()">
@@ -3987,8 +4076,8 @@
 </button>
 <!-- Desktop footer (bottom-right, desktop only) -->
 <div class="desktop-footer">
-    <a href="privacy.html">Политика конфиденциальности</a>
-    <a href="terms.html">Условия использования</a>
+    <a href="/privacy">Политика конфиденциальности</a>
+    <a href="/terms">Условия использования</a>
     <span>© ВПизде</span>
 </div>
 
@@ -4002,6 +4091,29 @@
   const token = () => localStorage.getItem(TOKEN_KEY);
   const setToken = (t) => localStorage.setItem(TOKEN_KEY, t);
   const dropToken = () => localStorage.removeItem(TOKEN_KEY);
+  let pendingPostRouteId = null;
+  let muteNavRouteUpdate = false;
+  let commentOptsId = null;
+  let editingCommentId = null;
+
+  function routePath() {
+    return location.pathname.replace(/\/+$/, '') || '/';
+  }
+
+  function navigateTo(path, replace = false) {
+    const next = path.startsWith('/') ? path : `/${path}`;
+    if (routePath() === next) return;
+    const method = replace ? 'replaceState' : 'pushState';
+    history[method]({}, '', next);
+  }
+  function showNoVpidScreen() {
+    document.getElementById('no-vpid-screen')?.classList.add('active');
+    showLoginScreen();
+    document.getElementById('login-screen')?.classList.add('hidden');
+  }
+  function hideNoVpidScreen() {
+    document.getElementById('no-vpid-screen')?.classList.remove('active');
+  }
 
   function resetClientUiState() {
     ['login-username','login-password','reg-displayname','reg-username','reg-password','reg-password2'].forEach((id) => {
@@ -4025,6 +4137,11 @@
   const style = document.createElement('style');
   style.textContent = `.story-item.viewed .story-avatar{background:#5f5f67!important;animation:none!important}#edit-modal-overlay.visible #edit-profile-wrap{transform:translateY(26px)!important}`;
   document.head.appendChild(style);
+  document.getElementById('no-vpid-login-btn')?.addEventListener('click', () => {
+    const splash = document.getElementById('splash-screen');
+    if (splash) splash.classList.remove('hidden');
+    window.location.assign('/login');
+  });
 
   async function api(path, opts = {}) {
     const headers = { 'Content-Type': 'application/json', ...(opts.headers || {}) };
@@ -4035,34 +4152,88 @@
     return data;
   }
 
+  window.doUserSearch = async function doUserSearch(query) {
+    const q = String(query || '').trim();
+    const clearBtn = document.getElementById('search-clear-btn');
+    const resultsList = document.getElementById('search-results-list');
+    const trendsWrap = document.getElementById('trends-section-wrap');
+    if (clearBtn) clearBtn.style.display = q ? 'flex' : 'none';
+    if (!q) {
+      if (resultsList) { resultsList.style.display = 'none'; resultsList.innerHTML = ''; }
+      if (trendsWrap) trendsWrap.style.display = '';
+      return;
+    }
+    try {
+      const res = await api(`/search?q=${encodeURIComponent(q)}`);
+      const users = res.users || [];
+      if (!resultsList) return;
+      resultsList.style.display = '';
+      if (trendsWrap) trendsWrap.style.display = 'none';
+      resultsList.innerHTML = users.length
+        ? users.map((u) => `<div onclick="openSearchUserFromResults('${String(u.username || '').replace('@','')}')" style="display:flex;align-items:center;gap:14px;padding:12px 14px;background:#1c1c1e;border-radius:20px;margin-bottom:8px;cursor:pointer;"><div style="width:42px;height:42px;border-radius:50%;overflow:hidden;background:linear-gradient(135deg,#0078FF 0%,#23D4F9 100%);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;">${u.avatarUrl ? `<img src='${absoluteUrl(u.avatarUrl)}' style='width:100%;height:100%;object-fit:cover;'>` : (u.avatar || 'U')}</div><div style="display:flex;flex-direction:column;"><div style="font-weight:700;color:#fff;">${u.displayname || ''}</div><div style="font-size:13px;color:rgba(255,255,255,0.65);">${u.username}</div></div></div>`).join('')
+        : '<div style="padding:20px;text-align:center;color:rgba(255,255,255,.45)">Ничего не найдено</div>';
+    } catch (_) {}
+  };
+  window.openSearchUserFromResults = function openSearchUserFromResults(username) {
+    const uname = String(username || '').replace(/^@/, '').toLowerCase();
+    if (!uname) return;
+    if (me && uname === String(me.username || '').toLowerCase()) {
+      const btn = document.querySelector('.nav-btn[data-tab=\"profile\"]');
+      if (btn) btn.click();
+      return;
+    }
+    openUserProfile(uname);
+  };
+  window.clearUserSearch = function clearUserSearch() {
+    const input = document.getElementById('user-search-input');
+    if (input) input.value = '';
+    window.doUserSearch('');
+  };
+
   function syncProfileUi() {
     if (!me) return;
+    pinnedPostId = me.pinnedPostId || null;
+    pinnedRepostId = me.pinnedRepostId || null;
+    const safeName = String(me.displayName || '').trim() || 'Без имени';
+    const safeUsername = String(me.username || '').trim();
+    const safeBio = typeof me.bio === 'string' ? me.bio : '';
     if (window.profileData) {
-      profileData.name = me.displayName || profileData.name;
-      profileData.username = `@${me.username}`;
-      profileData.bio = me.bio || '';
+      profileData.name = safeName;
+      profileData.username = safeUsername ? `@${safeUsername}` : '@username';
+      profileData.bio = safeBio;
       profileData.avatarUrl = absoluteUrl(me.avatarUrl || '') || null;
       profileData.bannerUrl = absoluteUrl(me.bannerUrl || '') || null;
       profileData.vpsc = me.vpsc || profileData.vpsc;
     }
-    const nameEl = document.querySelector('.profile-name'); if (nameEl) nameEl.textContent = me.displayName || 'Без имени';
-    const uEl = document.querySelector('.profile-username'); if (uEl) uEl.textContent = `@${me.username}`;
-    const bEl = document.querySelector('.profile-bio'); if (bEl) bEl.textContent = me.bio || '';
+    const nameEl = document.querySelector('.profile-name'); if (nameEl) nameEl.textContent = safeName;
+    const uEl = document.querySelector('.profile-username'); if (uEl) uEl.textContent = safeUsername ? `@${safeUsername}` : '@username';
+    const bEl = document.querySelector('.profile-bio'); if (bEl) bEl.textContent = safeBio;
     const st = document.querySelectorAll('.stat-item .stat-number');
     if (st[0] && typeof me.followers==='number') st[0].textContent = me.followers;
     if (st[1]) st[1].textContent = posts.filter(p => p.isRepost).length;
     const vpsc = document.getElementById('ep-vpsc-code'); if (vpsc) vpsc.textContent = me.vpsc || '';
     const editOverlay = document.getElementById('edit-modal-overlay');
     const editOpen = !!(editOverlay && editOverlay.classList.contains('active'));
-    const epn = document.getElementById('ep-name'); if (epn && !editOpen) epn.value = me.displayName || '';
-    const epu = document.getElementById('ep-username'); if (epu && !editOpen) epu.value = me.username || '';
-    const epbio = document.getElementById('ep-bio'); if (epbio && !editOpen) epbio.value = me.bio || '';
+    const epn = document.getElementById('ep-name'); if (epn && !editOpen) epn.value = safeName;
+    const epu = document.getElementById('ep-username'); if (epu && !editOpen) epu.value = safeUsername;
+    const epbio = document.getElementById('ep-bio'); if (epbio && !editOpen) epbio.value = safeBio;
     const nav = document.getElementById('nav-profile-avatar');
     const avatarUrl = absoluteUrl(me.avatarUrl || '');
     const bannerUrl = absoluteUrl(me.bannerUrl || '');
-    if (nav) nav.innerHTML = avatarUrl ? `<img src="${avatarUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">` : (me.displayName||'Я')[0].toUpperCase();
+    if (safeUsername) {
+      const mine = `@${safeUsername}`.toLowerCase();
+      posts.forEach((p) => {
+        if (String(p.username || '').toLowerCase() === mine) p.avatarUrl = avatarUrl;
+        if (p.repostOf && String(p.repostOf.username || '').toLowerCase() === mine) p.repostOf.avatarUrl = avatarUrl;
+      });
+      upmLocalPosts.forEach((p) => {
+        if (String(p.username || '').toLowerCase() === mine) p.avatarUrl = avatarUrl;
+        if (p.repostOf && String(p.repostOf.username || '').toLowerCase() === mine) p.repostOf.avatarUrl = avatarUrl;
+      });
+    }
+    if (nav) nav.innerHTML = avatarUrl ? `<img src="${avatarUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">` : (safeName[0]||'Я').toUpperCase();
     const pa = document.querySelector('.profile-avatar');
-    if (pa) pa.innerHTML = avatarUrl ? `<img src="${avatarUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">` : (me.displayName||'Я')[0].toUpperCase();
+    if (pa) pa.innerHTML = avatarUrl ? `<img src="${avatarUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">` : (safeName[0]||'Я').toUpperCase();
     const cover = document.querySelector('.profile-cover');
     if (cover) cover.style.background = bannerUrl ? `url('${bannerUrl}') center/cover no-repeat` : 'linear-gradient(135deg, #0078FF 0%, #23D4F9 100%)';
     const epi = document.getElementById('ep-avatar-img');
@@ -4104,9 +4275,7 @@
 
   window.doLogout = function doLogout() {
     dropToken();
-    resetClientUiState();
-    showLoginScreen();
-    const homeBtn = document.querySelector('.nav-btn[data-tab="home"]'); if (homeBtn) homeBtn.click();
+    location.reload();
   };
 
   window.doLogin = async function doLogin() {
@@ -4120,7 +4289,9 @@
       setToken(r.token);
       await syncMe();
       syncProfileUi();
+      hideNoVpidScreen();
       hideLoginScreen();
+      navigateTo('/tape', true);
       const homeBtn = document.querySelector('.nav-btn[data-tab="home"]'); if (homeBtn) homeBtn.click();
       await Promise.all([syncPosts(), syncTrends(), syncStories()]);
     } catch (e) { err.textContent = e.message; }
@@ -4135,7 +4306,9 @@
       setToken(r.token);
       await syncMe();
       syncProfileUi();
+      hideNoVpidScreen();
       hideLoginScreen();
+      navigateTo('/tape', true);
       const homeBtn = document.querySelector('.nav-btn[data-tab="home"]'); if (homeBtn) homeBtn.click();
       await Promise.all([syncPosts(), syncTrends(), syncStories()]);
     } catch (e) { err.textContent = e.message; }
@@ -4154,7 +4327,9 @@
       setToken(r.token);
       await syncMe();
       syncProfileUi();
+      hideNoVpidScreen();
       hideLoginScreen();
+      navigateTo('/tape', true);
       const homeBtn = document.querySelector('.nav-btn[data-tab="home"]'); if (homeBtn) homeBtn.click();
       await Promise.all([syncPosts(), syncTrends(), syncStories()]);
     } catch (e) { err.textContent = e.message; }
@@ -4183,6 +4358,11 @@
       bannerUrl: window.profileData?.bannerUrl || ''
     };
     if (err) err.textContent = '';
+    if (!payload.displayName || !payload.username) {
+      if (err) err.textContent = 'Имя и username не могут быть пустыми';
+      showToast('Имя и username не могут быть пустыми');
+      return;
+    }
     try {
       payload.avatarUrl = await uploadImageIfNeeded(payload.avatarUrl, 'avatar');
       payload.bannerUrl = await uploadImageIfNeeded(payload.bannerUrl, 'banner');
@@ -4198,6 +4378,8 @@
       showToast('Профиль сохранён');
     } catch (e) {
       if (err) err.textContent = e.message;
+      if (String(e.message).includes('Username already exists')) showToast('Этот username уже занят');
+      else if (String(e.message).includes('не могут быть пустыми')) showToast('Имя и username не могут быть пустыми');
     }
   };
 
@@ -4302,7 +4484,7 @@
 
   function buildCommentTree(flat) {
     const byId = new Map();
-    flat.forEach(c => byId.set(c.id, { ...c, replies: [] }));
+    flat.forEach(c => byId.set(c.id, { ...c, avatarUrl: absoluteUrl(c.avatarUrl || ''), replies: [] }));
     const roots = [];
     flat.forEach(c => {
       const node = byId.get(c.id);
@@ -4313,7 +4495,9 @@
   }
 
   const originalOpenPostModal = window.openPostModal;
+  const originalClosePostModal = window.closePostModal;
   window.openPostModal = async function(post) {
+    if (post?.publicId || post?.id) navigateTo(`/post/${post.publicId || `vp_${post.id.toString(36)}`}`);
     originalOpenPostModal(post);
     const modalOwn = me && post && String(post.username || '').toLowerCase() === `@${me.username}`.toLowerCase();
     const optsWrap = document.getElementById('modal-post-options-btn');
@@ -4335,6 +4519,10 @@
       postComments[post.id] = buildCommentTree(flat);
       renderComments();
     } catch (_) {}
+  };
+  window.closePostModal = function closePostModalPatched() {
+    if (routePath().startsWith('/post/')) navigateTo('/tape');
+    return originalClosePostModal();
   };
 
   // publish/comment/like/repost via backend (no mocks)
@@ -4367,6 +4555,7 @@
         const r = await api(`/posts/${currentPostId}/comments`);
         postComments[currentPostId] = buildCommentTree(r.comments || []);
         renderComments();
+        await refreshOpenedProfileModal();
       } catch (err) { alert(err.message); }
       return;
     }
@@ -4391,6 +4580,7 @@
           }
         }
         await api(`/posts/${id}/like`, { method: 'POST' });
+        await refreshOpenedProfileModal();
       } catch {}
       return;
     }
@@ -4434,11 +4624,16 @@
         pinnedRepostId: u.pinnedRepostId || null,
         posts: linked.map(p => ({ ...p, avatarUrl: absAvatar }))
       };
+      currentViewedProfile = { uname, userData };
       renderUserProfileBody(uname, userData, body);
     } catch (e) {
       body.innerHTML = '<div style="padding:40px 20px;text-align:center;color:rgba(255,255,255,.5);font-size:14px;">Пользователь не найден</div>';
     }
   };
+  async function refreshOpenedProfileModal() {
+    if (!currentViewedProfile?.uname) return;
+    await openUserProfile(currentViewedProfile.uname);
+  }
 
   window.toggleSubscribe = async function toggleSubscribe(uname) {
     try {
@@ -4489,26 +4684,27 @@
       if (btn) btn.click();
       return;
     }
+    const postModal = document.getElementById('post-modal');
+    if (postModal && postModal.classList.contains('active') && typeof closePostModal === 'function') closePostModal();
     openUserProfile(v);
   }, true);
 
   const originalOpenEditModal = window.openEditModal;
   if (typeof originalOpenEditModal === 'function') {
-    window.openEditModal = async function openEditModal() {
+    window.openEditModal = function openEditModal() {
       const err = document.getElementById('ep-error');
-      const saveBtn = document.querySelector('.edit-modal-save');
-      if (!me) {
-        try { await syncMe(); } catch (_) {}
-      }
-      syncProfileUi();
+      const profileName = document.querySelector('.profile-name')?.textContent?.trim() || '';
+      const profileUsername = (document.querySelector('.profile-username')?.textContent || '').replace(/^@/, '').trim();
+      const profileBio = document.querySelector('.profile-bio')?.textContent || '';
       originalOpenEditModal();
-      if (saveBtn) saveBtn.disabled = true;
-      syncMe().then(() => {
-        syncProfileUi();
-      }).catch(() => {}).finally(() => {
-        if (saveBtn) saveBtn.disabled = false;
-        if (err) err.textContent = '';
-      });
+      const epn = document.getElementById('ep-name');
+      const epu = document.getElementById('ep-username');
+      const epbio = document.getElementById('ep-bio');
+      if (epn) epn.value = me?.displayName || profileData?.name || profileName || epn.value;
+      if (epu) epu.value = me?.username || String(profileData?.username || '').replace(/^@/, '') || profileUsername || epu.value;
+      if (epbio) epbio.value = me?.bio || profileData?.bio || profileBio || '';
+      syncProfileUi();
+      if (err) err.textContent = '';
     };
   }
 
@@ -4539,10 +4735,101 @@
       const r = await api(`/posts/${currentPostId}/comments`);
       postComments[currentPostId] = buildCommentTree(r.comments || []);
       renderComments();
+      await refreshOpenedProfileModal();
     } catch (e) {
       showToast(e.message);
     }
   };
+
+  window.openCommentOptions = function openCommentOptions(e, commentId, btn) {
+    if (e?.stopPropagation) e.stopPropagation();
+    commentOptsId = commentId;
+    if (window.matchMedia('(min-width: 900px)').matches) {
+      const dd = document.getElementById('global-comment-dd');
+      const rect = (btn || e?.currentTarget)?.getBoundingClientRect?.();
+      if (dd && rect) {
+        dd.style.display = 'block';
+        const maxLeft = window.innerWidth - dd.offsetWidth - 8;
+        dd.style.top = (rect.bottom + 8) + 'px';
+        dd.style.left = Math.min(maxLeft, Math.max(8, rect.right - dd.offsetWidth)) + 'px';
+      }
+      return;
+    }
+    const ov = document.getElementById('comment-opts-overlay');
+    const wrap = document.getElementById('comment-opts-wrap');
+    ov?.classList.add('active');
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      ov?.classList.add('visible');
+      wrap?.classList.add('visible');
+    }));
+  };
+  window.closeCommentOptions = function closeCommentOptions() {
+    const ov = document.getElementById('comment-opts-overlay');
+    const wrap = document.getElementById('comment-opts-wrap');
+    const dd = document.getElementById('global-comment-dd');
+    ov?.classList.remove('visible');
+    wrap?.classList.remove('visible');
+    if (dd) dd.style.display = 'none';
+    setTimeout(() => ov?.classList.remove('active'), 260);
+  };
+  window.editCommentFromMenu = async function editCommentFromMenu() {
+    const id = commentOptsId;
+    closeCommentOptions();
+    if (!id || !currentPostId) return;
+    const findComment = (arr) => {
+      for (const c of arr || []) {
+        if (c.id === id) return c;
+        const nested = findComment(c.replies || []);
+        if (nested) return nested;
+      }
+      return null;
+    };
+    const c = findComment(postComments[currentPostId] || []);
+    editingCommentId = id;
+    document.getElementById('edit-comment-textarea').value = c?.text || '';
+    const ov = document.getElementById('edit-comment-overlay');
+    const wrap = document.getElementById('edit-comment-wrap');
+    ov?.classList.add('active');
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      ov?.classList.add('visible');
+      wrap?.classList.add('visible');
+    }));
+  };
+  window.closeEditCommentSheet = function closeEditCommentSheet() {
+    const ov = document.getElementById('edit-comment-overlay');
+    const wrap = document.getElementById('edit-comment-wrap');
+    ov?.classList.remove('visible');
+    wrap?.classList.remove('visible');
+    setTimeout(() => ov?.classList.remove('active'), 260);
+  };
+  window.saveEditedComment = async function saveEditedComment() {
+    const id = editingCommentId;
+    if (!id || !currentPostId) return;
+    const text = String(document.getElementById('edit-comment-textarea')?.value || '').trim();
+    if (!text) return showToast('Пустой комментарий сохранить нельзя');
+    try {
+      await api(`/comments/${id}`, { method: 'PATCH', body: JSON.stringify({ text }) });
+      closeEditCommentSheet();
+      const r = await api(`/posts/${currentPostId}/comments`);
+      postComments[currentPostId] = buildCommentTree(r.comments || []);
+      renderComments();
+      await refreshOpenedProfileModal();
+    } catch (e) { showToast(e.message); }
+  };
+  window.deleteCommentFromMenu = async function deleteCommentFromMenu() {
+    const id = commentOptsId;
+    closeCommentOptions();
+    if (!id || !currentPostId) return;
+    try {
+      await api(`/comments/${id}`, { method: 'DELETE' });
+      const r = await api(`/posts/${currentPostId}/comments`);
+      postComments[currentPostId] = buildCommentTree(r.comments || []);
+      renderComments();
+      await refreshOpenedProfileModal();
+    } catch (e) { showToast(e.message); }
+  };
+  document.getElementById('comment-opts-overlay')?.addEventListener('click', closeCommentOptions);
+  document.getElementById('edit-comment-overlay')?.addEventListener('click', closeEditCommentSheet);
 
   window.submitRepost = async function submitRepost() {
     if (!repostTargetPost) return;
@@ -4550,6 +4837,7 @@
       await api(`/posts/${repostTargetPost.id}/repost`, { method: 'POST' });
       closeRepostModal();
       await syncPosts();
+      await refreshOpenedProfileModal();
       showToast('Репост опубликован');
     } catch (e) {
       showToast(e.message);
@@ -4655,6 +4943,68 @@
     });
   };
 
+  async function openPostByRoute(postIdentifier) {
+    if (!token()) return;
+    try {
+      const r = await api(`/posts/${encodeURIComponent(postIdentifier)}`);
+      const post = r.post;
+      const idx = posts.findIndex((p) => p.id === post.id);
+      if (idx >= 0) posts[idx] = { ...posts[idx], ...post };
+      else posts.unshift(post);
+      renderPosts();
+      openPostModal(post);
+    } catch (e) {
+      if (String(e.message).includes('Post not found')) {
+        alert('404: пост не найден');
+        navigateTo('/tape', true);
+      }
+    }
+  }
+
+  function applyRoute() {
+    const p = routePath();
+    if (!token()) {
+      if (/^\/post\/[a-zA-Z0-9_-]+$/.test(p)) {
+        showNoVpidScreen();
+        return;
+      }
+      hideNoVpidScreen();
+      showLoginScreen();
+      return;
+    }
+    hideNoVpidScreen();
+    if (p === '/login') {
+      showLoginScreen();
+      return;
+    }
+    if (p === '/tape' || p === '/') {
+      const homeBtn = document.querySelector('.nav-btn[data-tab="home"]');
+      if (homeBtn) {
+        muteNavRouteUpdate = true;
+        homeBtn.click();
+        muteNavRouteUpdate = false;
+      }
+      return;
+    }
+    const postMatch = p.match(/^\/post\/([a-zA-Z0-9_-]+)$/);
+    if (postMatch) {
+      const homeBtn = document.querySelector('.nav-btn[data-tab="home"]');
+      if (homeBtn) {
+        muteNavRouteUpdate = true;
+        homeBtn.click();
+        muteNavRouteUpdate = false;
+      }
+      pendingPostRouteId = postMatch[1];
+    }
+  }
+  window.addEventListener('popstate', applyRoute);
+  navBtns.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      if (muteNavRouteUpdate) return;
+      if (btn.dataset.tab === 'home') navigateTo('/tape');
+    });
+  });
+
 
   setInterval(() => { if (token()) syncPosts().catch(() => {}); }, 4000);
   setInterval(() => { if (token()) syncMe().catch(() => {}); }, 5000);
@@ -4663,17 +5013,34 @@
   (async () => {
     posts = [];
     renderPosts();
-    if (!token()) { resetClientUiState(); showLoginScreen(); return; }
+    if (!token()) {
+      resetClientUiState();
+      applyRoute();
+      if (!routePath().startsWith('/post/') && routePath() !== '/login') navigateTo('/login', true);
+      return;
+    }
     try {
       await syncMe();
       syncProfileUi();
       hideLoginScreen();
-      const homeBtn = document.querySelector('.nav-btn[data-tab="home"]'); if (homeBtn) homeBtn.click();
+      const homeBtn = document.querySelector('.nav-btn[data-tab="home"]');
+      if (homeBtn) {
+        muteNavRouteUpdate = true;
+        homeBtn.click();
+        muteNavRouteUpdate = false;
+      }
       await Promise.all([syncPosts(), syncTrends(), syncStories()]);
+      applyRoute();
+      if (pendingPostRouteId) {
+        const toOpen = pendingPostRouteId;
+        pendingPostRouteId = null;
+        await openPostByRoute(toOpen);
+      }
     } catch {
       dropToken();
       resetClientUiState();
       showLoginScreen();
+      navigateTo('/login', true);
     }
   })();
 })();
