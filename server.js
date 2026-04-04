@@ -131,7 +131,7 @@ function postDto(db, post, viewerId) {
     liked: !!db.likes.find((l) => l.postId === post.id && l.userId === viewerId),
     reposted: !!db.posts.find((p) => p.repostOf === post.id && p.authorId === viewerId),
     isRepost: !!post.repostOf,
-    repostOf: source ? {
+    repostOf: post.repostOf ? (source ? {
       id: source.id,
       publicId: source.publicId || `vp_${source.id.toString(36)}`,
       text: source.text,
@@ -141,7 +141,17 @@ function postDto(db, post, viewerId) {
       avatar: sourceAuthor?.avatar || 'U',
       avatarUrl: sourceAuthor?.avatarUrl || '',
       time: relativeTime(source.createdAt)
-    } : null
+    } : {
+      id: post.repostOf,
+      publicId: '',
+      text: '',
+      media: [],
+      author: 'Удалённый пользователь',
+      username: '@deleted',
+      avatar: 'U',
+      avatarUrl: '',
+      time: ''
+    }) : null
   };
 }
 
