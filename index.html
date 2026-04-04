@@ -4352,8 +4352,8 @@
       displayName: document.getElementById('ep-name').value.trim(),
       username: document.getElementById('ep-username').value.trim(),
       bio: document.getElementById('ep-bio').value,
-      avatarUrl: window.profileData?.avatarUrl || '',
-      bannerUrl: window.profileData?.bannerUrl || ''
+      avatarUrl: profileData?.avatarUrl || '',
+      bannerUrl: profileData?.bannerUrl || ''
     };
     if (err) err.textContent = '';
     if (!payload.displayName || !payload.username) {
@@ -4366,10 +4366,8 @@
       payload.bannerUrl = await uploadImageIfNeeded(payload.bannerUrl, 'banner');
       const r = await api('/me', { method: 'PATCH', body: JSON.stringify(payload) });
       me = r.user;
-      if (window.profileData) {
-        profileData.avatarUrl = absoluteUrl(me.avatarUrl || '');
-        profileData.bannerUrl = absoluteUrl(me.bannerUrl || '');
-      }
+      profileData.avatarUrl = absoluteUrl(me.avatarUrl || '');
+      profileData.bannerUrl = absoluteUrl(me.bannerUrl || '');
       closeEditModal();
       syncProfileUi();
       await syncPosts();
