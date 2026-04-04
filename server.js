@@ -130,6 +130,9 @@ function postDto(db, post, viewerId) {
 
 function serveFile(res, pathname) {
   let f = pathname === '/' ? '/index.html' : pathname;
+  if (pathname === '/privacy') f = '/privacy.html';
+  if (pathname === '/terms') f = '/terms.html';
+  if (pathname === '/login' || pathname === '/tape' || /^\/post\/\d+$/.test(pathname)) f = '/index.html';
   const fp = path.join(ROOT, decodeURIComponent(f));
   if (!fp.startsWith(ROOT) || !fs.existsSync(fp) || fs.statSync(fp).isDirectory()) return false;
   const ext = path.extname(fp).toLowerCase();
@@ -218,8 +221,9 @@ const server = http.createServer(async (req, res) => {
   if (u.pathname === '/api/me' && req.method === 'PATCH') {
     if (!me) return sendJson(res, 401, { error: 'Unauthorized' });
     const b = await parseBody(req);
-    if (typeof b.displayName === 'string' && b.displayName.trim()) {
+    if (typeof b.displayName === 'string') {
       const display = b.displayName.trim();
+      if (!display) return sendJson(res, 400, { error: 'Имя не может быть пустым' });
       if (display.length > 60) return sendJson(res, 400, { error: 'Имя слишком длинное' });
       me.displayName = display;
       me.avatar = (display[0] || 'U').toUpperCase();
@@ -374,6 +378,13 @@ const server = http.createServer(async (req, res) => {
   }
 
   const mPatch = u.pathname.match(/^\/api\/posts\/(\d+)$/);
+  if (mPatch && req.method === 'GET') {
+    if (!me) return sendJson(res, 401, { error: 'Unauthorized' });
+    const id = Number(mPatch[1]);
+    const post = db.posts.find((p) => p.id === id);
+    if (!post) return sendJson(res, 404, { error: 'Post not found' });
+    return sendJson(res, 200, { post: postDto(db, post, me.id) });
+  }
   if (mPatch && req.method === 'PATCH') {
     if (!me) return sendJson(res, 401, { error: 'Unauthorized' });
     const id = Number(mPatch[1]);
