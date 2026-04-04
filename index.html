@@ -2663,7 +2663,11 @@
             }
             openPostModal(post);
         }
-        else if (action === 'share') { alert('Ссылка скопирована!'); }
+        else if (action === 'share') {
+            const postUrl = `${location.origin}/post/${id}`;
+            if (navigator.clipboard?.writeText) navigator.clipboard.writeText(postUrl).catch(() => {});
+            showToast('Ссылка скопирована');
+        }
     });
 
     // ===== NAV =====
@@ -3464,6 +3468,10 @@
     document.getElementById('post-opts-overlay').addEventListener('click', closePostOptions);
 
     function postOptsCopyLink() {
+        if (postOptsId !== null) {
+            const postUrl = `${location.origin}/post/${postOptsId}`;
+            if (navigator.clipboard?.writeText) navigator.clipboard.writeText(postUrl).catch(() => {});
+        }
         closePostOptions();
         showToast('Ссылка скопирована');
     }
@@ -3987,8 +3995,8 @@
 </button>
 <!-- Desktop footer (bottom-right, desktop only) -->
 <div class="desktop-footer">
-    <a href="privacy.html">Политика конфиденциальности</a>
-    <a href="terms.html">Условия использования</a>
+    <a href="/privacy">Политика конфиденциальности</a>
+    <a href="/terms">Условия использования</a>
     <span>© ВПизде</span>
 </div>
 
@@ -4002,6 +4010,18 @@
   const token = () => localStorage.getItem(TOKEN_KEY);
   const setToken = (t) => localStorage.setItem(TOKEN_KEY, t);
   const dropToken = () => localStorage.removeItem(TOKEN_KEY);
+  let pendingPostRouteId = null;
+
+  function routePath() {
+    return location.pathname.replace(/\/+$/, '') || '/';
+  }
+
+  function navigateTo(path, replace = false) {
+    const next = path.startsWith('/') ? path : `/${path}`;
+    if (routePath() === next) return;
+    const method = replace ? 'replaceState' : 'pushState';
+    history[method]({}, '', next);
+  }
 
   function resetClientUiState() {
     ['login-username','login-password','reg-displayname','reg-username','reg-password','reg-password2'].forEach((id) => {
@@ -4037,6 +4057,8 @@
 
   function syncProfileUi() {
     if (!me) return;
+    pinnedPostId = me.pinnedPostId || null;
+    pinnedRepostId = me.pinnedRepostId || null;
     if (window.profileData) {
       profileData.name = me.displayName || profileData.name;
       profileData.username = `@${me.username}`;
@@ -4106,6 +4128,7 @@
     dropToken();
     resetClientUiState();
     showLoginScreen();
+    navigateTo('/login', true);
     const homeBtn = document.querySelector('.nav-btn[data-tab="home"]'); if (homeBtn) homeBtn.click();
   };
 
@@ -4121,6 +4144,7 @@
       await syncMe();
       syncProfileUi();
       hideLoginScreen();
+      navigateTo('/tape', true);
       const homeBtn = document.querySelector('.nav-btn[data-tab="home"]'); if (homeBtn) homeBtn.click();
       await Promise.all([syncPosts(), syncTrends(), syncStories()]);
     } catch (e) { err.textContent = e.message; }
@@ -4136,6 +4160,7 @@
       await syncMe();
       syncProfileUi();
       hideLoginScreen();
+      navigateTo('/tape', true);
       const homeBtn = document.querySelector('.nav-btn[data-tab="home"]'); if (homeBtn) homeBtn.click();
       await Promise.all([syncPosts(), syncTrends(), syncStories()]);
     } catch (e) { err.textContent = e.message; }
@@ -4155,6 +4180,7 @@
       await syncMe();
       syncProfileUi();
       hideLoginScreen();
+      navigateTo('/tape', true);
       const homeBtn = document.querySelector('.nav-btn[data-tab="home"]'); if (homeBtn) homeBtn.click();
       await Promise.all([syncPosts(), syncTrends(), syncStories()]);
     } catch (e) { err.textContent = e.message; }
@@ -4183,6 +4209,10 @@
       bannerUrl: window.profileData?.bannerUrl || ''
     };
     if (err) err.textContent = '';
+    if (!payload.displayName || !payload.username) {
+      if (err) err.textContent = 'Имя и username не могут быть пустыми';
+      return;
+    }
     try {
       payload.avatarUrl = await uploadImageIfNeeded(payload.avatarUrl, 'avatar');
       payload.bannerUrl = await uploadImageIfNeeded(payload.bannerUrl, 'banner');
@@ -4313,7 +4343,9 @@
   }
 
   const originalOpenPostModal = window.openPostModal;
+  const originalClosePostModal = window.closePostModal;
   window.openPostModal = async function(post) {
+    if (post?.id) navigateTo(`/post/${post.id}`);
     originalOpenPostModal(post);
     const modalOwn = me && post && String(post.username || '').toLowerCase() === `@${me.username}`.toLowerCase();
     const optsWrap = document.getElementById('modal-post-options-btn');
@@ -4335,6 +4367,10 @@
       postComments[post.id] = buildCommentTree(flat);
       renderComments();
     } catch (_) {}
+  };
+  window.closePostModal = function closePostModalPatched() {
+    if (routePath().startsWith('/post/')) navigateTo('/tape');
+    return originalClosePostModal();
   };
 
   // publish/comment/like/repost via backend (no mocks)
@@ -4494,21 +4530,11 @@
 
   const originalOpenEditModal = window.openEditModal;
   if (typeof originalOpenEditModal === 'function') {
-    window.openEditModal = async function openEditModal() {
+    window.openEditModal = function openEditModal() {
       const err = document.getElementById('ep-error');
-      const saveBtn = document.querySelector('.edit-modal-save');
-      if (!me) {
-        try { await syncMe(); } catch (_) {}
-      }
       syncProfileUi();
       originalOpenEditModal();
-      if (saveBtn) saveBtn.disabled = true;
-      syncMe().then(() => {
-        syncProfileUi();
-      }).catch(() => {}).finally(() => {
-        if (saveBtn) saveBtn.disabled = false;
-        if (err) err.textContent = '';
-      });
+      if (err) err.textContent = '';
     };
   }
 
@@ -4655,6 +4681,49 @@
     });
   };
 
+  async function openPostByRoute(postId) {
+    if (!token()) return;
+    try {
+      const r = await api(`/posts/${postId}`);
+      const post = r.post;
+      const idx = posts.findIndex((p) => p.id === post.id);
+      if (idx >= 0) posts[idx] = { ...posts[idx], ...post };
+      else posts.unshift(post);
+      renderPosts();
+      openPostModal(post);
+    } catch (e) {
+      if (String(e.message).includes('Post not found')) {
+        alert('404: пост не найден');
+        navigateTo('/tape', true);
+      }
+    }
+  }
+
+  function applyRoute() {
+    const p = routePath();
+    if (p === '/login') {
+      showLoginScreen();
+      return;
+    }
+    if (p === '/tape' || p === '/') {
+      const homeBtn = document.querySelector('.nav-btn[data-tab="home"]');
+      if (homeBtn) homeBtn.click();
+      return;
+    }
+    const postMatch = p.match(/^\/post\/(\d+)$/);
+    if (postMatch) {
+      const homeBtn = document.querySelector('.nav-btn[data-tab="home"]');
+      if (homeBtn) homeBtn.click();
+      pendingPostRouteId = Number(postMatch[1]);
+    }
+  }
+  window.addEventListener('popstate', applyRoute);
+  navBtns.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      if (btn.dataset.tab === 'home') navigateTo('/tape');
+    });
+  });
+
 
   setInterval(() => { if (token()) syncPosts().catch(() => {}); }, 4000);
   setInterval(() => { if (token()) syncMe().catch(() => {}); }, 5000);
@@ -4663,17 +4732,30 @@
   (async () => {
     posts = [];
     renderPosts();
-    if (!token()) { resetClientUiState(); showLoginScreen(); return; }
+    if (!token()) {
+      resetClientUiState();
+      showLoginScreen();
+      applyRoute();
+      if (routePath() !== '/login') navigateTo('/login', true);
+      return;
+    }
     try {
       await syncMe();
       syncProfileUi();
       hideLoginScreen();
       const homeBtn = document.querySelector('.nav-btn[data-tab="home"]'); if (homeBtn) homeBtn.click();
       await Promise.all([syncPosts(), syncTrends(), syncStories()]);
+      applyRoute();
+      if (pendingPostRouteId) {
+        const toOpen = pendingPostRouteId;
+        pendingPostRouteId = null;
+        await openPostByRoute(toOpen);
+      }
     } catch {
       dropToken();
       resetClientUiState();
       showLoginScreen();
+      navigateTo('/login', true);
     }
   })();
 })();
