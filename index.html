@@ -4099,8 +4099,7 @@
   document.head.appendChild(style);
   document.getElementById('no-vpid-login-btn')?.addEventListener('click', () => {
     hideNoVpidScreen();
-    window.location.href = '/login';
-    setTimeout(() => window.location.reload(), 0);
+    window.location.assign('/login');
   });
 
   async function api(path, opts = {}) {
