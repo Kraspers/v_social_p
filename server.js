@@ -139,6 +139,7 @@ function postDto(db, post, viewerId) {
       author: sourceAuthor?.displayName || 'Удалённый пользователь',
       username: sourceAuthor ? `@${sourceAuthor.username}` : '@deleted',
       avatar: sourceAuthor?.avatar || 'U',
+      avatarUrl: sourceAuthor?.avatarUrl || '',
       time: relativeTime(source.createdAt)
     } : null
   };
