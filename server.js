@@ -15,7 +15,7 @@ function ensureDb() {
     fs.writeFileSync(DB_PATH, JSON.stringify({ users: [], posts: [], comments: [], likes: [], follows: [], stories: [] }, null, 2));
   }
   const db = JSON.parse(fs.readFileSync(DB_PATH, 'utf8'));
-  db.users ||= []; db.posts ||= []; db.comments ||= []; db.likes ||= []; db.follows ||= []; db.stories ||= [];
+  db.users ||= []; db.posts ||= []; db.comments ||= []; db.likes ||= []; db.follows ||= []; db.stories ||= []; db.commentLikes ||= [];
   if (!db.meta) db.meta = { postSeq: 1, commentSeq: 1 };
   fs.writeFileSync(DB_PATH, JSON.stringify(db, null, 2));
 }
@@ -140,7 +140,8 @@ function serveFile(res, pathname) {
     '.png': 'image/png',
     '.jpg': 'image/jpeg',
     '.jpeg': 'image/jpeg',
-    '.svg': 'image/svg+xml'
+    '.svg': 'image/svg+xml',
+    '.webp': 'image/webp'
   }[ext] || 'application/octet-stream';
   res.writeHead(200, { 'Content-Type': type });
   fs.createReadStream(fp).pipe(res);
@@ -262,6 +263,7 @@ const server = http.createServer(async (req, res) => {
     db.likes = db.likes.filter((l) => l.userId !== me.id && !userPostIds.has(l.postId));
     db.follows = db.follows.filter((f) => f.followerId !== me.id && f.followingId !== me.id);
     db.stories = db.stories.filter((s) => s.authorId !== me.id);
+    db.commentLikes = db.commentLikes.filter((l) => l.userId !== me.id && !db.comments.find((c) => c.id === l.commentId && c.authorId === me.id));
     db.users = db.users.filter((u2) => u2.id !== me.id);
     writeDb(db);
     return sendJson(res, 200, { ok: true });
@@ -338,8 +340,8 @@ const server = http.createServer(async (req, res) => {
           avatar: au?.avatar || 'U',
           avatarUrl: au?.avatarUrl || '',
           text: c.text,
-          likes: 0,
-          liked: false,
+          likes: db.commentLikes.filter((l) => l.commentId === c.id).length,
+          liked: !!db.commentLikes.find((l) => l.commentId === c.id && l.userId === me.id),
           replies: [],
           time: relativeTime(c.createdAt)
         };
@@ -358,6 +360,35 @@ const server = http.createServer(async (req, res) => {
     return sendJson(res, 201, { ok: true });
   }
 
+  const mCommentLike = u.pathname.match(/^\/api\/comments\/(\d+)\/like$/);
+  if (mCommentLike && req.method === 'POST') {
+    if (!me) return sendJson(res, 401, { error: 'Unauthorized' });
+    const commentId = Number(mCommentLike[1]);
+    if (!db.comments.find((c) => c.id === commentId)) return sendJson(res, 404, { error: 'Comment not found' });
+    const idx = db.commentLikes.findIndex((l) => l.commentId === commentId && l.userId === me.id);
+    let liked = true;
+    if (idx >= 0) { db.commentLikes.splice(idx, 1); liked = false; }
+    else db.commentLikes.push({ id: uid(), commentId, userId: me.id, createdAt: nowIso() });
+    writeDb(db);
+    return sendJson(res, 200, { liked, likes: db.commentLikes.filter((l) => l.commentId === commentId).length });
+  }
+
+  const mPatch = u.pathname.match(/^\/api\/posts\/(\d+)$/);
+  if (mPatch && req.method === 'PATCH') {
+    if (!me) return sendJson(res, 401, { error: 'Unauthorized' });
+    const id = Number(mPatch[1]);
+    const post = db.posts.find((p) => p.id === id && p.authorId === me.id);
+    if (!post) return sendJson(res, 404, { error: 'Post not found' });
+    const b = await parseBody(req);
+    const nextText = String(b.text || '');
+    const nextMedia = Array.isArray(b.media) ? b.media.slice(0, 5) : [];
+    if (!nextText.trim() && nextMedia.length === 0) return sendJson(res, 400, { error: 'text or media required' });
+    post.text = nextText;
+    post.media = nextMedia;
+    writeDb(db);
+    return sendJson(res, 200, { post: postDto(db, post, me.id) });
+  }
+
   const mDel = u.pathname.match(/^\/api\/posts\/(\d+)$/);
   if (mDel && req.method === 'DELETE') {
     if (!me) return sendJson(res, 401, { error: 'Unauthorized' });
@@ -366,7 +397,9 @@ const server = http.createServer(async (req, res) => {
     if (idx < 0) return sendJson(res, 404, { error: 'Post not found' });
     db.posts.splice(idx, 1);
     db.likes = db.likes.filter((l) => l.postId !== id);
+    const removedComments = new Set(db.comments.filter((c) => c.postId === id).map((c) => c.id));
     db.comments = db.comments.filter((c) => c.postId !== id);
+    db.commentLikes = db.commentLikes.filter((l) => !removedComments.has(l.commentId));
     writeDb(db);
     return sendJson(res, 200, { ok: true });
   }
@@ -442,6 +475,25 @@ const server = http.createServer(async (req, res) => {
     db.stories.push({ id: uid(), authorId: me.id, src, mediaType, caption, createdAt: nowIso() });
     writeDb(db);
     return sendJson(res, 201, { ok: true });
+  }
+
+  if (u.pathname === '/api/upload' && req.method === 'POST') {
+    if (!me) return sendJson(res, 401, { error: 'Unauthorized' });
+    const b = await parseBody(req);
+    const dataUrl = String(b.dataUrl || '');
+    const kind = b.kind === 'banner' ? 'banner' : 'avatar';
+    const m = dataUrl.match(/^data:(image\/(png|jpeg|jpg|webp));base64,(.+)$/i);
+    if (!m) return sendJson(res, 400, { error: 'Неверный формат изображения' });
+    const subtype = m[2].toLowerCase() === 'jpg' ? 'jpeg' : m[2].toLowerCase();
+    const ext = subtype === 'jpeg' ? 'jpg' : subtype;
+    const raw = Buffer.from(m[3], 'base64');
+    const max = kind === 'banner' ? 8 * 1024 * 1024 : 5 * 1024 * 1024;
+    if (raw.length > max) return sendJson(res, 400, { error: 'Файл слишком большой' });
+    const uploadDir = path.join(ROOT, 'uploads');
+    if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+    const filename = `${me.id}_${kind}_${Date.now()}_${uid().slice(0,6)}.${ext}`;
+    fs.writeFileSync(path.join(uploadDir, filename), raw);
+    return sendJson(res, 201, { url: `/uploads/${filename}` });
   }
 
   if (u.pathname === '/api/trends' && req.method === 'GET') {

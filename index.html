@@ -113,6 +113,7 @@
             display: none;
         }
         .creator-done:hover { background: #0066dd; }
+        .creator-done.is-loading { opacity: 0.85; cursor: wait; }
         .creator-content { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px; padding: 20px; }
         .creator-preview { max-width: 100%; max-height: 60vh; object-fit: contain; display: none; }
         .creator-preview.active { display: block; }
@@ -1363,10 +1364,14 @@
             z-index: 500;
             flex-direction: column; align-items: flex-end; gap: 4px;
         }
-        .desktop-footer span {
+        .desktop-footer span,
+        .desktop-footer a {
             font-size: 11px; color: rgba(255,255,255,0.22);
             cursor: default; line-height: 1.4;
+            text-decoration: none;
         }
+        .desktop-footer a { cursor: pointer; }
+        .desktop-footer a:hover { color: rgba(255,255,255,0.32); }
         @media (min-width: 900px) {
             .desktop-logout-btn { display: flex; }
             .desktop-footer { display: flex; }
@@ -1562,9 +1567,9 @@
             </div>
             <div class="profile-info">
                 <div class="profile-avatar">Я</div>
-                <div class="profile-name">Ваше Имя</div>
-                <div class="profile-username">@username</div>
-                <div class="profile-bio">Здесь ваше описание профиля. Расскажите о себе что-нибудь интересное! #впизде</div>
+                <div class="profile-name"></div>
+                <div class="profile-username"></div>
+                <div class="profile-bio"></div>
                 <div class="profile-stats">
                     <div class="stat-item"><span class="stat-number">256</span><span class="stat-label">Подписчиков</span></div>
                     <div class="stat-item"><span class="stat-number">89</span><span class="stat-label">Репостов</span></div>
@@ -1793,14 +1798,14 @@
             <div style="padding:52px 16px 0;display:flex;flex-direction:column;gap:16px;">
                 <div>
                     <div style="font-size:13px;font-weight:700;color:#e6e6e9;margin-bottom:6px;">Имя</div>
-                    <input id="ep-name" type="text" placeholder="Ваше отображаемое имя" value="Ваше Имя"
+                    <input id="ep-name" type="text" placeholder="Ваше отображаемое имя" value=""
                         style="width:100%;box-sizing:border-box;background:#2a2a2e;border:none;border-radius:14px;padding:18px 18px;color:#e6e6e9;font-size:16px;font-family:inherit;outline:none;-webkit-appearance:none;"
                         onfocus="this.style.background='#333338'" onblur="this.style.background='#2a2a2e'">
                     <div style="font-size:12px;color:rgba(255,255,255,0.3);margin-top:5px;padding-left:4px;">Ваше отображаемое имя</div>
                 </div>
                 <div>
                     <div style="font-size:13px;font-weight:700;color:#e6e6e9;margin-bottom:6px;">Username</div>
-                    <input id="ep-username" type="text" placeholder="username" value="username"
+                    <input id="ep-username" type="text" placeholder="username" value=""
                         style="width:100%;box-sizing:border-box;background:#2a2a2e;border:none;border-radius:14px;padding:18px 18px;color:#e6e6e9;font-size:16px;font-family:inherit;outline:none;-webkit-appearance:none;"
                         onfocus="this.style.background='#333338'" onblur="this.style.background='#2a2a2e'"
                         autocorrect="off" autocapitalize="off" spellcheck="false" oninput="this.value=this.value.replace(/[^a-zA-Z0-9_.-]/g,'')">
@@ -1810,14 +1815,14 @@
                     <div style="font-size:13px;font-weight:700;color:#e6e6e9;margin-bottom:6px;">О себе</div>
                     <textarea id="ep-bio" placeholder="Расскажите немного о себе"
                         style="width:100%;box-sizing:border-box;background:#2a2a2e;border:none;border-radius:14px;padding:18px 18px;color:#e6e6e9;font-size:16px;font-family:inherit;outline:none;resize:none;min-height:100px;-webkit-appearance:none;line-height:1.4;"
-                        onfocus="this.style.background='#333338'" onblur="this.style.background='#2a2a2e'">Здесь ваше описание профиля. Расскажите о себе что-нибудь интересное! #впизде</textarea>
+                        onfocus="this.style.background='#333338'" onblur="this.style.background='#2a2a2e'"></textarea>
                 </div>
             </div>
             <div class="ep-settings-section">
                 <div class="ep-settings-title">Основные настройки</div>
                 <div class="ep-vpsc-card" onclick="copyVPSC()" title="Нажмите, чтобы скопировать">
                     <img src="assets/vpprivacy.png" alt="VPSC" style="height:32px;width:auto;object-fit:contain;" onerror="this.style.display='none'">
-                    <div class="ep-vpsc-code" id="ep-vpsc-code">A7K2M9</div>
+                    <div class="ep-vpsc-code" id="ep-vpsc-code"></div>
                 </div>
                 <button class="ep-action-btn password" onclick="openChangePasswordModal()">
                     <div class="ep-action-icon">
@@ -2293,7 +2298,16 @@
             return;
         }
         function makeHTML(c, nested = false) {
-            const replies = Array.isArray(c.replies) ? c.replies : [];
+            const directReplies = Array.isArray(c.replies) ? c.replies : [];
+            const flatReplies = [];
+            const walkReplies = (items) => {
+                items.forEach((item) => {
+                    flatReplies.push({ ...item, replies: [] });
+                    if (Array.isArray(item.replies) && item.replies.length) walkReplies(item.replies);
+                });
+            };
+            walkReplies(directReplies);
+            const replies = nested ? [] : flatReplies;
             const shouldCollapseReplies = !nested && replies.length > 5;
             const isExpanded = !!expandedReplies[c.id];
             const visibleReplies = shouldCollapseReplies && !isExpanded ? [] : replies;
@@ -2312,7 +2326,7 @@
                         </button>
                         <button class="comment-action-btn" onclick="prepareReplyInMainInput('${c.username.replace('@','')}', ${c.id})">Ответить</button>
                     </div>
-                    ${!nested && replies.length ? `<div class="comment-replies-container" id="replies-${c.id}">${visibleReplies.map(r=>makeHTML(r,true)).join('')}</div>` : ''}
+                    ${replies.length ? `<div class="comment-replies-container" id="replies-${c.id}">${visibleReplies.map(r=>makeHTML(r,true)).join('')}</div>` : ''}
                     ${shouldCollapseReplies ? `<button class="comment-replies-toggle" onclick="toggleRepliesVisibility(${c.id})">${isExpanded ? 'Свернуть ответы' : `Показать ответы (${replies.length})`}</button>` : ''}
                 </div>
             </div>`;
@@ -3018,7 +3032,7 @@
     let cropMode = null, cropImage = null;
     let cropOffsetX = 0, cropOffsetY = 0, cropStartX = 0, cropStartY = 0;
     let cropDragging = false, cropZoom = 1, cropNaturalW = 0, cropNaturalH = 0;
-    let profileData = { name: 'Ваше Имя', username: '@username', bio: 'Здесь ваше описание профиля. Расскажите о себе что-нибудь интересное! #впизде', avatarUrl: null, bannerUrl: null, vpsc: 'A7K2M9' };
+    let profileData = { name: '', username: '', bio: '', avatarUrl: null, bannerUrl: null, vpsc: '' };
 
     function openEditModal() {
         const ov = document.getElementById('edit-modal-overlay');
@@ -3854,8 +3868,8 @@
             ? `background:url('${u.bannerUrl}') center/cover no-repeat;`
             : (u.bannerGradient ? `background:${u.bannerGradient};` : `background:linear-gradient(135deg,#0078FF 0%,#23D4F9 100%);`);
         const followers = u.followers !== undefined ? u.followers : 0;
-        const following = u.following !== undefined ? u.following : 0;
-        const isSubscribed = subscribedUsers.has(uname);
+        const repostsCount = Array.isArray(u.posts) ? u.posts.filter((p) => p.isRepost).length : 0;
+        const isSubscribed = typeof u.isFollowing === 'boolean' ? u.isFollowing : subscribedUsers.has(uname);
 
         body.innerHTML = `
             <div style="height:150px;${coverStyle}position:relative;"></div>
@@ -3866,7 +3880,7 @@
                 ${u.bio ? `<div style="margin-top:10px;font-size:15px;line-height:1.4;">${u.bio}</div>` : ''}
                 <div style="display:flex;gap:20px;margin-top:14px;">
                     <div style="font-size:15px;"><span style="font-weight:700;" id="upm-followers">${followers}</span> <span style="color:rgba(255,255,255,0.6);">Подписчиков</span></div>
-                    <div style="font-size:15px;"><span style="font-weight:700;">${following}</span> <span style="color:rgba(255,255,255,0.6);">Подписок</span></div>
+                    <div style="font-size:15px;"><span style="font-weight:700;">${repostsCount}</span> <span style="color:rgba(255,255,255,0.6);">Репостов</span></div>
                 </div>
                 <button id="upm-subscribe-btn" onclick="toggleSubscribe('${uname}')"
                     style="width:100%;margin-top:16px;padding:14px;background:${isSubscribed ? 'rgba(255,255,255,0.08)' : 'white'};border:none;border-radius:22px;font-size:16px;font-weight:700;cursor:pointer;font-family:inherit;color:${isSubscribed ? '#e6e6e9' : '#000'};transition:all 0.2s;">
@@ -3883,40 +3897,41 @@
                 <div id="upm-posts-feed"></div>
             </div>
             <div id="upm-reposts-list" style="display:none;padding:12px 16px 80px;">
-                <div style="text-align:center;color:rgba(255,255,255,0.3);padding:40px 0;font-size:14px;">Нет репостов</div>
+                <div id="upm-reposts-feed"></div>
             </div>`;
 
-        const upmFeed = document.getElementById('upm-posts-feed');
-        const feedLinkedPosts = posts.filter(p => p.username === '@' + uname && !p.isRepost);
-        const userPosts = feedLinkedPosts.length ? feedLinkedPosts : (u.posts || []);
+        const allLinked = Array.isArray(u.posts) ? u.posts : [];
+        let postItems = allLinked.filter((p) => !p.isRepost);
+        let repostItems = allLinked.filter((p) => p.isRepost);
+        if (u.pinnedPostId) postItems = [...postItems.filter((p) => p.id === u.pinnedPostId), ...postItems.filter((p) => p.id !== u.pinnedPostId)];
+        if (u.pinnedRepostId) repostItems = [...repostItems.filter((p) => p.id === u.pinnedRepostId), ...repostItems.filter((p) => p.id !== u.pinnedRepostId)];
+
         upmLocalPosts.clear();
-        if (!userPosts.length) {
-            upmFeed.innerHTML = '<div style="text-align:center;color:rgba(255,255,255,0.3);padding:40px 0;font-size:14px;">Нет постов</div>';
-        } else {
-            upmFeed.innerHTML = '';
-            userPosts.forEach((p, idx) => {
-                const upmPost = feedLinkedPosts.length
-                    ? p
-                    : {
-                        id: 900000 + idx,
-                        author: displayName,
-                        username: '@' + uname,
-                        avatar: letter,
-                        text: p.text || '',
-                        time: p.time || 'Недавно',
-                        likes: p.likes || 0,
-                        reposts: p.reposts || 0,
-                        comments: p.comments || 0,
-                        liked: !!p.liked,
-                        reposted: !!p.reposted,
-                        media: Array.isArray(p.media) ? p.media : [],
-                        avatarUrl: u.avatarUrl || null
-                    };
-                upmLocalPosts.set(upmPost.id, upmPost);
-                const el = createPostElement(upmPost);
-                upmFeed.appendChild(el);
+        const upmPostsFeed = document.getElementById('upm-posts-feed');
+        const upmRepostsFeed = document.getElementById('upm-reposts-feed');
+
+        const renderList = (list, mount, pinId) => {
+            if (!list.length) {
+                mount.innerHTML = '<div style="text-align:center;color:rgba(255,255,255,0.3);padding:40px 0;font-size:14px;">Нет постов</div>';
+                return;
+            }
+            mount.innerHTML = '';
+            list.forEach((post) => {
+                upmLocalPosts.set(post.id, post);
+                const el = createPostElement(post);
+                if (pinId && post.id === pinId) {
+                    const badge = document.createElement('div');
+                    badge.style.cssText = 'font-size:12px;color:rgba(255,255,255,0.4);display:flex;align-items:center;gap:5px;padding:0 0 8px 0;';
+                    badge.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V17z"/></svg> Закреплено';
+                    el.insertBefore(badge, el.firstChild);
+                }
+                mount.appendChild(el);
             });
-        }
+        };
+
+        renderList(postItems, upmPostsFeed, u.pinnedPostId);
+        renderList(repostItems, upmRepostsFeed, u.pinnedRepostId);
+        if (!repostItems.length) upmRepostsFeed.innerHTML = '<div style="text-align:center;color:rgba(255,255,255,0.3);padding:40px 0;font-size:14px;">Нет репостов</div>';
     }
 
     function switchUpmTab(tab, uname) {
@@ -3972,8 +3987,8 @@
 </button>
 <!-- Desktop footer (bottom-right, desktop only) -->
 <div class="desktop-footer">
-    <a href="privacy.html" style="color:inherit;text-decoration:none;">Политика конфиденциальности</a>
-    <a href="terms.html" style="color:inherit;text-decoration:none;">Условия использования</a>
+    <a href="privacy.html">Политика конфиденциальности</a>
+    <a href="terms.html">Условия использования</a>
     <span>© ВПизде</span>
 </div>
 
@@ -3988,8 +4003,27 @@
   const setToken = (t) => localStorage.setItem(TOKEN_KEY, t);
   const dropToken = () => localStorage.removeItem(TOKEN_KEY);
 
+  function resetClientUiState() {
+    ['login-username','login-password','reg-displayname','reg-username','reg-password','reg-password2'].forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) el.value = '';
+    });
+    const errs = ['login-error','reg-error','vpsc-error','ep-error'];
+    errs.forEach((id) => { const el = document.getElementById(id); if (el) el.textContent = ''; });
+    const overlays = ['edit-modal-overlay','change-pw-overlay','delete-acc-overlay','post-modal','user-profile-modal','repost-modal-overlay','story-creator'];
+    overlays.forEach((id) => {
+      const ov = document.getElementById(id);
+      if (!ov) return;
+      ov.classList.remove('visible','active');
+      ov.style.display = '';
+    });
+    const body = document.body;
+    if (body) body.style.overflow = '';
+    if (typeof closeEditPostSheet === 'function') closeEditPostSheet();
+  }
+
   const style = document.createElement('style');
-  style.textContent = `.story-avatar{padding:.5px!important}.story-item.viewed .story-avatar{background:#5f5f67!important;animation:none!important}#edit-modal-overlay.visible #edit-profile-wrap{transform:translateY(26px)!important}`;
+  style.textContent = `.story-item.viewed .story-avatar{background:#5f5f67!important;animation:none!important}#edit-modal-overlay.visible #edit-profile-wrap{transform:translateY(26px)!important}`;
   document.head.appendChild(style);
 
   async function api(path, opts = {}) {
@@ -4007,30 +4041,34 @@
       profileData.name = me.displayName || profileData.name;
       profileData.username = `@${me.username}`;
       profileData.bio = me.bio || '';
-      profileData.avatarUrl = me.avatarUrl || null;
-      profileData.bannerUrl = me.bannerUrl || null;
+      profileData.avatarUrl = absoluteUrl(me.avatarUrl || '') || null;
+      profileData.bannerUrl = absoluteUrl(me.bannerUrl || '') || null;
       profileData.vpsc = me.vpsc || profileData.vpsc;
     }
-    const nameEl = document.querySelector('.profile-name'); if (nameEl) nameEl.textContent = me.displayName || '';
+    const nameEl = document.querySelector('.profile-name'); if (nameEl) nameEl.textContent = me.displayName || 'Без имени';
     const uEl = document.querySelector('.profile-username'); if (uEl) uEl.textContent = `@${me.username}`;
     const bEl = document.querySelector('.profile-bio'); if (bEl) bEl.textContent = me.bio || '';
     const st = document.querySelectorAll('.stat-item .stat-number');
     if (st[0] && typeof me.followers==='number') st[0].textContent = me.followers;
     if (st[1]) st[1].textContent = posts.filter(p => p.isRepost).length;
     const vpsc = document.getElementById('ep-vpsc-code'); if (vpsc) vpsc.textContent = me.vpsc || '';
-    const epn = document.getElementById('ep-name'); if (epn) epn.value = me.displayName || '';
-    const epu = document.getElementById('ep-username'); if (epu) epu.value = me.username || '';
-    const epbio = document.getElementById('ep-bio'); if (epbio) epbio.value = me.bio || '';
+    const editOverlay = document.getElementById('edit-modal-overlay');
+    const editOpen = !!(editOverlay && editOverlay.classList.contains('active'));
+    const epn = document.getElementById('ep-name'); if (epn && !editOpen) epn.value = me.displayName || '';
+    const epu = document.getElementById('ep-username'); if (epu && !editOpen) epu.value = me.username || '';
+    const epbio = document.getElementById('ep-bio'); if (epbio && !editOpen) epbio.value = me.bio || '';
     const nav = document.getElementById('nav-profile-avatar');
-    if (nav) nav.innerHTML = me.avatarUrl ? `<img src="${me.avatarUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">` : (me.displayName||'Я')[0].toUpperCase();
+    const avatarUrl = absoluteUrl(me.avatarUrl || '');
+    const bannerUrl = absoluteUrl(me.bannerUrl || '');
+    if (nav) nav.innerHTML = avatarUrl ? `<img src="${avatarUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">` : (me.displayName||'Я')[0].toUpperCase();
     const pa = document.querySelector('.profile-avatar');
-    if (pa) pa.innerHTML = me.avatarUrl ? `<img src="${me.avatarUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">` : (me.displayName||'Я')[0].toUpperCase();
+    if (pa) pa.innerHTML = avatarUrl ? `<img src="${avatarUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">` : (me.displayName||'Я')[0].toUpperCase();
     const cover = document.querySelector('.profile-cover');
-    if (cover && me.bannerUrl) cover.style.background = `url('${me.bannerUrl}') center/cover no-repeat`;
+    if (cover) cover.style.background = bannerUrl ? `url('${bannerUrl}') center/cover no-repeat` : 'linear-gradient(135deg, #0078FF 0%, #23D4F9 100%)';
     const epi = document.getElementById('ep-avatar-img');
-    if (epi && me.avatarUrl) { epi.src = me.avatarUrl; epi.classList.add('loaded'); const l = document.getElementById('ep-avatar-letter'); if (l) l.style.display='none'; }
+    if (epi && avatarUrl) { epi.src = avatarUrl; epi.classList.add('loaded'); const l = document.getElementById('ep-avatar-letter'); if (l) l.style.display='none'; }
     const epb = document.getElementById('ep-banner-img');
-    if (epb && me.bannerUrl) { epb.src = me.bannerUrl; epb.classList.add('loaded'); }
+    if (epb && bannerUrl) { epb.src = bannerUrl; epb.classList.add('loaded'); }
   }
 
   async function syncMe() {
@@ -4041,7 +4079,11 @@
 
   async function syncPosts() {
     const r = await api('/posts');
-    posts = (r.posts || []);
+    posts = (r.posts || []).map((p) => ({
+      ...p,
+      avatarUrl: absoluteUrl(p.avatarUrl || ''),
+      repostOf: p.repostOf ? { ...p.repostOf, avatarUrl: absoluteUrl(p.repostOf.avatarUrl || '') } : p.repostOf
+    }));
     renderPosts();
     const st = document.querySelectorAll('.stat-item .stat-number'); if (st[1]) st[1].textContent = posts.filter(p => p.isRepost).length;
     const feed = document.getElementById('feed');
@@ -4062,6 +4104,7 @@
 
   window.doLogout = function doLogout() {
     dropToken();
+    resetClientUiState();
     showLoginScreen();
     const homeBtn = document.querySelector('.nav-btn[data-tab="home"]'); if (homeBtn) homeBtn.click();
   };
@@ -4076,6 +4119,7 @@
       const r = await api('/auth/login', { method: 'POST', body: JSON.stringify({ username: u, password: p }) });
       setToken(r.token);
       await syncMe();
+      syncProfileUi();
       hideLoginScreen();
       const homeBtn = document.querySelector('.nav-btn[data-tab="home"]'); if (homeBtn) homeBtn.click();
       await Promise.all([syncPosts(), syncTrends(), syncStories()]);
@@ -4090,6 +4134,7 @@
       const r = await api('/auth/vpsc', { method: 'POST', body: JSON.stringify({ code: vpscValue }) });
       setToken(r.token);
       await syncMe();
+      syncProfileUi();
       hideLoginScreen();
       const homeBtn = document.querySelector('.nav-btn[data-tab="home"]'); if (homeBtn) homeBtn.click();
       await Promise.all([syncPosts(), syncTrends(), syncStories()]);
@@ -4108,11 +4153,25 @@
       const r = await api('/auth/register', { method: 'POST', body: JSON.stringify({ username: u, password: p, displayName: dn }) });
       setToken(r.token);
       await syncMe();
+      syncProfileUi();
       hideLoginScreen();
       const homeBtn = document.querySelector('.nav-btn[data-tab="home"]'); if (homeBtn) homeBtn.click();
       await Promise.all([syncPosts(), syncTrends(), syncStories()]);
     } catch (e) { err.textContent = e.message; }
   };
+
+  function absoluteUrl(u) {
+    if (!u) return '';
+    return /^https?:\/\//i.test(u) || u.startsWith('data:') ? u : `${location.origin}${u}`;
+  }
+
+  async function uploadImageIfNeeded(value, kind) {
+    const src = String(value || '');
+    if (!src) return '';
+    if (!src.startsWith('data:image/')) return src;
+    const r = await api('/upload', { method: 'POST', body: JSON.stringify({ dataUrl: src, kind }) });
+    return r.url || '';
+  }
 
   window.saveProfile = async function saveProfile() {
     const err = document.getElementById('ep-error');
@@ -4125,8 +4184,14 @@
     };
     if (err) err.textContent = '';
     try {
+      payload.avatarUrl = await uploadImageIfNeeded(payload.avatarUrl, 'avatar');
+      payload.bannerUrl = await uploadImageIfNeeded(payload.bannerUrl, 'banner');
       const r = await api('/me', { method: 'PATCH', body: JSON.stringify(payload) });
       me = r.user;
+      if (window.profileData) {
+        profileData.avatarUrl = absoluteUrl(me.avatarUrl || '');
+        profileData.bannerUrl = absoluteUrl(me.bannerUrl || '');
+      }
       closeEditModal();
       syncProfileUi();
       await syncPosts();
@@ -4167,7 +4232,9 @@
   };
 
   function formatStoryTime(iso){const d=Math.max(0,Date.now()-new Date(iso).getTime());const m=Math.floor(d/60000);const h=Math.floor(d/3600000); if(d<60000)return 'Только что'; if(m<60)return `${m} мин`; if(h<24)return `${h} ч`; return `${Math.floor(d/86400000)} д`; }
-
+  function isOwnPost(post) {
+    return !!(me && post && String(post.username || '').toLowerCase() === `@${me.username}`.toLowerCase());
+  }
   async function syncStories() {
     try {
       const r = await api('/stories');
@@ -4175,8 +4242,9 @@
       const orderedStories = (r.stories || []).slice().sort((a,b)=>new Date(a.createdAt)-new Date(b.createdAt));
       orderedStories.forEach(s => {
         const key = s.username;
-        if (!byUser.has(key)) byUser.set(key, { user: s, items: [] });
-        byUser.get(key).items.push({ type: s.mediaType, src: s.src, text: s.caption || '', time: s.createdAt, username: s.username, avatar: s.avatar, avatarUrl: s.avatarUrl });
+        const fixed = { ...s, avatarUrl: absoluteUrl(s.avatarUrl || '') };
+        if (!byUser.has(key)) byUser.set(key, { user: fixed, items: [] });
+        byUser.get(key).items.push({ type: s.mediaType, src: s.src, text: s.caption || '', time: s.createdAt, username: s.username, avatar: s.avatar, avatarUrl: fixed.avatarUrl });
       });
       const list = document.getElementById('stories-list');
       if (!list) return;
@@ -4206,12 +4274,30 @@
 
   document.getElementById('creator-done')?.addEventListener('click', async (e) => {
     e.stopImmediatePropagation();
+    const btn = e.currentTarget;
+    if (btn.disabled) return;
     const img = document.getElementById('creator-preview');
     const vid = document.getElementById('creator-video-preview');
     const storyText = document.getElementById('creator-text-input').value.trim();
     const payload = img.classList.contains('active') ? { mediaType:'image', src: img.dataset.src, caption: storyText } : (vid.classList.contains('active') ? { mediaType:'video', src: vid.dataset.src, caption: storyText } : null);
     if (!payload) return;
-    try { await api('/stories', { method: 'POST', body: JSON.stringify(payload) }); await syncStories(); const sc=document.getElementById('story-creator'); sc.classList.remove('visible'); setTimeout(()=>{sc.classList.remove('active'); resetCreator(); document.body.style.overflow='';}, 380); } catch(err){ alert(err.message); }
+    const prevText = btn.textContent;
+    btn.disabled = true;
+    btn.classList.add('is-loading');
+    btn.textContent = 'Загрузка...';
+    try {
+      await api('/stories', { method: 'POST', body: JSON.stringify(payload) });
+      await syncStories();
+      const sc=document.getElementById('story-creator');
+      sc.classList.remove('visible');
+      setTimeout(()=>{sc.classList.remove('active'); resetCreator(); document.body.style.overflow='';}, 380);
+    } catch(err){
+      alert(err.message);
+    } finally {
+      btn.disabled = false;
+      btn.classList.remove('is-loading');
+      btn.textContent = prevText;
+    }
   }, true);
 
   function buildCommentTree(flat) {
@@ -4229,6 +4315,20 @@
   const originalOpenPostModal = window.openPostModal;
   window.openPostModal = async function(post) {
     originalOpenPostModal(post);
+    const modalOwn = me && post && String(post.username || '').toLowerCase() === `@${me.username}`.toLowerCase();
+    const optsWrap = document.getElementById('modal-post-options-btn');
+    if (optsWrap) {
+      optsWrap.innerHTML = '';
+      if (modalOwn) {
+        const btn = document.createElement('button');
+        btn.className = 'post-options-btn';
+        btn.style.marginLeft = '0';
+        btn.setAttribute('data-post-id', String(post.id));
+        btn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"></circle><circle cx="12" cy="12" r="2"></circle><circle cx="19" cy="12" r="2"></circle></svg>';
+        btn.onclick = (ev) => handlePostOptionsClick(ev, post.id, btn);
+        optsWrap.appendChild(btn);
+      }
+    }
     try {
       const r = await api(`/posts/${post.id}/comments`);
       const flat = r.comments || [];
@@ -4276,8 +4376,20 @@
       e.stopImmediatePropagation();
       try {
         const id = Number(likeBtn.dataset.id);
-        const p = posts.find(x => x.id === id);
-        if (p) { p.liked = !p.liked; p.likes += p.liked ? 1 : -1; renderPosts(); }
+        const p = posts.find(x => x.id === id) || upmLocalPosts.get(id);
+        if (p) {
+          p.liked = !p.liked;
+          p.likes += p.liked ? 1 : -1;
+          renderPosts();
+          const likeBtnModal = document.querySelector('#modal-post-container .action-btn[data-action="like"]');
+          if (likeBtnModal && Number(likeBtnModal.dataset.id || 0) === id) {
+            likeBtnModal.classList.toggle('liked', !!p.liked);
+            const count = likeBtnModal.querySelector('span');
+            if (count) count.textContent = String(p.likes);
+            const icon = likeBtnModal.querySelector('svg');
+            if (icon) icon.setAttribute('fill', p.liked ? 'currentColor' : 'none');
+          }
+        }
         await api(`/posts/${id}/like`, { method: 'POST' });
       } catch {}
       return;
@@ -4301,20 +4413,26 @@
     const body = document.getElementById('upm-body');
     if (!uname || !modal || !body) return;
     body.innerHTML = '<div style="padding:40px 20px;text-align:center;color:rgba(255,255,255,.5);font-size:14px;">Загрузка...</div>';
+    modal.style.display = 'flex';
     modal.classList.add('active');
     requestAnimationFrame(()=>requestAnimationFrame(()=>modal.classList.add('visible')));
     try {
       const [uRes, pRes] = await Promise.all([api(`/users/${uname}`), api('/posts')]);
       const u = uRes.user;
-      const linked = (pRes.posts || []).filter(p => p.username.toLowerCase() === `@${u.username}`);
+      const linked = (pRes.posts || []).filter(p => String(p.username || '').toLowerCase() === `@${u.username}`.toLowerCase());
+      const absAvatar = absoluteUrl(u.avatarUrl || '');
+      const absBanner = absoluteUrl(u.bannerUrl || '');
       const userData = {
         displayname: u.displayName,
         bio: u.bio || '',
         followers: u.followers || 0,
         following: u.following || 0,
-        avatarUrl: u.avatarUrl || '',
-        bannerUrl: u.bannerUrl || '',
-        posts: linked.map(p => ({ text: p.text, time: p.time, likes: p.likes, comments: p.comments, reposts: p.reposts, liked: p.liked, reposted: p.reposted, media: p.media||[], avatarUrl: u.avatarUrl || '' }))
+        isFollowing: !!u.isFollowing,
+        avatarUrl: absAvatar,
+        bannerUrl: absBanner,
+        pinnedPostId: u.pinnedPostId || null,
+        pinnedRepostId: u.pinnedRepostId || null,
+        posts: linked.map(p => ({ ...p, avatarUrl: absAvatar }))
       };
       renderUserProfileBody(uname, userData, body);
     } catch (e) {
@@ -4340,23 +4458,91 @@
 
 
   document.addEventListener('click', (e) => {
-    const ownLinks = e.target.closest('[data-open-profile]');
-    if (!ownLinks || !me) return;
-    const v = ownLinks.getAttribute('data-open-profile') || '';
-    if (v.toLowerCase() !== `@${me.username}`.toLowerCase()) return;
+    if (!me) return;
+    const targetEl = e.target instanceof Element ? e.target : null;
+    if (!targetEl) return;
+
+    const mention = targetEl.closest('.mention');
+    if (mention) {
+      const mentioned = mention.textContent.replace(/^@/, '').trim().toLowerCase();
+      e.stopImmediatePropagation();
+      e.preventDefault();
+      if (mentioned === String(me.username || '').toLowerCase()) {
+        if (typeof closePostModal === 'function') closePostModal();
+        const btn = document.querySelector('.nav-btn[data-tab="profile"]');
+        if (btn) btn.click();
+      } else {
+        openUserProfile(mentioned);
+      }
+      return;
+    }
+
+    const profileLink = targetEl.closest('[data-open-profile]');
+    if (!profileLink) return;
+    const v = String(profileLink.getAttribute('data-open-profile') || '').replace(/^@/, '').toLowerCase();
+    if (!v) return;
     e.stopImmediatePropagation();
-    if (typeof closePostModal === 'function') closePostModal();
-    const btn = document.querySelector('.nav-btn[data-tab="profile"]');
-    if (btn) btn.click();
+    e.preventDefault();
+    if (v === String(me.username || '').toLowerCase()) {
+      if (typeof closePostModal === 'function') closePostModal();
+      const btn = document.querySelector('.nav-btn[data-tab="profile"]');
+      if (btn) btn.click();
+      return;
+    }
+    openUserProfile(v);
   }, true);
 
   const originalOpenEditModal = window.openEditModal;
   if (typeof originalOpenEditModal === 'function') {
-    window.openEditModal = function openEditModal() {
+    window.openEditModal = async function openEditModal() {
+      const err = document.getElementById('ep-error');
+      const saveBtn = document.querySelector('.edit-modal-save');
+      if (!me) {
+        try { await syncMe(); } catch (_) {}
+      }
       syncProfileUi();
       originalOpenEditModal();
+      if (saveBtn) saveBtn.disabled = true;
+      syncMe().then(() => {
+        syncProfileUi();
+      }).catch(() => {}).finally(() => {
+        if (saveBtn) saveBtn.disabled = false;
+        if (err) err.textContent = '';
+      });
     };
   }
+
+  window.saveEditedPost = async function saveEditedPost() {
+    const id = postOptsId;
+    const post = posts.find((p) => p.id === id);
+    if (!post) return;
+    const nextText = document.getElementById('edit-post-textarea').value.trim();
+    if (nextText === '' && editPostMedia.length === 0) {
+      showToast('Пустой пост сохранить нельзя');
+      return;
+    }
+    try {
+      await api(`/posts/${id}`, { method: 'PATCH', body: JSON.stringify({ text: nextText, media: editPostMedia.map((m) => ({ ...m })) }) });
+      closeEditPostSheet();
+      postOptsId = null;
+      await syncPosts();
+      showToast('Пост обновлён');
+    } catch (e) {
+      showToast(e.message);
+    }
+  };
+
+  window.toggleCommentLike = async function toggleCommentLike(commentId) {
+    try {
+      await api(`/comments/${commentId}/like`, { method: 'POST' });
+      if (!currentPostId) return;
+      const r = await api(`/posts/${currentPostId}/comments`);
+      postComments[currentPostId] = buildCommentTree(r.comments || []);
+      renderComments();
+    } catch (e) {
+      showToast(e.message);
+    }
+  };
 
   window.submitRepost = async function submitRepost() {
     if (!repostTargetPost) return;
@@ -4371,17 +4557,33 @@
   };
 
 
+  window.postOptsDelete = async function postOptsDelete() {
+    const id = postOptsId;
+    closePostOptions();
+    if (id === null || !me) return;
+    try {
+      await api(`/posts/${id}`, { method: 'DELETE' });
+      if (typeof closePostModal === 'function') closePostModal();
+      await syncPosts();
+      showToast('Пост удалён');
+    } catch (e) {
+      showToast(e.message);
+    }
+  };
+
   window.postOptsPin = async function postOptsPin() {
     const id = postOptsId;
     closePostOptions();
     if (id === null || !me) return;
     const post = posts.find(p => p.id === id);
     if (!post) return;
-    if (post.isRepost) pinnedRepostId = pinnedRepostId === id ? null : id;
-    else pinnedPostId = pinnedPostId === id ? null : id;
+    const wasPinned = post.isRepost ? pinnedRepostId === id : pinnedPostId === id;
+    if (post.isRepost) pinnedRepostId = wasPinned ? null : id;
+    else pinnedPostId = wasPinned ? null : id;
     try {
       const r = await api('/me', { method: 'PATCH', body: JSON.stringify({ pinnedPostId, pinnedRepostId }) });
       me = r.user;
+      showToast(post.isRepost ? (wasPinned ? 'Репост откреплён' : 'Репост закреплён в Репостах') : (wasPinned ? 'Пост откреплён' : 'Пост закреплён в Постах'));
     } catch (e) { showToast(e.message); }
     renderPosts();
   };
@@ -4391,10 +4593,11 @@
     if (!me) return;
     document.querySelectorAll('.post').forEach(card => {
       const id = Number(card.dataset.id || 0);
-      const p = posts.find(x => x.id === id);
-      if (!p || (p.username || '').toLowerCase() !== `@${me.username}`.toLowerCase()) return;
+      const p = posts.find(x => x.id === id) || upmLocalPosts.get(id);
       const authorRow = card.querySelector('.post-author');
-      if (!authorRow || authorRow.querySelector('.post-options-btn')) return;
+      if (!authorRow) return;
+      authorRow.querySelectorAll('.post-options-btn').forEach((n) => n.remove());
+      if (!p || (p.username || '').toLowerCase() !== `@${me.username}`.toLowerCase()) return;
       const btn = document.createElement('button');
       btn.className = 'post-options-btn';
       btn.setAttribute('data-post-id', String(id));
@@ -4406,17 +4609,70 @@
   const _renderPosts = window.renderPosts;
   window.renderPosts = function renderPostsWrapped() { _renderPosts(); patchOwnerButtons(); };
 
+  const originalRenderProfileFeeds = window.renderProfileFeeds;
+  window.renderProfileFeeds = function renderProfileFeedsPatched() {
+    if (!me) return originalRenderProfileFeeds();
+    const myFeed = document.getElementById('profile-feed');
+    if (!myFeed) return;
+    myFeed.innerHTML = '';
+    let myPosts = posts.filter((p) => !p.isRepost && isOwnPost(p));
+    if (pinnedPostId) myPosts = [...myPosts.filter((p) => p.id === pinnedPostId), ...myPosts.filter((p) => p.id !== pinnedPostId)];
+    if (!myPosts.length) myFeed.innerHTML = '<div style="text-align:center;color:rgba(255,255,255,0.3);padding:40px 20px;font-size:14px;">Вы ещё ничего не опубликовали</div>';
+    else myPosts.forEach((post) => {
+      const el = createPostElement(post);
+      if (post.id === pinnedPostId) {
+        const badge = document.createElement('div');
+        badge.style.cssText = 'font-size:12px;color:rgba(255,255,255,0.4);display:flex;align-items:center;gap:5px;padding:0 0 8px 0;';
+        badge.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V17z"/></svg> Закреплено';
+        el.insertBefore(badge, el.firstChild);
+      }
+      myFeed.appendChild(el);
+    });
+    if (typeof renderMyReposts === 'function') renderMyReposts();
+  };
+
+  const originalRenderMyReposts = window.renderMyReposts;
+  window.renderMyReposts = function renderMyRepostsPatched() {
+    if (!me) return originalRenderMyReposts();
+    const feed = document.getElementById('profile-reposts-feed');
+    if (!feed) return;
+    feed.innerHTML = '';
+    let repostPosts = posts.filter((p) => p.isRepost && isOwnPost(p));
+    if (pinnedRepostId) repostPosts = [...repostPosts.filter((p) => p.id === pinnedRepostId), ...repostPosts.filter((p) => p.id !== pinnedRepostId)];
+    if (!repostPosts.length) {
+      feed.innerHTML = '<div style="text-align:center;color:rgba(255,255,255,0.3);padding:40px 20px;font-size:14px;">Вы ещё ничего не репостили</div>';
+      return;
+    }
+    repostPosts.forEach((post) => {
+      const el = createPostElement(post);
+      if (post.id === pinnedRepostId) {
+        const badge = document.createElement('div');
+        badge.style.cssText = 'font-size:12px;color:rgba(255,255,255,0.4);display:flex;align-items:center;gap:5px;padding:0 0 8px 0;';
+        badge.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V17z"/></svg> Закреплено';
+        el.insertBefore(badge, el.firstChild);
+      }
+      feed.appendChild(el);
+    });
+  };
+
+
+  setInterval(() => { if (token()) syncPosts().catch(() => {}); }, 4000);
+  setInterval(() => { if (token()) syncMe().catch(() => {}); }, 5000);
+  setInterval(() => { if (token()) syncTrends().catch(() => {}); }, 5000);
+
   (async () => {
     posts = [];
     renderPosts();
-    if (!token()) { showLoginScreen(); return; }
+    if (!token()) { resetClientUiState(); showLoginScreen(); return; }
     try {
       await syncMe();
+      syncProfileUi();
       hideLoginScreen();
       const homeBtn = document.querySelector('.nav-btn[data-tab="home"]'); if (homeBtn) homeBtn.click();
       await Promise.all([syncPosts(), syncTrends(), syncStories()]);
     } catch {
       dropToken();
+      resetClientUiState();
       showLoginScreen();
     }
   })();
