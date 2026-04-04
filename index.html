@@ -2512,7 +2512,7 @@
     document.getElementById('login-username').addEventListener('keydown', e => { if(e.key==='Enter') document.getElementById('login-password').focus(); });
     document.getElementById('login-password').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
 
-    (function() { const sess = getSession(); if (!sess) showLoginScreen(); })();
+    (function() { if (!localStorage.getItem('vp_token')) showLoginScreen(); })();
 
     window.toggleCommentLike = id => {
         function toggle(list) {
@@ -3077,9 +3077,15 @@
         ov.classList.add('active');
         requestAnimationFrame(() => requestAnimationFrame(() => ov.classList.add('visible')));
         document.body.style.overflow = 'hidden';
-        document.getElementById('ep-name').value = profileData.name;
-        document.getElementById('ep-username').value = profileData.username.replace(/^@/,'');
-        document.getElementById('ep-bio').value = profileData.bio;
+        const realName = (document.querySelector('.profile-name')?.textContent || '').trim() || profileData.name || '';
+        const realUsername = (document.querySelector('.profile-username')?.textContent || '').replace(/^@/,'').trim() || profileData.username.replace(/^@/,'');
+        const realBio = (document.querySelector('.profile-bio')?.textContent || '') || profileData.bio || '';
+        profileData.name = realName;
+        profileData.username = realUsername ? `@${realUsername}` : profileData.username;
+        profileData.bio = realBio;
+        document.getElementById('ep-name').value = realName;
+        document.getElementById('ep-username').value = realUsername;
+        document.getElementById('ep-bio').value = realBio;
         // sync textarea height
         const bioEl = document.getElementById('ep-bio');
         if (bioEl) { bioEl.style.height = 'auto'; bioEl.style.height = bioEl.scrollHeight + 'px'; }
@@ -4093,7 +4099,8 @@
   document.head.appendChild(style);
   document.getElementById('no-vpid-login-btn')?.addEventListener('click', () => {
     hideNoVpidScreen();
-    window.location.assign('/login');
+    window.location.href = '/login';
+    setTimeout(() => window.location.reload(), 0);
   });
 
   async function api(path, opts = {}) {
