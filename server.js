@@ -391,7 +391,7 @@ const server = http.createServer(async (req, res) => {
 
   if (u.pathname === '/api/admin/dashboard' && req.method === 'GET') {
     if (!isAdmin) return sendJson(res, 401, { error: 'Unauthorized' });
-    const onlineThreshold = Date.now() - 5 * 60 * 1000;
+    const onlineThreshold = Date.now() - 70 * 1000;
     const onlineUsers = db.users.filter((x) => x.lastSeenAt && new Date(x.lastSeenAt).getTime() >= onlineThreshold).length;
     const blockedUsers = db.users.filter((x) => isBlocked(x)).length;
     const stats = {
@@ -587,7 +587,7 @@ const server = http.createServer(async (req, res) => {
     const alias = String(b.alias || '').trim().slice(0, 80);
     if (!alias) return sendJson(res, 400, { error: 'Укажите псевдоним' });
     const plainKey = `MDR-${crypto.randomBytes(10).toString('base64url')}`;
-    const key = { id: `mk_${db.meta.modKeySeq++}`, alias, keyHash: sha(plainKey), createdAt: nowIso(), lastUsedAt: null, revokedAt: null };
+    const key = { id: `mk_${db.meta.modKeySeq++}`, alias, accessCode: plainKey, keyHash: sha(plainKey), createdAt: nowIso(), lastUsedAt: null, revokedAt: null };
     db.moderatorKeys.push(key);
     addSystemLog(db, 'info', 'Создан ключ модератора', { alias, keyId: key.id });
     writeDb(db);
@@ -631,6 +631,13 @@ const server = http.createServer(async (req, res) => {
     const followers = db.follows.filter((f) => f.followingId === me.id).length;
     const following = db.follows.filter((f) => f.followerId === me.id).length;
     return sendJson(res, 200, { user: { ...sanitizeUser(me), followers, following } });
+  }
+
+  if (u.pathname === '/api/presence' && req.method === 'GET') {
+    if (!me) return sendJson(res, 401, { error: 'Unauthorized' });
+    me.lastSeenAt = nowIso();
+    writeDb(db);
+    return sendJson(res, 200, { ok: true, ts: me.lastSeenAt });
   }
 
   if (u.pathname === '/api/me' && req.method === 'PATCH') {

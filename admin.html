@@ -1,116 +1,62 @@
 <!doctype html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>VP Admin</title>
-  <style>
-    :root{--bg:#0b0b0d;--panel:#14161a;--soft:#1b1e24;--text:#e8ebf0;--muted:#9aa3b2;--accent:#0d7eff;--danger:#ff4d57;--ok:#31c46d}
-    *{box-sizing:border-box;font-family:Inter,system-ui,sans-serif}
-    body{margin:0;background:var(--bg);color:var(--text)}
-    .layout{display:grid;grid-template-columns:260px 1fr;min-height:100vh}
-    .side{border-right:1px solid rgba(255,255,255,.08);padding:16px;background:#101217;position:sticky;top:0;height:100vh}
-    .logo{font-weight:800;margin-bottom:20px}
-    .nav button{display:block;width:100%;text-align:left;margin:6px 0;padding:10px 12px;border:0;border-radius:10px;background:transparent;color:var(--muted);cursor:pointer}
-    .nav button.active{background:rgba(13,126,255,.18);color:#fff}
-    .main{padding:18px}
-    .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
-    .card{background:var(--panel);padding:14px;border-radius:12px;border:1px solid rgba(255,255,255,.08)}
-    .label{font-size:13px;color:var(--muted)} .value{font-size:30px;font-weight:800;margin-top:4px}
-    .panel{background:var(--panel);padding:14px;border-radius:12px;border:1px solid rgba(255,255,255,.08);margin-top:12px}
-    input,button,textarea{background:var(--soft);border:1px solid rgba(255,255,255,.1);color:var(--text);border-radius:10px;padding:10px}
-    button{cursor:pointer} .danger{background:rgba(255,77,87,.2);border-color:rgba(255,77,87,.5)} .ok{background:rgba(49,196,109,.2);border-color:rgba(49,196,109,.5)}
-    .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.grow{flex:1}
-    .hidden{display:none!important}
-    .list{display:flex;flex-direction:column;gap:8px;max-height:68vh;overflow:auto}
-    .item{background:#171a20;border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:10px}
-    .muted{color:var(--muted);font-size:12px}
-    details{border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:8px;background:#161920}
-    summary{cursor:pointer;font-weight:700}
-    .login{position:fixed;inset:0;background:rgba(5,7,11,.96);display:flex;align-items:center;justify-content:center;z-index:20}
-    .login-box{width:min(420px,92vw);background:var(--panel);padding:16px;border-radius:14px}
-    @media(max-width:900px){.layout{grid-template-columns:1fr}.side{position:static;height:auto}}
-  </style>
+<meta charset="UTF-8" /><meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>VP Admin</title>
+<style>
+:root{--bg:#0b0b0d;--panel:#121318;--line:rgba(255,255,255,.07);--soft:#1a1d24;--txt:#e8ebf0;--muted:#9aa3b2;--acc:#0d7eff;--danger:#ff4d57;--ok:#31c46d}
+*{box-sizing:border-box;font-family:Inter,system-ui,sans-serif}body{margin:0;background:var(--bg);color:var(--txt)}
+.app{display:grid;grid-template-columns:252px 1fr;min-height:100vh}.side{padding:14px;border-right:1px solid var(--line);background:rgba(15,16,20,.92)}
+.brand{font-size:20px;font-weight:800;margin:8px 8px 16px}.nav{display:flex;flex-direction:column;gap:6px}.nav button{all:unset;cursor:pointer;padding:11px 12px;border-radius:12px;color:var(--muted)}.nav button.active{background:rgba(13,126,255,.15);color:#fff}
+.main{padding:18px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}.card,.panel{background:var(--panel);border:1px solid var(--line);border-radius:14px}.card{padding:14px}.k{font-size:12px;color:var(--muted)}.v{font-weight:800;font-size:28px;margin-top:2px}
+.panel{padding:12px;margin-top:12px}.row{display:flex;gap:8px;flex-wrap:wrap}input,button{background:var(--soft);border:1px solid var(--line);color:var(--txt);border-radius:11px;padding:10px}button{cursor:pointer}
+button.primary{background:linear-gradient(135deg,#0d7eff,#23d4f9);border:none;color:#fff}button.danger{background:rgba(255,77,87,.16);border-color:rgba(255,77,87,.45)}button.ok{background:rgba(49,196,109,.16);border-color:rgba(49,196,109,.45)}
+.g{flex:1}.list{display:flex;flex-direction:column;gap:8px;max-height:67vh;overflow:auto}.item{background:#171a21;border:1px solid var(--line);border-radius:11px;padding:10px}.muted{color:var(--muted);font-size:12px}
+.hidden{display:none!important}.login{position:fixed;inset:0;background:rgba(7,8,12,.96);display:flex;align-items:center;justify-content:center;z-index:30}.login-box{width:min(420px,92vw);background:var(--panel);border:1px solid var(--line);border-radius:15px;padding:16px}
+.badge{height:14px;vertical-align:middle;margin-left:4px}
+@media(max-width:900px){.app{grid-template-columns:1fr}.side{position:sticky;top:0;z-index:5}}
+</style>
 </head>
 <body>
-<div class="login" id="loginBox">
-  <div class="login-box">
-    <h2>Вход в админ панель</h2>
-    <p class="muted">Пароль проверяется только на backend через Render secret <b>ADMIN_PANEL_PASSWORD</b>.</p>
-    <div class="row"><input id="adminPassword" class="grow" type="password" placeholder="Пароль"><button onclick="adminLogin()">Войти</button></div>
-    <p id="loginErr" class="muted"></p>
-  </div>
-</div>
-<div class="layout">
-  <aside class="side">
-    <div class="logo">VP Admin</div>
-    <nav class="nav">
-      <button class="active" data-tab="home">Главная</button>
-      <button data-tab="posts">Посты</button>
-      <button data-tab="users">Пользователи</button>
-      <button data-tab="preverify">Предверификация</button>
-      <button data-tab="mod">Модерация</button>
-    </nav>
-  </aside>
-  <main class="main">
-    <section id="home" class="tab">
-      <div class="cards" id="stats"></div>
-      <div class="panel"><h3>Системные логи</h3><div id="systemLogs" class="list"></div></div>
-    </section>
-
-    <section id="posts" class="tab hidden">
-      <div class="row"><input id="postSearch" class="grow" placeholder="Поиск по постам"><button onclick="loadPosts()">Найти</button></div>
-      <div class="panel"><h3>Посты и комментарии</h3><div id="postList" class="list"></div></div>
-      <div class="panel"><h3>Архив (24 часа)</h3><div id="archivedList" class="list"></div></div>
-    </section>
-
-    <section id="users" class="tab hidden">
-      <div class="row"><input id="userSearch" class="grow" placeholder="Поиск по имени/username"><button onclick="loadUsers()">Найти</button></div>
-      <div class="panel"><h3>Пользователи</h3><div id="userList" class="list"></div></div>
-    </section>
-
-    <section id="preverify" class="tab hidden">
-      <div class="row"><input id="preverifyUsername" class="grow" placeholder="username"><button onclick="addPreverify()">Добавить</button></div>
-      <div class="panel"><h3>Список</h3><div id="preverifyList" class="list"></div></div>
-    </section>
-
-    <section id="mod" class="tab hidden">
-      <div class="row"><input id="modAlias" class="grow" placeholder="Псевдоним"><button onclick="createModKey()">Создать ключ</button></div>
-      <div class="panel"><h3>Ключи</h3><div id="modKeys" class="list"></div></div>
-      <div class="panel"><h3>Логи модераторов</h3><div id="modLogs" class="list"></div></div>
-    </section>
-  </main>
-</div>
+<div class="login" id="login"><div class="login-box"><h2>Вход в админ панель</h2><div class="row"><input id="pw" type="password" class="g" placeholder="Пароль"><button class="primary" onclick="login()">Войти</button></div><p id="e" class="muted"></p></div></div>
+<div class="app">
+<aside class="side"><div class="brand">VP Admin</div><nav class="nav">
+<button data-t="home" class="active">Главная</button><button data-t="posts">Посты</button><button data-t="users">Пользователи</button><button data-t="pre">Предверификация</button><button data-t="mod">Модерация</button>
+</nav></aside>
+<main class="main">
+<section id="home"><div id="stats" class="grid"></div><div class="panel"><h3>Системные логи</h3><div id="logs" class="list"></div></div></section>
+<section id="posts" class="hidden"><div class="row"><input id="qPost" class="g" placeholder="Поиск по постам"><button class="primary" onclick="loadPosts()">Найти</button></div><div class="panel"><h3>Посты</h3><div id="postList" class="list"></div></div><div class="panel"><h3>Архив (24ч)</h3><div id="arch" class="list"></div></div></section>
+<section id="users" class="hidden"><div class="row"><input id="qUser" class="g" placeholder="Поиск по имени/username"><button class="primary" onclick="loadUsers()">Найти</button></div><div class="panel"><h3>Пользователи</h3><div id="userList" class="list"></div></div></section>
+<section id="pre" class="hidden"><div class="row"><input id="preIn" class="g" placeholder="username"><button class="primary" onclick="preAdd()">Добавить</button></div><div class="panel"><div id="preList" class="list"></div></div></section>
+<section id="mod" class="hidden"><div class="row"><input id="alias" class="g" placeholder="Псевдоним"><button class="primary" onclick="mkCreate()">Создать ключ</button></div><div class="panel"><h3>Ключи доступа</h3><div id="mkList" class="list"></div></div><div class="panel"><h3>Логи модераторов</h3><div id="mLogs" class="list"></div></div></section>
+</main></div>
 <script>
-const tokenKey='vp_admin_token';
-const $=s=>document.querySelector(s); const fmt=v=>new Date(v).toLocaleString('ru-RU');
-async function api(url,opt={}){const res=await fetch(url,{...opt,headers:{'Content-Type':'application/json','Authorization':'Bearer '+(localStorage.getItem(tokenKey)||''),...(opt.headers||{})}});const data=await res.json().catch(()=>({})); if(!res.ok) throw new Error(data.error||'Ошибка'); return data;}
-async function adminLogin(){try{const p=$('#adminPassword').value;const d=await fetch('/api/admin/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:p})}).then(r=>r.json()); if(!d.token) throw new Error(d.error||'Ошибка'); localStorage.setItem(tokenKey,d.token); $('#loginBox').classList.add('hidden'); init();}catch(e){$('#loginErr').textContent=e.message;}}
-function navInit(){document.querySelectorAll('.nav button').forEach(b=>b.onclick=()=>{document.querySelectorAll('.nav button').forEach(x=>x.classList.remove('active'));b.classList.add('active');document.querySelectorAll('.tab').forEach(t=>t.classList.add('hidden'));$('#'+b.dataset.tab).classList.remove('hidden');});}
-async function loadDashboard(){const d=await api('/api/admin/dashboard');$('#stats').innerHTML=[['Пользователи',d.stats.usersCompact],['Онлайн',d.stats.onlineUsersCompact],['Посты',d.stats.postsCompact],['Заблокированы',d.stats.blockedUsersCompact]].map(x=>`<div class='card'><div class='label'>${x[0]}</div><div class='value'>${x[1]}</div></div>`).join('');$('#systemLogs').innerHTML=d.logs.map(l=>`<div class='item'><div><b>${l.level.toUpperCase()}</b> — ${l.message}</div><div class='muted'>${fmt(l.createdAt)}</div></div>`).join('');}
-async function loadPosts(){const q=encodeURIComponent($('#postSearch').value||'');const d=await api('/api/admin/posts?q='+q);$('#postList').innerHTML=d.posts.map(p=>`<details><summary>#${p.id} ${p.author} ${p.username}</summary><div class='item'><div>${(p.text||'').replace(/</g,'&lt;')}</div><div class='muted'>${fmt(p.createdAt)}</div><button class='danger' onclick='deletePost(${p.id})'>Удалить (архив 24ч)</button><div class='list'>${p.comments.map(c=>`<div class='item'><div>${c.text.replace(/</g,'&lt;')}</div><div class='muted'>${c.author} ${c.username}</div><button class='danger' onclick='deleteComment(${c.id})'>Удалить комментарий</button></div>`).join('')||'<div class="muted">Комментариев нет</div>'}</div></div></details>`).join('')||'<div class="muted">Постов нет</div>';
-$('#archivedList').innerHTML=d.archived.map(a=>`<div class='item'><b>#${a.post.id}</b> до ${fmt(a.restoreUntil)} <button class='ok' onclick='restorePost(${a.post.id})'>Восстановить</button></div>`).join('')||'<div class="muted">Архив пуст</div>';
-}
-async function deletePost(id){await api('/api/admin/posts/'+id,{method:'DELETE'});loadPosts();loadDashboard();}
-async function restorePost(id){await api('/api/admin/posts/'+id+'/restore',{method:'POST'});loadPosts();}
-async function deleteComment(id){await api('/api/admin/comments/'+id,{method:'DELETE'});loadPosts();}
-async function loadUsers(){const q=encodeURIComponent($('#userSearch').value||'');const d=await api('/api/admin/users?q='+q);$('#userList').innerHTML=d.users.map(u=>`<div class='item'><div><b>${u.displayName}</b> @${u.username} ${u.verified?`<img src='/${u.verificationBadge}' width='14'>`:''}</div><div class='muted'>tempBan: ${u.tempBanUntil||'-'} permBan: ${u.permanentBanReason||'-'}</div><div class='row'>
-<button onclick="verifyUser('${u.id}',${!u.verified})">${u.verified?'Снять вериф':'Верифицировать'}</button>
-<button onclick="tempBanPrompt('${u.id}')">Временный бан</button>
-<button onclick="unban('${u.id}')">Разбан</button>
-<button class='danger' onclick="permBanPrompt('${u.id}')">Перманентный бан</button></div></div>`).join('');}
-async function verifyUser(id,verified){await api(`/api/admin/users/${id}/verify`,{method:'POST',body:JSON.stringify({verified})});loadUsers();}
-async function tempBanPrompt(id){const reason=prompt('Причина бана'); if(reason===null)return; const hours=Number(prompt('На сколько часов?', '24')); if(!hours||hours<1)return; const until=new Date(Date.now()+hours*3600*1000).toISOString(); await api(`/api/admin/users/${id}/temp-ban`,{method:'POST',body:JSON.stringify({reason,until})});loadUsers();loadDashboard();}
-async function permBanPrompt(id){const reason=prompt('Причина перманентного бана'); if(!reason)return; await api(`/api/admin/users/${id}/permanent-ban`,{method:'POST',body:JSON.stringify({reason})});loadUsers();loadDashboard();}
-async function unban(id){await api(`/api/admin/users/${id}/unban`,{method:'POST'});loadUsers();loadDashboard();}
-async function loadPreverify(){const d=await api('/api/admin/preverify');$('#preverifyList').innerHTML=d.usernames.map(u=>`<div class='item'>@${u} <button class='danger' onclick='removePreverify("${u}")'>Удалить</button></div>`).join('')||'<div class="muted">Пусто</div>'}
-async function addPreverify(){const username=$('#preverifyUsername').value.trim();if(!username)return;await api('/api/admin/preverify',{method:'POST',body:JSON.stringify({username})});$('#preverifyUsername').value='';loadPreverify();}
-async function removePreverify(u){await api('/api/admin/preverify/'+encodeURIComponent(u),{method:'DELETE'});loadPreverify();}
-async function loadModeration(){const [keys,logs]=await Promise.all([api('/api/admin/moderators'),api('/api/admin/moderator-logs')]);$('#modKeys').innerHTML=keys.keys.map(k=>`<div class='item'><b>${k.alias}</b> (${k.id}) <span class='muted'>${k.revokedAt?'отозван':'активен'}</span><div class='row'><button onclick="renameKey('${k.id}')">Переименовать</button><button class='danger' onclick="revokeKey('${k.id}')">Удалить</button></div></div>`).join('');$('#modLogs').innerHTML=logs.logs.map(l=>`<div class='item'><b>${l.actor}</b>: ${l.action}<div class='muted'>${fmt(l.createdAt)}</div></div>`).join('')||'<div class="muted">Нет логов</div>';}
-async function createModKey(){const alias=$('#modAlias').value.trim();if(!alias)return;const d=await api('/api/admin/moderators',{method:'POST',body:JSON.stringify({alias})});alert('Ключ создан. Скопируй и передай модератору:\n'+d.plainKey);$('#modAlias').value='';loadModeration();}
-async function renameKey(id){const alias=prompt('Новый псевдоним');if(!alias)return;await api('/api/admin/moderators/'+id,{method:'PATCH',body:JSON.stringify({alias})});loadModeration();}
-async function revokeKey(id){await api('/api/admin/moderators/'+id,{method:'DELETE'});loadModeration();}
-async function init(){navInit(); await Promise.all([loadDashboard(),loadPosts(),loadUsers(),loadPreverify(),loadModeration()]); setInterval(()=>{loadDashboard().catch(()=>{});loadModeration().catch(()=>{});},7000);}
-if(localStorage.getItem(tokenKey)){ $('#loginBox').classList.add('hidden'); init().catch(()=>localStorage.removeItem(tokenKey)); }
+const TK='vp_admin_token'; const $=s=>document.querySelector(s); const f=v=>new Date(v).toLocaleString('ru-RU');
+const api=async(u,o={})=>{const r=await fetch(u,{...o,headers:{'Content-Type':'application/json','Authorization':'Bearer '+(localStorage.getItem(TK)||'')}});const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||'Ошибка');return d};
+async function login(){try{const d=await fetch('/api/admin/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:$('#pw').value})}).then(r=>r.json());if(!d.token)throw new Error(d.error||'Ошибка');localStorage.setItem(TK,d.token);$('#login').classList.add('hidden');init()}catch(e){$('#e').textContent=e.message}}
+function nav(){document.querySelectorAll('.nav button').forEach(b=>b.onclick=()=>{document.querySelectorAll('.nav button').forEach(x=>x.classList.remove('active'));b.classList.add('active');['home','posts','users','pre','mod'].forEach(t=>document.getElementById(t).classList.toggle('hidden',t!==b.dataset.t));})}
+async function loadHome(){const d=await api('/api/admin/dashboard');$('#stats').innerHTML=[['Пользователи',d.stats.usersCompact],['Онлайн в приложении',d.stats.onlineUsersCompact],['Посты',d.stats.postsCompact],['Заблокированы',d.stats.blockedUsersCompact]].map(([k,v])=>`<div class='card'><div class='k'>${k}</div><div class='v'>${v}</div></div>`).join('');$('#logs').innerHTML=d.logs.map(l=>`<div class='item'><b>${l.level.toUpperCase()}</b> — ${l.message}<div class='muted'>${f(l.createdAt)}</div></div>`).join('')||'<div class="muted">Нет логов</div>'}
+async function loadPosts(){const d=await api('/api/admin/posts?q='+encodeURIComponent($('#qPost').value||''));$('#postList').innerHTML=d.posts.map(p=>`<div class='item'><b>#${p.id}</b> ${p.author} ${p.username}<div>${(p.text||'').replace(/</g,'&lt;')}</div><div class='muted'>${f(p.createdAt)}</div><div class='row'><button class='danger' onclick='postDel(${p.id})'>Удалить (архив)</button></div>${(p.comments||[]).map(c=>`<div class='item' style='margin-top:6px'>${c.text.replace(/</g,'&lt;')}<div class='row'><button class='danger' onclick='comDel(${c.id})'>Удалить комментарий</button></div></div>`).join('')}</div>`).join('')||'<div class="muted">Пусто</div>';
+$('#arch').innerHTML=d.archived.map(a=>`<div class='item'>Пост #${a.post.id}<div class='muted'>до ${f(a.restoreUntil)}</div><button class='ok' onclick='postRestore(${a.post.id})'>Восстановить</button></div>`).join('')||'<div class="muted">Архив пуст</div>'}
+const postDel=async id=>{await api('/api/admin/posts/'+id,{method:'DELETE'});loadPosts();loadHome()}; const postRestore=async id=>{await api('/api/admin/posts/'+id+'/restore',{method:'POST'});loadPosts()}; const comDel=async id=>{await api('/api/admin/comments/'+id,{method:'DELETE'});loadPosts()};
+async function loadUsers(){const d=await api('/api/admin/users?q='+encodeURIComponent($('#qUser').value||''));$('#userList').innerHTML=d.users.map(u=>{const banned=!!(u.tempBanUntil||u.permanentBanReason);return `<div class='item'><b>${u.displayName}</b> @${u.username}${u.verified?`<img class='badge' src='/${u.verificationBadge}'>`:''}<div class='muted'>temp: ${u.tempBanUntil||'-'} | perm: ${u.permanentBanReason||'-'}</div><div class='row'>
+<button onclick="verify('${u.id}',${!u.verified})">${u.verified?'Снять вериф':'Верифицировать'}</button>
+<button onclick="tban('${u.id}')">Временный бан</button>
+${banned?`<button class='ok' onclick="unban('${u.id}')">Разбан</button>`:''}
+<button class='danger' onclick="pban('${u.id}')">Перманентный бан</button></div></div>`}).join('')||'<div class="muted">Пусто</div>'}
+const verify=(id,v)=>api(`/api/admin/users/${id}/verify`,{method:'POST',body:JSON.stringify({verified:v})}).then(loadUsers);
+async function tban(id){const reason=prompt('Причина');if(reason===null)return;const h=Number(prompt('Часов','24'));if(!h||h<1)return;await api(`/api/admin/users/${id}/temp-ban`,{method:'POST',body:JSON.stringify({reason,until:new Date(Date.now()+h*3600e3).toISOString()})});loadUsers();loadHome()}
+async function pban(id){const reason=prompt('Причина');if(!reason)return;await api(`/api/admin/users/${id}/permanent-ban`,{method:'POST',body:JSON.stringify({reason})});loadUsers();loadHome()}
+const unban=id=>api(`/api/admin/users/${id}/unban`,{method:'POST'}).then(()=>{loadUsers();loadHome()});
+async function loadPre(){const d=await api('/api/admin/preverify');$('#preList').innerHTML=d.usernames.map(u=>`<div class='item'>@${u} <button class='danger' onclick="preDel('${u}')">Удалить</button></div>`).join('')||'<div class="muted">Пусто</div>'}
+const preAdd=async()=>{const u=$('#preIn').value.trim();if(!u)return;await api('/api/admin/preverify',{method:'POST',body:JSON.stringify({username:u})});$('#preIn').value='';loadPre()}; const preDel=u=>api('/api/admin/preverify/'+encodeURIComponent(u),{method:'DELETE'}).then(loadPre);
+async function loadMod(){const [ks,ls]=await Promise.all([api('/api/admin/moderators'),api('/api/admin/moderator-logs')]);$('#mkList').innerHTML=ks.keys.map(k=>{const code=(k.accessCode||k.id);return `<div class='item'><b>${k.alias}</b><div class='muted' style='cursor:pointer' onclick="copyCode('${code}')">${code}</div><div class='row'><button onclick="renameKey('${k.id}')">Переименовать</button><button onclick="copyCode('${code}')">Копировать код</button><button class='danger' onclick="revoke('${k.id}')">Удалить</button></div></div>`}).join('')||'<div class="muted">Нет ключей</div>';
+$('#mLogs').innerHTML=ls.logs.map(l=>`<div class='item'><b>${l.actor}</b> — ${l.action}<div class='muted'>${f(l.createdAt)}</div></div>`).join('')||'<div class="muted">Нет логов</div>'}
+async function mkCreate(){const alias=$('#alias').value.trim();if(!alias)return;const d=await api('/api/admin/moderators',{method:'POST',body:JSON.stringify({alias})});await navigator.clipboard.writeText(d.plainKey).catch(()=>{});alert('Ключ скопирован: '+d.plainKey);$('#alias').value='';loadMod()}
+const renameKey=async id=>{const alias=prompt('Новый псевдоним');if(!alias)return;await api('/api/admin/moderators/'+id,{method:'PATCH',body:JSON.stringify({alias})});loadMod()};
+const revoke=id=>api('/api/admin/moderators/'+id,{method:'DELETE'}).then(loadMod);
+const copyCode=async(code)=>{await navigator.clipboard.writeText(code).catch(()=>{});alert('Скопировано: '+code)};
+async function init(){nav();await Promise.all([loadHome(),loadPosts(),loadUsers(),loadPre(),loadMod()]);setInterval(()=>{loadHome().catch(()=>{});loadUsers().catch(()=>{});loadMod().catch(()=>{});},5000)}
+if(localStorage.getItem(TK)){document.getElementById('login').classList.add('hidden');init().catch(()=>localStorage.removeItem(TK))}
 </script>
 </body></html>
