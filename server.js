@@ -7,6 +7,7 @@ const { URL } = require('url');
 const PORT = process.env.PORT || 3000;
 const SECRET = process.env.JWT_SECRET || 'vp_dev_secret_change_me';
 const ADMIN_PASSWORD = process.env.ADMIN_PANEL_PASSWORD || '';
+const ADMIN_PASSWORD_HASH = process.env.ADMIN_PANEL_PASSWORD_HASH || 'e7830615b58952ad7c8a0060fce7627e1d2c67c7f32fa24ce7922a31d937148c';
 const ROOT = __dirname;
 const DB_PATH = path.join(ROOT, 'db.json');
 const VPSC_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789!@#$%&*';
@@ -367,8 +368,10 @@ const server = http.createServer(async (req, res) => {
   if (u.pathname === '/api/admin/login' && req.method === 'POST') {
     const b = await parseBody(req);
     const password = String(b.password || '');
-    if (!ADMIN_PASSWORD) return sendJson(res, 503, { error: 'ADMIN_PANEL_PASSWORD не настроен' });
-    if (sha(password) !== sha(ADMIN_PASSWORD)) return sendJson(res, 401, { error: 'Неверный пароль админа' });
+    const providedHash = sha(password);
+    const expectedHash = ADMIN_PASSWORD ? sha(ADMIN_PASSWORD) : ADMIN_PASSWORD_HASH;
+    if (!expectedHash) return sendJson(res, 503, { error: 'Пароль админ-панели не настроен' });
+    if (providedHash !== expectedHash) return sendJson(res, 401, { error: 'Неверный пароль админа' });
     addSystemLog(db, 'warn', 'Вход в админ-панель', { ip: String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown') });
     writeDb(db);
     return sendJson(res, 200, { token: signScopedToken({ scope: 'admin' }) });
