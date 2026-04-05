@@ -89,6 +89,19 @@ function normalizeProfileImageUrl(value) {
   return raw;
 }
 
+function removeUploadedFileIfLocal(urlValue) {
+  const normalized = normalizeProfileImageUrl(urlValue);
+  if (!normalized || !normalized.startsWith('/uploads/')) return;
+  const relativePath = normalized.slice(1);
+  const filePath = path.join(ROOT, relativePath);
+  if (!filePath.startsWith(path.join(ROOT, 'uploads'))) return;
+  if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
+    try {
+      fs.unlinkSync(filePath);
+    } catch {}
+  }
+}
+
 function relativeTime(iso) {
   const t = new Date(iso).getTime();
   const now = Date.now();
@@ -280,11 +293,15 @@ const server = http.createServer(async (req, res) => {
     if (typeof b.bio === 'string') me.bio = b.bio.slice(0, 300);
     if (typeof b.avatarUrl === 'string') {
       const nextAvatarUrl = normalizeProfileImageUrl(b.avatarUrl);
-      if (nextAvatarUrl) me.avatarUrl = nextAvatarUrl;
+      const prevAvatarUrl = normalizeProfileImageUrl(me.avatarUrl);
+      if (prevAvatarUrl && prevAvatarUrl !== nextAvatarUrl) removeUploadedFileIfLocal(prevAvatarUrl);
+      me.avatarUrl = nextAvatarUrl;
     }
     if (typeof b.bannerUrl === 'string') {
       const nextBannerUrl = normalizeProfileImageUrl(b.bannerUrl);
-      if (nextBannerUrl) me.bannerUrl = nextBannerUrl;
+      const prevBannerUrl = normalizeProfileImageUrl(me.bannerUrl);
+      if (prevBannerUrl && prevBannerUrl !== nextBannerUrl) removeUploadedFileIfLocal(prevBannerUrl);
+      me.bannerUrl = nextBannerUrl;
     }
     if (Object.prototype.hasOwnProperty.call(b, 'pinnedPostId')) me.pinnedPostId = b.pinnedPostId || null;
     if (Object.prototype.hasOwnProperty.call(b, 'pinnedRepostId')) me.pinnedRepostId = b.pinnedRepostId || null;
