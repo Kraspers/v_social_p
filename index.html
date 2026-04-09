@@ -435,9 +435,11 @@
         .music-track-btn { margin-top: 16px; width: 100%; padding: 14px; background: rgba(255,255,255,0.35); border: none; border-radius: 22px; font-weight: 700; cursor: pointer; transition: opacity 0.2s; font-size: 16px; color: #fff; position: relative; display: flex; align-items: center; justify-content: center; }
         .music-track-btn:hover { opacity: 0.92; }
         .music-track-btn.hidden { display: none; }
-        .music-track-btn.loading { color: #fff; background: linear-gradient(110deg, rgba(255,255,255,0.26) 8%, rgba(255,255,255,0.6) 18%, rgba(255,255,255,0.26) 33%); background-size: 220% 100%; animation: trackBtnLoading 1.2s linear infinite; opacity: 1; }
-        .music-track-btn.loading .music-track-circle { background: rgba(255,255,255,0.92); }
-        @keyframes trackBtnLoading { to { background-position-x: -220%; } }
+        .music-track-btn.loading { color: #fff; background: rgba(255,255,255,0.34); opacity: 1; overflow: hidden; }
+        .music-track-btn.loading::after { content: ''; position: absolute; inset: 0; transform: translateX(-120%); background: linear-gradient(105deg, transparent 10%, rgba(255,255,255,0.06) 35%, rgba(255,255,255,0.65) 50%, rgba(255,255,255,0.06) 65%, transparent 90%); animation: trackBtnLoading 1.15s cubic-bezier(0.22, 0.61, 0.36, 1) infinite; will-change: transform; pointer-events: none; }
+        .music-track-btn.loading .music-track-circle { background: rgba(255,255,255,0.95); }
+        .music-track-btn.loading .music-track-title { position: relative; z-index: 1; }
+        @keyframes trackBtnLoading { to { transform: translateX(120%); } }
         .music-track-circle { width: 34px; height: 34px; border-radius: 50%; background: #fff; color: #000; display: inline-flex; align-items: center; justify-content: center; position: absolute; left: 10px; top: 50%; transform: translateY(-50%); }
         .music-track-title { display:block; width:100%; text-align: center; font-size: 16px; font-weight: 700; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0 40px; }
         .music-track-btn.edit { margin-top: 0; }
@@ -3257,14 +3259,15 @@
         menu.style.left = Math.min(maxLeft, Math.max(8, x)) + 'px';
         menu.style.top = Math.min(maxTop, Math.max(8, y)) + 'px';
     }
-    function closeProfileMediaHoldMenu() {
+    function closeProfileMediaHoldMenu(immediate = false) {
         const menu = document.getElementById('ep-media-hold-menu');
         if (menu) menu.style.display = 'none';
         const ov = document.getElementById('media-opts-overlay');
         const wrap = document.getElementById('media-opts-wrap');
         ov?.classList.remove('visible');
         wrap?.classList.remove('visible');
-        setTimeout(() => ov?.classList.remove('active'), 260);
+        if (immediate) ov?.classList.remove('active');
+        else setTimeout(() => ov?.classList.remove('active'), 260);
         if (!document.getElementById('post-opts-overlay')?.classList.contains('active') && !document.getElementById('comment-opts-overlay')?.classList.contains('active')) {
             document.body.style.overflow = '';
         }
@@ -3272,7 +3275,7 @@
     }
     function deleteHeldProfileMedia() {
         const kind = heldProfileMediaKind;
-        closeProfileMediaHoldMenu();
+        closeProfileMediaHoldMenu(true);
         if (kind === 'avatar') {
             profileData.avatarUrl = '';
             const img = document.getElementById('ep-avatar-img');
@@ -4460,6 +4463,7 @@
   let trackQueue = [];
   let currentTrackIndex = -1;
   const trackPositions = new Map();
+  let isTrackUploading = false;
 
   function trackKey(item) {
     return `${item.name || ''}::${item.url || ''}`;
@@ -4643,7 +4647,7 @@
       }
     }
     const editTitle = document.getElementById('ep-track-btn-title');
-    if (editTitle) editTitle.textContent = trackName || 'Добавить трек';
+    if (editTitle && !isTrackUploading) editTitle.textContent = trackName || 'Добавить трек';
   }
 
   async function syncFavoriteTracksOnly() {
@@ -4716,10 +4720,10 @@
     const file = e.target.files?.[0];
     const trackBtn = document.getElementById('ep-track-btn');
     const trackTitle = document.getElementById('ep-track-btn-title');
-    const prevTrackTitle = trackTitle ? trackTitle.textContent : '';
     const stopTrackLoading = () => {
+      isTrackUploading = false;
       if (trackBtn) { trackBtn.disabled = false; trackBtn.classList.remove('loading'); }
-      if (trackTitle) trackTitle.textContent = prevTrackTitle || 'Добавить трек';
+      renderMusicTrackButtons();
     };
     e.target.value = '';
     if (!file) return;
@@ -4733,9 +4737,14 @@
       return;
     }
     try {
+      isTrackUploading = true;
       if (trackBtn) { trackBtn.disabled = true; trackBtn.classList.add('loading'); }
       if (trackTitle) trackTitle.textContent = 'Загрузка...';
       const reader = new FileReader();
+      reader.onerror = () => {
+        showToast('Ошибка чтения файла');
+        stopTrackLoading();
+      };
       reader.onload = async (ev) => {
         try {
           const dataUrl = String(ev.target?.result || '');
