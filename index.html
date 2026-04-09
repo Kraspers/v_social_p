@@ -432,6 +432,29 @@
         .stat-label { color: rgba(255,255,255,0.6); }
         .edit-profile-btn { margin-top: 16px; width: 100%; padding: 14px; background: #ffffff; border: none; border-radius: 22px; font-weight: 700; cursor: pointer; transition: opacity 0.2s; font-size: 16px; color: #000; }
         .edit-profile-btn:hover { opacity: 0.92; }
+        .music-track-btn { margin-top: 16px; width: 100%; padding: 14px; background: rgba(255,255,255,0.35); border: none; border-radius: 22px; font-weight: 700; cursor: pointer; transition: opacity 0.2s; font-size: 16px; color: #fff; position: relative; display: flex; align-items: center; justify-content: center; }
+        .music-track-btn:hover { opacity: 0.92; }
+        .music-track-btn.hidden { display: none; }
+        .music-track-circle { width: 34px; height: 34px; border-radius: 50%; background: #fff; color: #000; display: inline-flex; align-items: center; justify-content: center; position: absolute; left: 10px; top: 50%; transform: translateY(-50%); }
+        .music-track-title { display:block; width:100%; text-align: center; font-size: 16px; font-weight: 700; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0 40px; }
+        .music-track-btn.edit { margin-top: 0; }
+
+        .track-player { position: fixed; z-index: 18050; right: 16px; top: 16px; width: min(360px, calc(100vw - 32px)); background: rgba(31,31,35,0.58); border: 1px solid rgba(255,255,255,0.14); border-radius: 30px; backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); padding: 12px; display:flex; align-items:center; gap:12px; opacity:0; transform: translateY(-10px) scale(0.98); pointer-events:none; transition: opacity .26s ease, transform .26s ease; }
+        .track-player.visible { opacity:1; transform: translateY(0) scale(1); pointer-events:auto; }
+        .track-player-cover { width:56px; height:56px; border-radius:16px; background: #6f737b; flex-shrink:0; display:flex; align-items:center; justify-content:center; color:#989ca4; overflow:hidden; }
+        .track-player-cover img { width:100%; height:100%; object-fit:cover; }
+        .track-player-main { min-width:0; flex:1; }
+        .track-player-name { font-size:14px; font-weight:700; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-bottom:7px; }
+        .track-player-controls { display:flex; align-items:center; gap:8px; }
+        .track-player-btn { width:32px; height:32px; border:none; border-radius:50%; background: transparent; color:#fff; display:flex; align-items:center; justify-content:center; cursor:pointer; transition: transform .14s ease, opacity .2s ease; }
+        .track-player-btn.primary { width:36px; height:36px; background: transparent; }
+        .track-player-btn:active { transform: scale(0.9); }
+        .track-player-btn:disabled { opacity: .4; }
+        .track-player-close { position:absolute; right:10px; bottom:10px; width:34px; height:34px; border:none; border-radius:50%; background: transparent; color:#fff; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:28px; line-height:1; }
+
+        @media (max-width: 900px) {
+            .track-player { top: auto; right: 12px; left: 12px; bottom: calc(102px + env(safe-area-inset-bottom)); width: auto; border-radius: 28px; }
+        }
 
         /* Profile cover menu button — top-left, frosted glass */
         .profile-cover-menu-btn {
@@ -1593,6 +1616,12 @@
                     <div class="stat-item"><span class="stat-number">256</span><span class="stat-label">Подписчиков</span></div>
                     <div class="stat-item"><span class="stat-number">89</span><span class="stat-label">Репостов</span></div>
                 </div>
+                <button class="music-track-btn hidden" id="profile-music-track-btn" type="button" aria-label="Любимый трек" onclick="playProfileTrack()">
+                    <span class="music-track-circle">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3v10.55a4 4 0 1 0 2 3.45V8h6V3h-8z"/></svg>
+                    </span>
+                    <span class="music-track-title" id="profile-music-track-title"></span>
+                </button>
                 <button class="edit-profile-btn">Редактировать профиль</button>
             </div>
         </div>
@@ -1792,7 +1821,7 @@
         <div class="edit-modal-handle"></div>
         <div class="edit-modal-header">
             <div></div>
-            <button class="edit-modal-save" onclick="window.saveProfile()">
+            <button class="edit-modal-save" id="ep-save-btn" onclick="window.saveProfile()">
                 Сохранить
             </button>
         </div>
@@ -1815,6 +1844,12 @@
                 </div>
             </div>
             <div style="padding:52px 16px 0;display:flex;flex-direction:column;gap:16px;">
+                <button class="music-track-btn edit" id="ep-track-btn" type="button" onclick="triggerTrackUpload()">
+                    <span class="music-track-circle">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3v10.55a4 4 0 1 0 2 3.45V8h6V3h-8z"/></svg>
+                    </span>
+                    <span class="music-track-title" id="ep-track-btn-title">Добавить трек</span>
+                </button>
                 <div>
                     <div style="font-size:13px;font-weight:700;color:#e6e6e9;margin-bottom:6px;">Имя</div>
                     <input id="ep-name" type="text" placeholder="Ваше отображаемое имя" value=""
@@ -1880,6 +1915,7 @@
     </div>
 </div>
 <input type="file" id="ep-file-input" accept="image/*" style="display:none" onchange="onFileSelected(event)">
+<input type="file" id="ep-track-input" accept="audio/mpeg,audio/mp4,audio/x-m4a,.mp3,.m4a" style="display:none" onchange="onTrackSelected(event)">
 <div id="ep-media-hold-menu" style="display:none;position:fixed;z-index:20500;background:#2a2a2e;border:1px solid rgba(255,255,255,0.08);border-radius:12px;overflow:hidden;min-width:170px;box-shadow:0 8px 28px rgba(0,0,0,0.55);">
     <button class="post-opts-dropdown-item danger" id="ep-media-delete-btn" style="width:100%;text-align:left;" onclick="deleteHeldProfileMedia()">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ff453a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
@@ -3124,7 +3160,7 @@
     let cropMode = null, cropImage = null;
     let cropOffsetX = 0, cropOffsetY = 0, cropStartX = 0, cropStartY = 0;
     let cropDragging = false, cropZoom = 1, cropNaturalW = 0, cropNaturalH = 0;
-    let profileData = { name: '', username: '', bio: '', avatarUrl: null, bannerUrl: null, vpsc: '' };
+    let profileData = { name: '', username: '', bio: '', avatarUrl: null, bannerUrl: null, vpsc: '', favoriteTrackName: '', favoriteTrackUrl: '', favoriteTracks: [] };
 
     function openEditModal() {
         const ov = document.getElementById('edit-modal-overlay');
@@ -3194,7 +3230,8 @@
     function openProfileMediaHoldMenu(kind, x, y) {
         const hasAvatar = !!String(profileData.avatarUrl || '').trim();
         const hasBanner = !!String(profileData.bannerUrl || '').trim();
-        if ((kind === 'avatar' && !hasAvatar) || (kind === 'banner' && !hasBanner)) return;
+        const hasTrack = Array.isArray(profileData.favoriteTracks) && profileData.favoriteTracks.length > 0;
+        if ((kind === 'avatar' && !hasAvatar) || (kind === 'banner' && !hasBanner) || (kind === 'track' && !hasTrack)) return;
         heldProfileMediaKind = kind;
         const isDesktop = window.matchMedia('(min-width: 900px)').matches;
         if (!isDesktop) {
@@ -3241,6 +3278,14 @@
             profileData.bannerUrl = '';
             const img = document.getElementById('ep-banner-img');
             if (img) { img.src = ''; img.classList.remove('loaded'); }
+        } else if (heldProfileMediaKind === 'track') {
+            if (!Array.isArray(profileData.favoriteTracks)) profileData.favoriteTracks = [];
+            profileData.favoriteTracks.pop();
+            const last = profileData.favoriteTracks[profileData.favoriteTracks.length - 1] || null;
+            profileData.favoriteTrackName = last?.name || '';
+            profileData.favoriteTrackUrl = last?.url || '';
+            renderMusicTrackButtons();
+            if (typeof window.syncFavoriteTracksAfterEdit === 'function') window.syncFavoriteTracksAfterEdit();
         }
         closeProfileMediaHoldMenu();
     }
@@ -3271,6 +3316,7 @@
     }
     bindProfileMediaHold(document.getElementById('ep-avatar-wrap'), 'avatar');
     bindProfileMediaHold(document.getElementById('ep-banner-wrap'), 'banner');
+    bindProfileMediaHold(document.getElementById('ep-track-btn'), 'track');
     document.addEventListener('click', (e) => {
         if (e.target.closest('#ep-media-hold-menu')) return;
         closeProfileMediaHoldMenu();
@@ -4083,6 +4129,7 @@
                     <div style="font-size:15px;"><span style="font-weight:700;" id="upm-followers">${followers}</span> <span style="color:rgba(255,255,255,0.6);">Подписчиков</span></div>
                     <div style="font-size:15px;"><span style="font-weight:700;">${repostsCount}</span> <span style="color:rgba(255,255,255,0.6);">Репостов</span></div>
                 </div>
+                ${u.favoriteTrackName && u.favoriteTrackUrl ? `<button type="button" class="music-track-btn" style="margin-top:16px;" onclick="playViewedProfileTrack()"><span class="music-track-circle"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3v10.55a4 4 0 1 0 2 3.45V8h6V3h-8z"/></svg></span><span class="music-track-title">${u.favoriteTrackName}</span></button>` : ''}
                 <button id="upm-subscribe-btn" onclick="toggleSubscribe('${uname}')"
                     style="width:100%;margin-top:16px;padding:14px;background:${isSubscribed ? 'rgba(255,255,255,0.08)' : 'white'};border:none;border-radius:22px;font-size:16px;font-weight:700;cursor:pointer;font-family:inherit;color:${isSubscribed ? '#e6e6e9' : '#000'};transition:all 0.2s;">
                     ${isSubscribed ? 'Вы подписаны' : 'Подписаться'}
@@ -4202,6 +4249,28 @@
     <a href="/terms">Условия использования</a>
     <span>© ВПизде</span>
 </div>
+
+<div class="track-player" id="track-player">
+    <button class="track-player-close" type="button" onclick="closeTrackPlayer()">×</button>
+    <div class="track-player-cover" id="track-player-cover">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3v10.55a4 4 0 1 0 2 3.45V8h6V3h-8z"/></svg>
+    </div>
+    <div class="track-player-main">
+        <div class="track-player-name" id="track-player-name"></div>
+        <div class="track-player-controls">
+            <button class="track-player-btn" id="track-prev-btn" type="button" onclick="playPrevTrack()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M18 6v12h-2V6h2ZM6 12l8 6V6l-8 6Z"/></svg>
+            </button>
+            <button class="track-player-btn primary" id="track-toggle-btn" type="button" onclick="toggleTrackPlayback()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+            </button>
+            <button class="track-player-btn" id="track-next-btn" type="button" onclick="playNextTrack()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M6 6v12h2V6H6Zm4 6 8 6V6l-8 6Z"/></svg>
+            </button>
+        </div>
+    </div>
+</div>
+
 
 <script>
 // ==== Backend integration layer (without UI changes) ====
@@ -4334,6 +4403,11 @@
     const vpsc = document.getElementById('ep-vpsc-code'); if (vpsc) vpsc.textContent = me.vpsc || '';
     const editOverlay = document.getElementById('edit-modal-overlay');
     const editOpen = !!(editOverlay && editOverlay.classList.contains('active'));
+    if (!editOpen) {
+      profileData.favoriteTrackName = String(me.favoriteTrackName || '').trim();
+      profileData.favoriteTrackUrl = absoluteUrl(me.favoriteTrackUrl || '');
+      profileData.favoriteTracks = Array.isArray(me.favoriteTracks) ? me.favoriteTracks.map((t) => ({ name: normalizeTrackName(t?.name || ''), url: absoluteUrl(t?.url || ''), coverUrl: absoluteUrl(t?.coverUrl || ''), createdAt: t?.createdAt || '' })).filter((t) => t.name && t.url).slice(0, 30) : (profileData.favoriteTrackUrl && profileData.favoriteTrackName ? [{ name: normalizeTrackName(profileData.favoriteTrackName), url: profileData.favoriteTrackUrl, createdAt: '' }] : []);
+    }
     const epn = document.getElementById('ep-name'); if (epn && !editOpen) epn.value = safeName;
     const epu = document.getElementById('ep-username'); if (epu && !editOpen) epu.value = safeUsername;
     const epbio = document.getElementById('ep-bio'); if (epbio && !editOpen) epbio.value = safeBio;
@@ -4369,8 +4443,295 @@
     if (epi && avatarUrl) { epi.src = avatarUrl; epi.classList.add('loaded'); const l = document.getElementById('ep-avatar-letter'); if (l) l.style.display='none'; }
     const epb = document.getElementById('ep-banner-img');
     if (epb && bannerUrl) { epb.src = bannerUrl; epb.classList.add('loaded'); }
+    renderMusicTrackButtons();
     if (currentPostId) renderComments();
   }
+
+  function normalizeTrackName(name) {
+    return String(name || '').replace(/\.(mp3|m4a)$/i, '').trim();
+  }
+
+  const trackAudio = new Audio();
+  let trackQueue = [];
+  let currentTrackIndex = -1;
+  const trackPositions = new Map();
+
+  function trackKey(item) {
+    return `${item.name || ''}::${item.url || ''}`;
+  }
+
+  function collectAvailableTracks() {
+    const arr = [];
+    const ownLastTrack = Array.isArray(profileData?.favoriteTracks) && profileData.favoriteTracks.length ? profileData.favoriteTracks[profileData.favoriteTracks.length - 1] : (profileData?.favoriteTrackUrl ? { name: normalizeTrackName(profileData.favoriteTrackName || 'Трек'), url: absoluteUrl(profileData.favoriteTrackUrl), coverUrl: '' } : null);
+    if (ownLastTrack?.url) arr.push({ name: normalizeTrackName(ownLastTrack.name || 'Трек'), url: absoluteUrl(ownLastTrack.url), coverUrl: absoluteUrl(ownLastTrack.coverUrl || '') });
+    const viewed = currentViewedProfile?.userData;
+    const viewedLastTrack = Array.isArray(viewed?.favoriteTracks) && viewed.favoriteTracks.length ? viewed.favoriteTracks[viewed.favoriteTracks.length - 1] : (viewed?.favoriteTrackUrl ? { name: viewed.favoriteTrackName, url: viewed.favoriteTrackUrl, coverUrl: '' } : null);
+    if (viewedLastTrack?.url) arr.push({ name: normalizeTrackName(viewedLastTrack.name || 'Трек'), url: absoluteUrl(viewedLastTrack.url), coverUrl: absoluteUrl(viewedLastTrack.coverUrl || '') });
+    const uniq = [];
+    const seen = new Set();
+    arr.forEach((t) => {
+      const key = trackKey(t);
+      if (!t.url || seen.has(key)) return;
+      seen.add(key);
+      uniq.push(t);
+    });
+    return uniq;
+  }
+
+  function updatePlayerUi(isPlaying = false) {
+    const container = document.getElementById('track-player');
+    const title = document.getElementById('track-player-name');
+    const toggleBtn = document.getElementById('track-toggle-btn');
+    const prevBtn = document.getElementById('track-prev-btn');
+    const nextBtn = document.getElementById('track-next-btn');
+    const cover = document.getElementById('track-player-cover');
+    const current = trackQueue[currentTrackIndex];
+    if (!container || !title || !toggleBtn || !prevBtn || !nextBtn || !cover || !current) return;
+    title.textContent = current.name || 'Трек';
+    prevBtn.disabled = trackQueue.length <= 1;
+    nextBtn.disabled = trackQueue.length <= 1;
+    toggleBtn.innerHTML = isPlaying
+      ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5h3v14H8zm5 0h3v14h-3z"/></svg>'
+      : '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
+    cover.innerHTML = current.coverUrl
+      ? `<img src="${current.coverUrl}" alt="">`
+      : '<svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3v10.55a4 4 0 1 0 2 3.45V8h6V3h-8z"/></svg>';
+  }
+
+  async function playTrackFromQueue(index) {
+    const item = trackQueue[index];
+    if (!item || !item.url) return;
+    currentTrackIndex = index;
+    const container = document.getElementById('track-player');
+    if (container) container.classList.add('visible');
+    const currentSrc = trackAudio.src ? new URL(trackAudio.src, location.origin).href : '';
+    const targetSrc = new URL(item.url, location.origin).href;
+    if (currentSrc !== targetSrc) {
+      trackAudio.src = targetSrc;
+      const savedPos = Number(trackPositions.get(targetSrc) || 0);
+      if (savedPos > 0) {
+        const setSavedTime = () => {
+          trackAudio.currentTime = Math.max(0, savedPos);
+          trackAudio.removeEventListener('loadedmetadata', setSavedTime);
+        };
+        trackAudio.addEventListener('loadedmetadata', setSavedTime);
+      }
+    }
+    try {
+      await trackAudio.play();
+      updatePlayerUi(true);
+    } catch (e) {
+      if (/\.m4a(\?|$)/i.test(targetSrc)) {
+        try {
+          trackAudio.src = `${targetSrc}${targetSrc.includes('?') ? '&' : '?'}v=${Date.now()}`;
+          trackAudio.load();
+          await trackAudio.play();
+          updatePlayerUi(true);
+          return;
+        } catch {}
+      }
+      updatePlayerUi(false);
+      showToast('Не удалось запустить трек');
+    }
+  }
+
+  function initTrackQueue(startTrack) {
+    const available = collectAvailableTracks();
+    if (!available.length) return false;
+    trackQueue = available;
+    const idx = available.findIndex((t) => trackKey(t) === trackKey(startTrack));
+    currentTrackIndex = idx >= 0 ? idx : 0;
+    return true;
+  }
+
+  window.playProfileTrack = function playProfileTrack() {
+    const last = Array.isArray(profileData.favoriteTracks) && profileData.favoriteTracks.length ? profileData.favoriteTracks[profileData.favoriteTracks.length - 1] : null;
+    const track = { name: normalizeTrackName(last?.name || profileData.favoriteTrackName || ''), url: absoluteUrl(last?.url || profileData.favoriteTrackUrl || ''), coverUrl: absoluteUrl(last?.coverUrl || '') };
+    if (!track.url) return;
+    initTrackQueue(track);
+    playTrackFromQueue(currentTrackIndex);
+  };
+
+  window.playViewedProfileTrack = function playViewedProfileTrack() {
+    const viewed = currentViewedProfile?.userData;
+    if (!viewed) return;
+    const viewedLast = Array.isArray(viewed.favoriteTracks) && viewed.favoriteTracks.length ? viewed.favoriteTracks[viewed.favoriteTracks.length - 1] : null;
+    const track = { name: normalizeTrackName(viewedLast?.name || viewed.favoriteTrackName || ''), url: absoluteUrl(viewedLast?.url || viewed.favoriteTrackUrl || ''), coverUrl: absoluteUrl(viewedLast?.coverUrl || '') };
+    if (!track.url) return;
+    initTrackQueue(track);
+    playTrackFromQueue(currentTrackIndex);
+  };
+
+  window.toggleTrackPlayback = async function toggleTrackPlayback() {
+    if (!trackQueue.length || currentTrackIndex < 0) return;
+    if (trackAudio.paused) {
+      try { await trackAudio.play(); updatePlayerUi(true); } catch {}
+    } else {
+      trackAudio.pause();
+      updatePlayerUi(false);
+    }
+  };
+
+  window.playPrevTrack = function playPrevTrack() {
+    if (currentTrackIndex < 0) return;
+    if (trackAudio.currentTime > 1.2) {
+      trackAudio.currentTime = 0;
+      if (trackAudio.paused) trackAudio.play().catch(() => {});
+      return;
+    }
+    if (trackQueue.length <= 1) {
+      trackAudio.currentTime = 0;
+      if (trackAudio.paused) trackAudio.play().catch(() => {});
+      return;
+    }
+    const nextIndex = (currentTrackIndex - 1 + trackQueue.length) % trackQueue.length;
+    playTrackFromQueue(nextIndex);
+  };
+
+  window.playNextTrack = function playNextTrack() {
+    if (trackQueue.length <= 1 || currentTrackIndex < 0) return;
+    const nextIndex = (currentTrackIndex + 1) % trackQueue.length;
+    playTrackFromQueue(nextIndex);
+  };
+
+  window.closeTrackPlayer = function closeTrackPlayer() {
+    const container = document.getElementById('track-player');
+    if (container) container.classList.remove('visible');
+    trackAudio.pause();
+    updatePlayerUi(false);
+  };
+
+  trackAudio.addEventListener('ended', () => {
+    if (trackQueue.length > 1) playNextTrack();
+    else updatePlayerUi(false);
+  });
+  trackAudio.addEventListener('play', () => updatePlayerUi(true));
+  trackAudio.addEventListener('pause', () => updatePlayerUi(false));
+  trackAudio.addEventListener('timeupdate', () => {
+    if (trackAudio.src) trackPositions.set(new URL(trackAudio.src, location.origin).href, trackAudio.currentTime || 0);
+  });
+
+  function renderMusicTrackButtons() {
+    const lastTrack = Array.isArray(profileData.favoriteTracks) && profileData.favoriteTracks.length ? profileData.favoriteTracks[profileData.favoriteTracks.length - 1] : null;
+    const trackName = normalizeTrackName(lastTrack?.name || profileData.favoriteTrackName || me?.favoriteTrackName || '');
+    const trackUrl = absoluteUrl(lastTrack?.url || profileData.favoriteTrackUrl || me?.favoriteTrackUrl || '');
+    const profileBtn = document.getElementById('profile-music-track-btn');
+    const profileTitle = document.getElementById('profile-music-track-title');
+    if (profileBtn && profileTitle) {
+      if (trackName && trackUrl) {
+        profileBtn.classList.remove('hidden');
+        profileTitle.textContent = trackName;
+      } else {
+        profileBtn.classList.add('hidden');
+        profileTitle.textContent = '';
+      }
+    }
+    const editTitle = document.getElementById('ep-track-btn-title');
+    if (editTitle) editTitle.textContent = trackName || 'Добавить трек';
+  }
+
+  async function syncFavoriteTracksOnly() {
+    const payload = {
+      favoriteTracks: Array.isArray(profileData?.favoriteTracks)
+        ? profileData.favoriteTracks.map((t) => ({ name: normalizeTrackName(t?.name || ''), url: absoluteUrl(t?.url || ''), coverUrl: absoluteUrl(t?.coverUrl || ''), createdAt: t?.createdAt || '' })).filter((t) => t.name && t.url).slice(0, 30)
+        : []
+    };
+    const r = await api('/me', { method: 'PATCH', body: JSON.stringify(payload) });
+    me = r.user;
+    syncProfileUi();
+  }
+
+  window.syncFavoriteTracksAfterEdit = async function syncFavoriteTracksAfterEdit() {
+    try {
+      showToast('Сохранение треков...');
+      await syncFavoriteTracksOnly();
+      showToast('Треки обновлены');
+    } catch (e) {
+      showToast(e.message || 'Ошибка сохранения треков');
+    }
+  };
+
+  async function uploadTrackIfNeeded(dataUrl) {
+    const src = String(dataUrl || '');
+    if (!src) return '';
+    if (!src.startsWith('data:audio/')) return src;
+    const r = await api('/upload-track', { method: 'POST', body: JSON.stringify({ dataUrl: src }) });
+    return r.url || '';
+  }
+
+  window.triggerTrackUpload = function triggerTrackUpload() {
+    document.getElementById('ep-track-input')?.click();
+  };
+
+  function findMp4Cover(arrayBuffer) {
+    const bytes = new Uint8Array(arrayBuffer);
+    const text = new TextDecoder('latin1').decode(bytes);
+    const covrIndex = text.indexOf('covr');
+    if (covrIndex < 0) return '';
+    const dataIndex = text.indexOf('data', covrIndex);
+    if (dataIndex < 0) return '';
+    const sizeOffset = dataIndex - 4;
+    if (sizeOffset < 0) return '';
+    const view = new DataView(arrayBuffer);
+    const atomSize = view.getUint32(sizeOffset, false);
+    if (!atomSize || (sizeOffset + atomSize) > arrayBuffer.byteLength) return '';
+    const payloadStart = dataIndex + 12;
+    const payloadEnd = sizeOffset + atomSize;
+    if (payloadEnd <= payloadStart) return '';
+    const payload = bytes.slice(payloadStart, payloadEnd);
+    const sig0 = payload[0], sig1 = payload[1], sig2 = payload[2], sig3 = payload[3];
+    const mime = (sig0 === 0x89 && sig1 === 0x50 && sig2 === 0x4E && sig3 === 0x47) ? 'image/png' : 'image/jpeg';
+    let binary = '';
+    payload.forEach((b) => { binary += String.fromCharCode(b); });
+    return `data:${mime};base64,${btoa(binary)}`;
+  }
+
+  async function extractTrackCover(file) {
+    try {
+      if (!/\.(m4a)$/i.test(file.name) && !['audio/mp4','audio/x-m4a'].includes(file.type)) return '';
+      const ab = await file.arrayBuffer();
+      return findMp4Cover(ab) || '';
+    } catch {
+      return '';
+    }
+  }
+
+  window.onTrackSelected = async function onTrackSelected(e) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    if (!Array.isArray(profileData.favoriteTracks)) profileData.favoriteTracks = [];
+    if (profileData.favoriteTracks.length >= 30) {
+      showToast('Можно добавить максимум 30 треков');
+      return;
+    }
+    if (!/\.(mp3|m4a)$/i.test(file.name) && !['audio/mpeg','audio/mp3','audio/mp4','audio/x-m4a'].includes(file.type)) {
+      showToast('Можно загрузить только MP3 или M4A');
+      return;
+    }
+    try {
+      const reader = new FileReader();
+      reader.onload = async (ev) => {
+        try {
+          const dataUrl = String(ev.target?.result || '');
+          const uploadedUrl = await uploadTrackIfNeeded(dataUrl);
+          const coverUrl = await extractTrackCover(file);
+          const track = { name: normalizeTrackName(file.name), url: absoluteUrl(uploadedUrl || ''), coverUrl, createdAt: new Date().toISOString() };
+          profileData.favoriteTracks.push(track);
+          profileData.favoriteTrackName = track.name;
+          profileData.favoriteTrackUrl = track.url;
+          renderMusicTrackButtons();
+          await syncFavoriteTracksOnly();
+          showToast('Трек добавлен');
+        } catch (err) {
+          showToast(err.message || 'Ошибка загрузки трека');
+        }
+      };
+      reader.readAsDataURL(file);
+    } catch (err) {
+      showToast(err.message || 'Ошибка чтения файла');
+    }
+  };
 
   async function syncMe() {
     const r = await api('/me');
@@ -4484,6 +4845,8 @@
 
   window.saveProfile = async function saveProfile() {
     const err = document.getElementById('ep-error');
+    const saveBtn = document.getElementById('ep-save-btn');
+    const prevSaveText = saveBtn ? saveBtn.textContent : '';
     const epAvatarImg = document.getElementById('ep-avatar-img');
     const epBannerImg = document.getElementById('ep-banner-img');
     const avatarPreview = (epAvatarImg && epAvatarImg.classList.contains('loaded')) ? String(epAvatarImg.src || '') : '';
@@ -4493,7 +4856,10 @@
       username: document.getElementById('ep-username').value.trim(),
       bio: document.getElementById('ep-bio').value,
       avatarUrl: avatarPreview || profileData?.avatarUrl || '',
-      bannerUrl: bannerPreview || profileData?.bannerUrl || ''
+      bannerUrl: bannerPreview || profileData?.bannerUrl || '',
+      favoriteTrackName: normalizeTrackName(profileData?.favoriteTrackName || ''),
+      favoriteTrackUrl: profileData?.favoriteTrackUrl || '',
+      favoriteTracks: Array.isArray(profileData?.favoriteTracks) ? profileData.favoriteTracks.map((t) => ({ name: normalizeTrackName(t?.name || ''), url: absoluteUrl(t?.url || ''), coverUrl: absoluteUrl(t?.coverUrl || ''), createdAt: t?.createdAt || '' })).filter((t) => t.name && t.url).slice(0, 30) : []
     };
     if (err) err.textContent = '';
     if (!payload.displayName || !payload.username) {
@@ -4502,12 +4868,16 @@
       return;
     }
     try {
+      if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Сохранение...'; }
       payload.avatarUrl = await uploadImageIfNeeded(payload.avatarUrl, 'avatar');
       payload.bannerUrl = await uploadImageIfNeeded(payload.bannerUrl, 'banner');
       const r = await api('/me', { method: 'PATCH', body: JSON.stringify(payload) });
       me = r.user;
       profileData.avatarUrl = absoluteUrl(me.avatarUrl || '');
       profileData.bannerUrl = absoluteUrl(me.bannerUrl || '');
+      profileData.favoriteTrackName = normalizeTrackName(me.favoriteTrackName || '');
+      profileData.favoriteTrackUrl = absoluteUrl(me.favoriteTrackUrl || '');
+      profileData.favoriteTracks = Array.isArray(me.favoriteTracks) ? me.favoriteTracks.map((t) => ({ name: normalizeTrackName(t?.name || ''), url: absoluteUrl(t?.url || ''), coverUrl: absoluteUrl(t?.coverUrl || ''), createdAt: t?.createdAt || '' })).filter((t) => t.name && t.url).slice(0, 30) : [];
       closeEditModal();
       syncProfileUi();
       await Promise.all([syncPosts(), syncStories()]);
@@ -4516,6 +4886,8 @@
       if (err) err.textContent = e.message;
       if (String(e.message).includes('Username already exists')) showToast('Этот username уже занят');
       else if (String(e.message).includes('не могут быть пустыми')) showToast('Имя и username не могут быть пустыми');
+    } finally {
+      if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = prevSaveText || 'Сохранить'; }
     }
   };
 
@@ -4733,15 +5105,18 @@
   document.getElementById('composer-file-input')?.addEventListener('change', () => setTimeout(recalcPostBtn, 0));
 
 
-  window.openUserProfile = async function openUserProfile(username) {
+  window.openUserProfile = async function openUserProfile(username, options = {}) {
     const uname = String(username || '').replace(/^@/, '').toLowerCase();
     const modal = document.getElementById('user-profile-modal');
     const body = document.getElementById('upm-body');
     if (!uname || !modal || !body) return;
-    body.innerHTML = '<div style="padding:40px 20px;text-align:center;color:rgba(255,255,255,.5);font-size:14px;">Загрузка...</div>';
-    modal.style.display = 'flex';
-    modal.classList.add('active');
-    requestAnimationFrame(()=>requestAnimationFrame(()=>modal.classList.add('visible')));
+    const silent = !!options.silent;
+    if (!silent) {
+      body.innerHTML = '<div style="padding:40px 20px;text-align:center;color:rgba(255,255,255,.5);font-size:14px;">Загрузка...</div>';
+      modal.style.display = 'flex';
+      modal.classList.add('active');
+      requestAnimationFrame(()=>requestAnimationFrame(()=>modal.classList.add('visible')));
+    }
     try {
       const [uRes, pRes] = await Promise.all([api(`/users/${uname}`), api('/posts')]);
       const u = uRes.user;
@@ -4758,6 +5133,9 @@
         bannerUrl: absBanner,
         pinnedPostId: u.pinnedPostId || null,
         pinnedRepostId: u.pinnedRepostId || null,
+        favoriteTrackName: normalizeTrackName(u.favoriteTrackName || ''),
+        favoriteTrackUrl: absoluteUrl(u.favoriteTrackUrl || ''),
+        favoriteTracks: Array.isArray(u.favoriteTracks) ? u.favoriteTracks.map((t) => ({ name: normalizeTrackName(t?.name || ''), url: absoluteUrl(t?.url || ''), coverUrl: absoluteUrl(t?.coverUrl || ''), createdAt: t?.createdAt || '' })).filter((t) => t.name && t.url).slice(0, 30) : [],
         posts: linked.map(p => ({ ...p, avatarUrl: absAvatar }))
       };
       currentViewedProfile = { uname, userData };
@@ -4768,7 +5146,7 @@
   };
   async function refreshOpenedProfileModal() {
     if (!currentViewedProfile?.uname) return;
-    await openUserProfile(currentViewedProfile.uname);
+    await openUserProfile(currentViewedProfile.uname, { silent: true });
   }
 
   window.toggleSubscribe = async function toggleSubscribe(uname) {
@@ -4840,6 +5218,7 @@
       if (epu) epu.value = me?.username || String(profileData?.username || '').replace(/^@/, '') || profileUsername || epu.value;
       if (epbio) epbio.value = me?.bio || profileData?.bio || profileBio || '';
       syncProfileUi();
+      renderMusicTrackButtons();
       if (err) err.textContent = '';
     };
   }
@@ -5146,6 +5525,7 @@
   setInterval(() => { if (token()) syncPosts().catch(() => {}); }, 4000);
   setInterval(() => { if (token()) syncMe().catch(() => {}); }, 5000);
   setInterval(() => { if (token()) syncTrends().catch(() => {}); }, 5000);
+  setInterval(() => { if (token() && currentViewedProfile?.uname) refreshOpenedProfileModal().catch(() => {}); }, 5000);
 
   (async () => {
     posts = [];
