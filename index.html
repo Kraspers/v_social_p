@@ -432,12 +432,29 @@
         .stat-label { color: rgba(255,255,255,0.6); }
         .edit-profile-btn { margin-top: 16px; width: 100%; padding: 14px; background: #ffffff; border: none; border-radius: 22px; font-weight: 700; cursor: pointer; transition: opacity 0.2s; font-size: 16px; color: #000; }
         .edit-profile-btn:hover { opacity: 0.92; }
-        .music-track-btn { margin-top: 14px; width: 100%; border: none; border-radius: 22px; padding: 8px 12px; min-height: 56px; background: rgba(255,255,255,0.38); display: flex; align-items: center; gap: 12px; cursor: pointer; color: #fff; font-family: inherit; }
+        .music-track-btn { margin-top: 16px; width: 100%; padding: 14px; background: rgba(255,255,255,0.35); border: none; border-radius: 22px; font-weight: 700; cursor: pointer; transition: opacity 0.2s; font-size: 16px; color: #fff; position: relative; display: flex; align-items: center; justify-content: center; min-height: 52px; }
+        .music-track-btn:hover { opacity: 0.92; }
         .music-track-btn.hidden { display: none; }
-        .music-track-circle { width: 36px; height: 36px; border-radius: 50%; background: #fff; color: #000; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
-        .music-track-title { flex: 1; text-align: center; font-size: 22px; font-weight: 700; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-right: 36px; }
+        .music-track-circle { width: 34px; height: 34px; border-radius: 50%; background: #fff; color: #000; display: inline-flex; align-items: center; justify-content: center; position: absolute; left: 10px; top: 50%; transform: translateY(-50%); }
+        .music-track-title { display:block; width:100%; text-align: center; font-size: 16px; font-weight: 700; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0 40px; }
         .music-track-btn.edit { margin-top: 0; }
-        .music-track-btn.edit .music-track-title { font-size: 18px; }
+
+        .track-player { position: fixed; z-index: 18050; right: 16px; top: 16px; width: min(360px, calc(100vw - 32px)); background: rgba(31,31,35,0.58); border: 1px solid rgba(255,255,255,0.14); border-radius: 30px; backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); padding: 12px; display:flex; align-items:center; gap:12px; opacity:0; transform: translateY(-10px) scale(0.98); pointer-events:none; transition: opacity .26s ease, transform .26s ease; }
+        .track-player.visible { opacity:1; transform: translateY(0) scale(1); pointer-events:auto; }
+        .track-player-cover { width:56px; height:56px; border-radius:16px; background: #6f737b; flex-shrink:0; display:flex; align-items:center; justify-content:center; color:#989ca4; overflow:hidden; }
+        .track-player-cover img { width:100%; height:100%; object-fit:cover; }
+        .track-player-main { min-width:0; flex:1; }
+        .track-player-name { font-size:14px; font-weight:700; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-bottom:7px; }
+        .track-player-controls { display:flex; align-items:center; gap:8px; }
+        .track-player-btn { width:32px; height:32px; border:none; border-radius:50%; background: rgba(255,255,255,0.18); color:#fff; display:flex; align-items:center; justify-content:center; cursor:pointer; transition: transform .14s ease, background .2s ease; }
+        .track-player-btn.primary { width:36px; height:36px; background: rgba(255,255,255,0.28); }
+        .track-player-btn:active { transform: scale(0.9); }
+        .track-player-btn:disabled { opacity: .4; }
+        .track-player-close { position:absolute; top:8px; right:8px; width:22px; height:22px; border:none; border-radius:50%; background: rgba(0,0,0,0.25); color:#fff; cursor:pointer; display:flex; align-items:center; justify-content:center; }
+
+        @media (max-width: 900px) {
+            .track-player { top: auto; right: 12px; left: 12px; bottom: calc(84px + env(safe-area-inset-bottom)); width: auto; border-radius: 28px; }
+        }
 
         /* Profile cover menu button — top-left, frosted glass */
         .profile-cover-menu-btn {
@@ -1599,7 +1616,7 @@
                     <div class="stat-item"><span class="stat-number">256</span><span class="stat-label">Подписчиков</span></div>
                     <div class="stat-item"><span class="stat-number">89</span><span class="stat-label">Репостов</span></div>
                 </div>
-                <button class="music-track-btn hidden" id="profile-music-track-btn" type="button" aria-label="Любимый трек">
+                <button class="music-track-btn hidden" id="profile-music-track-btn" type="button" aria-label="Любимый трек" onclick="playProfileTrack()">
                     <span class="music-track-circle">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3v10.55a4 4 0 1 0 2 3.45V8h6V3h-8z"/></svg>
                     </span>
@@ -4102,7 +4119,7 @@
                     <div style="font-size:15px;"><span style="font-weight:700;" id="upm-followers">${followers}</span> <span style="color:rgba(255,255,255,0.6);">Подписчиков</span></div>
                     <div style="font-size:15px;"><span style="font-weight:700;">${repostsCount}</span> <span style="color:rgba(255,255,255,0.6);">Репостов</span></div>
                 </div>
-                ${u.favoriteTrackName ? `<button type="button" class="music-track-btn" style="margin-top:16px;"><span class="music-track-circle"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3v10.55a4 4 0 1 0 2 3.45V8h6V3h-8z"/></svg></span><span class="music-track-title">${u.favoriteTrackName}</span></button>` : ''}
+                ${u.favoriteTrackName && u.favoriteTrackUrl ? `<button type="button" class="music-track-btn" style="margin-top:16px;" onclick="playViewedProfileTrack()"><span class="music-track-circle"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3v10.55a4 4 0 1 0 2 3.45V8h6V3h-8z"/></svg></span><span class="music-track-title">${u.favoriteTrackName}</span></button>` : ''}
                 <button id="upm-subscribe-btn" onclick="toggleSubscribe('${uname}')"
                     style="width:100%;margin-top:16px;padding:14px;background:${isSubscribed ? 'rgba(255,255,255,0.08)' : 'white'};border:none;border-radius:22px;font-size:16px;font-weight:700;cursor:pointer;font-family:inherit;color:${isSubscribed ? '#e6e6e9' : '#000'};transition:all 0.2s;">
                     ${isSubscribed ? 'Вы подписаны' : 'Подписаться'}
@@ -4222,6 +4239,28 @@
     <a href="/terms">Условия использования</a>
     <span>© ВПизде</span>
 </div>
+
+<div class="track-player" id="track-player">
+    <button class="track-player-close" type="button" onclick="closeTrackPlayer()">×</button>
+    <div class="track-player-cover" id="track-player-cover">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3v10.55a4 4 0 1 0 2 3.45V8h6V3h-8z"/></svg>
+    </div>
+    <div class="track-player-main">
+        <div class="track-player-name" id="track-player-name"></div>
+        <div class="track-player-controls">
+            <button class="track-player-btn" id="track-prev-btn" type="button" onclick="playPrevTrack()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M18 6v12h-2V6h2ZM6 12l8 6V6l-8 6Z"/></svg>
+            </button>
+            <button class="track-player-btn primary" id="track-toggle-btn" type="button" onclick="toggleTrackPlayback()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+            </button>
+            <button class="track-player-btn" id="track-next-btn" type="button" onclick="playNextTrack()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M6 6v12h2V6H6Zm4 6 8 6V6l-8 6Z"/></svg>
+            </button>
+        </div>
+    </div>
+</div>
+
 
 <script>
 // ==== Backend integration layer (without UI changes) ====
@@ -4399,12 +4438,134 @@
     return String(name || '').replace(/\.mp3$/i, '').trim();
   }
 
+  const trackAudio = new Audio();
+  let trackQueue = [];
+  let currentTrackIndex = -1;
+
+  function trackKey(item) {
+    return `${item.name || ''}::${item.url || ''}`;
+  }
+
+  function collectAvailableTracks() {
+    const arr = [];
+    if (profileData?.favoriteTrackUrl) arr.push({ name: normalizeTrackName(profileData.favoriteTrackName || 'Трек'), url: absoluteUrl(profileData.favoriteTrackUrl), coverUrl: '' });
+    const viewed = currentViewedProfile?.userData;
+    if (viewed?.favoriteTrackUrl) arr.push({ name: normalizeTrackName(viewed.favoriteTrackName || 'Трек'), url: absoluteUrl(viewed.favoriteTrackUrl), coverUrl: '' });
+    const uniq = [];
+    const seen = new Set();
+    arr.forEach((t) => {
+      const key = trackKey(t);
+      if (!t.url || seen.has(key)) return;
+      seen.add(key);
+      uniq.push(t);
+    });
+    return uniq;
+  }
+
+  function updatePlayerUi(isPlaying = false) {
+    const container = document.getElementById('track-player');
+    const title = document.getElementById('track-player-name');
+    const toggleBtn = document.getElementById('track-toggle-btn');
+    const prevBtn = document.getElementById('track-prev-btn');
+    const nextBtn = document.getElementById('track-next-btn');
+    const cover = document.getElementById('track-player-cover');
+    const current = trackQueue[currentTrackIndex];
+    if (!container || !title || !toggleBtn || !prevBtn || !nextBtn || !cover || !current) return;
+    title.textContent = current.name || 'Трек';
+    prevBtn.disabled = trackQueue.length <= 1;
+    nextBtn.disabled = trackQueue.length <= 1;
+    toggleBtn.innerHTML = isPlaying
+      ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5h3v14H8zm5 0h3v14h-3z"/></svg>'
+      : '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
+    cover.innerHTML = current.coverUrl
+      ? `<img src="${current.coverUrl}" alt="">`
+      : '<svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3v10.55a4 4 0 1 0 2 3.45V8h6V3h-8z"/></svg>';
+  }
+
+  async function playTrackFromQueue(index) {
+    const item = trackQueue[index];
+    if (!item || !item.url) return;
+    currentTrackIndex = index;
+    const container = document.getElementById('track-player');
+    if (container) container.classList.add('visible');
+    if (trackAudio.src !== item.url) trackAudio.src = item.url;
+    try {
+      await trackAudio.play();
+      updatePlayerUi(true);
+    } catch (e) {
+      updatePlayerUi(false);
+      showToast('Не удалось запустить трек');
+    }
+  }
+
+  function initTrackQueue(startTrack) {
+    const available = collectAvailableTracks();
+    if (!available.length) return false;
+    trackQueue = available;
+    const idx = available.findIndex((t) => trackKey(t) === trackKey(startTrack));
+    currentTrackIndex = idx >= 0 ? idx : 0;
+    return true;
+  }
+
+  window.playProfileTrack = function playProfileTrack() {
+    const track = { name: normalizeTrackName(profileData.favoriteTrackName || ''), url: absoluteUrl(profileData.favoriteTrackUrl || ''), coverUrl: '' };
+    if (!track.url) return;
+    initTrackQueue(track);
+    playTrackFromQueue(currentTrackIndex);
+  };
+
+  window.playViewedProfileTrack = function playViewedProfileTrack() {
+    const viewed = currentViewedProfile?.userData;
+    if (!viewed) return;
+    const track = { name: normalizeTrackName(viewed.favoriteTrackName || ''), url: absoluteUrl(viewed.favoriteTrackUrl || ''), coverUrl: '' };
+    if (!track.url) return;
+    initTrackQueue(track);
+    playTrackFromQueue(currentTrackIndex);
+  };
+
+  window.toggleTrackPlayback = async function toggleTrackPlayback() {
+    if (!trackQueue.length || currentTrackIndex < 0) return;
+    if (trackAudio.paused) {
+      try { await trackAudio.play(); updatePlayerUi(true); } catch {}
+    } else {
+      trackAudio.pause();
+      updatePlayerUi(false);
+    }
+  };
+
+  window.playPrevTrack = function playPrevTrack() {
+    if (trackQueue.length <= 1 || currentTrackIndex < 0) return;
+    const nextIndex = (currentTrackIndex - 1 + trackQueue.length) % trackQueue.length;
+    playTrackFromQueue(nextIndex);
+  };
+
+  window.playNextTrack = function playNextTrack() {
+    if (trackQueue.length <= 1 || currentTrackIndex < 0) return;
+    const nextIndex = (currentTrackIndex + 1) % trackQueue.length;
+    playTrackFromQueue(nextIndex);
+  };
+
+  window.closeTrackPlayer = function closeTrackPlayer() {
+    const container = document.getElementById('track-player');
+    if (container) container.classList.remove('visible');
+    trackAudio.pause();
+    updatePlayerUi(false);
+  };
+
+  trackAudio.addEventListener('ended', () => {
+    if (trackQueue.length > 1) playNextTrack();
+    else updatePlayerUi(false);
+  });
+  trackAudio.addEventListener('play', () => updatePlayerUi(true));
+  trackAudio.addEventListener('pause', () => updatePlayerUi(false));
+
   function renderMusicTrackButtons() {
     const trackName = normalizeTrackName(profileData.favoriteTrackName || me?.favoriteTrackName || '');
+    const trackUrl = absoluteUrl(profileData.favoriteTrackUrl || me?.favoriteTrackUrl || '');
     const profileBtn = document.getElementById('profile-music-track-btn');
     const profileTitle = document.getElementById('profile-music-track-title');
     if (profileBtn && profileTitle) {
-      if (trackName) {
+      if (trackName && trackUrl) {
         profileBtn.classList.remove('hidden');
         profileTitle.textContent = trackName;
       } else {
