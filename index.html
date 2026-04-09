@@ -435,6 +435,9 @@
         .music-track-btn { margin-top: 16px; width: 100%; padding: 14px; background: rgba(255,255,255,0.35); border: none; border-radius: 22px; font-weight: 700; cursor: pointer; transition: opacity 0.2s; font-size: 16px; color: #fff; position: relative; display: flex; align-items: center; justify-content: center; }
         .music-track-btn:hover { opacity: 0.92; }
         .music-track-btn.hidden { display: none; }
+        .music-track-btn.loading { color: #fff; background: linear-gradient(110deg, rgba(255,255,255,0.26) 8%, rgba(255,255,255,0.6) 18%, rgba(255,255,255,0.26) 33%); background-size: 220% 100%; animation: trackBtnLoading 1.2s linear infinite; opacity: 1; }
+        .music-track-btn.loading .music-track-circle { background: rgba(255,255,255,0.92); }
+        @keyframes trackBtnLoading { to { background-position-x: -220%; } }
         .music-track-circle { width: 34px; height: 34px; border-radius: 50%; background: #fff; color: #000; display: inline-flex; align-items: center; justify-content: center; position: absolute; left: 10px; top: 50%; transform: translateY(-50%); }
         .music-track-title { display:block; width:100%; text-align: center; font-size: 16px; font-weight: 700; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0 40px; }
         .music-track-btn.edit { margin-top: 0; }
@@ -454,6 +457,7 @@
 
         @media (max-width: 900px) {
             .track-player { top: auto; right: 12px; left: 12px; bottom: calc(102px + env(safe-area-inset-bottom)); width: auto; border-radius: 28px; }
+            .track-player.mobile-hidden { opacity: 0 !important; transform: translateY(12px) scale(0.98) !important; pointer-events: none !important; }
         }
 
         /* Profile cover menu button — top-left, frosted glass */
@@ -3267,27 +3271,28 @@
         heldProfileMediaKind = null;
     }
     function deleteHeldProfileMedia() {
-        if (heldProfileMediaKind === 'avatar') {
+        const kind = heldProfileMediaKind;
+        closeProfileMediaHoldMenu();
+        if (kind === 'avatar') {
             profileData.avatarUrl = '';
             const img = document.getElementById('ep-avatar-img');
             if (img) { img.src = ''; img.classList.remove('loaded'); }
             const letter = document.getElementById('ep-avatar-letter');
             if (letter) letter.style.display = '';
             updateNavAvatar();
-        } else if (heldProfileMediaKind === 'banner') {
+        } else if (kind === 'banner') {
             profileData.bannerUrl = '';
             const img = document.getElementById('ep-banner-img');
             if (img) { img.src = ''; img.classList.remove('loaded'); }
-        } else if (heldProfileMediaKind === 'track') {
+        } else if (kind === 'track') {
             if (!Array.isArray(profileData.favoriteTracks)) profileData.favoriteTracks = [];
             profileData.favoriteTracks.pop();
             const last = profileData.favoriteTracks[profileData.favoriteTracks.length - 1] || null;
             profileData.favoriteTrackName = last?.name || '';
             profileData.favoriteTrackUrl = last?.url || '';
             renderMusicTrackButtons();
-            if (typeof window.syncFavoriteTracksAfterEdit === 'function') window.syncFavoriteTracksAfterEdit();
+            showToast('Трек удалён. Нажмите «Сохранить»');
         }
-        closeProfileMediaHoldMenu();
     }
     function bindProfileMediaHold(el, kind) {
         if (!el) return;
@@ -4487,8 +4492,20 @@
     const cover = document.getElementById('track-player-cover');
     const current = trackQueue[currentTrackIndex];
     if (!container || !title || !toggleBtn || !prevBtn || !nextBtn || !cover || !current) return;
+    const mobile = window.matchMedia('(max-width: 900px)').matches;
+    const activeTab = document.querySelector('.tab-content.active')?.id || '';
+    const blockedOverlayIds = [
+      'edit-modal-overlay','change-pw-overlay','delete-acc-overlay','post-modal','user-profile-modal',
+      'repost-modal-overlay','story-creator','media-opts-overlay','post-opts-overlay','comment-opts-overlay'
+    ];
+    const hasOpenOverlay = blockedOverlayIds.some((id) => {
+      const el = document.getElementById(id);
+      return !!(el && (el.classList.contains('active') || el.classList.contains('visible')));
+    });
+    const shouldHideOnMobile = mobile && (hasOpenOverlay || !['home-tab','profile-tab'].includes(activeTab));
+    container.classList.toggle('mobile-hidden', shouldHideOnMobile);
     title.textContent = current.name || 'Трек';
-    prevBtn.disabled = trackQueue.length <= 1;
+    prevBtn.disabled = false;
     nextBtn.disabled = trackQueue.length <= 1;
     toggleBtn.innerHTML = isPlaying
       ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5h3v14H8zm5 0h3v14h-3z"/></svg>'
@@ -4574,18 +4591,8 @@
 
   window.playPrevTrack = function playPrevTrack() {
     if (currentTrackIndex < 0) return;
-    if (trackAudio.currentTime > 1.2) {
-      trackAudio.currentTime = 0;
-      if (trackAudio.paused) trackAudio.play().catch(() => {});
-      return;
-    }
-    if (trackQueue.length <= 1) {
-      trackAudio.currentTime = 0;
-      if (trackAudio.paused) trackAudio.play().catch(() => {});
-      return;
-    }
-    const nextIndex = (currentTrackIndex - 1 + trackQueue.length) % trackQueue.length;
-    playTrackFromQueue(nextIndex);
+    trackAudio.currentTime = 0;
+    if (trackAudio.paused) trackAudio.play().catch(() => {});
   };
 
   window.playNextTrack = function playNextTrack() {
@@ -4597,7 +4604,10 @@
   window.closeTrackPlayer = function closeTrackPlayer() {
     const container = document.getElementById('track-player');
     if (container) container.classList.remove('visible');
+    const src = trackAudio.src ? new URL(trackAudio.src, location.origin).href : '';
+    if (src) trackPositions.set(src, 0);
     trackAudio.pause();
+    trackAudio.currentTime = 0;
     updatePlayerUi(false);
   };
 
@@ -4610,6 +4620,12 @@
   trackAudio.addEventListener('timeupdate', () => {
     if (trackAudio.src) trackPositions.set(new URL(trackAudio.src, location.origin).href, trackAudio.currentTime || 0);
   });
+  const refreshPlayerVisibility = () => {
+    if (currentTrackIndex < 0 || !trackQueue[currentTrackIndex]) return;
+    updatePlayerUi(!trackAudio.paused);
+  };
+  ['click','touchend'].forEach((evt) => document.addEventListener(evt, () => setTimeout(refreshPlayerVisibility, 0), true));
+  window.addEventListener('resize', refreshPlayerVisibility);
 
   function renderMusicTrackButtons() {
     const lastTrack = Array.isArray(profileData.favoriteTracks) && profileData.favoriteTracks.length ? profileData.favoriteTracks[profileData.favoriteTracks.length - 1] : null;
@@ -4698,6 +4714,13 @@
 
   window.onTrackSelected = async function onTrackSelected(e) {
     const file = e.target.files?.[0];
+    const trackBtn = document.getElementById('ep-track-btn');
+    const trackTitle = document.getElementById('ep-track-btn-title');
+    const prevTrackTitle = trackTitle ? trackTitle.textContent : '';
+    const stopTrackLoading = () => {
+      if (trackBtn) { trackBtn.disabled = false; trackBtn.classList.remove('loading'); }
+      if (trackTitle) trackTitle.textContent = prevTrackTitle || 'Добавить трек';
+    };
     e.target.value = '';
     if (!file) return;
     if (!Array.isArray(profileData.favoriteTracks)) profileData.favoriteTracks = [];
@@ -4710,6 +4733,8 @@
       return;
     }
     try {
+      if (trackBtn) { trackBtn.disabled = true; trackBtn.classList.add('loading'); }
+      if (trackTitle) trackTitle.textContent = 'Загрузка...';
       const reader = new FileReader();
       reader.onload = async (ev) => {
         try {
@@ -4725,11 +4750,14 @@
           showToast('Трек добавлен');
         } catch (err) {
           showToast(err.message || 'Ошибка загрузки трека');
+        } finally {
+          stopTrackLoading();
         }
       };
       reader.readAsDataURL(file);
     } catch (err) {
       showToast(err.message || 'Ошибка чтения файла');
+      stopTrackLoading();
     }
   };
 
