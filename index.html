@@ -1915,7 +1915,7 @@
     </div>
 </div>
 <input type="file" id="ep-file-input" accept="image/*" style="display:none" onchange="onFileSelected(event)">
-<input type="file" id="ep-track-input" accept="audio/mpeg,.mp3,audio/mp3" style="display:none" onchange="onTrackSelected(event)">
+<input type="file" id="ep-track-input" accept="audio/mpeg,audio/mp4,audio/x-m4a,.mp3,.m4a" style="display:none" onchange="onTrackSelected(event)">
 <div id="ep-media-hold-menu" style="display:none;position:fixed;z-index:20500;background:#2a2a2e;border:1px solid rgba(255,255,255,0.08);border-radius:12px;overflow:hidden;min-width:170px;box-shadow:0 8px 28px rgba(0,0,0,0.55);">
     <button class="post-opts-dropdown-item danger" id="ep-media-delete-btn" style="width:100%;text-align:left;" onclick="deleteHeldProfileMedia()">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ff453a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
@@ -4393,9 +4393,6 @@
     profileData.avatarUrl = absoluteUrl(me.avatarUrl || '') || null;
     profileData.bannerUrl = absoluteUrl(me.bannerUrl || '') || null;
     profileData.vpsc = me.vpsc || profileData.vpsc;
-    profileData.favoriteTrackName = String(me.favoriteTrackName || '').trim();
-    profileData.favoriteTrackUrl = absoluteUrl(me.favoriteTrackUrl || '');
-    profileData.favoriteTracks = Array.isArray(me.favoriteTracks) ? me.favoriteTracks.map((t) => ({ name: normalizeTrackName(t?.name || ''), url: absoluteUrl(t?.url || ''), createdAt: t?.createdAt || '' })).filter((t) => t.name && t.url).slice(0, 30) : (profileData.favoriteTrackUrl && profileData.favoriteTrackName ? [{ name: normalizeTrackName(profileData.favoriteTrackName), url: profileData.favoriteTrackUrl, createdAt: '' }] : []);
     const nameEl = document.querySelector('.profile-name'); if (nameEl) nameEl.textContent = safeName;
     const uEl = document.querySelector('.profile-username'); if (uEl) uEl.textContent = safeUsername ? `@${safeUsername}` : '@username';
     const bEl = document.querySelector('.profile-bio'); if (bEl) bEl.textContent = safeBio;
@@ -4405,6 +4402,11 @@
     const vpsc = document.getElementById('ep-vpsc-code'); if (vpsc) vpsc.textContent = me.vpsc || '';
     const editOverlay = document.getElementById('edit-modal-overlay');
     const editOpen = !!(editOverlay && editOverlay.classList.contains('active'));
+    if (!editOpen) {
+      profileData.favoriteTrackName = String(me.favoriteTrackName || '').trim();
+      profileData.favoriteTrackUrl = absoluteUrl(me.favoriteTrackUrl || '');
+      profileData.favoriteTracks = Array.isArray(me.favoriteTracks) ? me.favoriteTracks.map((t) => ({ name: normalizeTrackName(t?.name || ''), url: absoluteUrl(t?.url || ''), createdAt: t?.createdAt || '' })).filter((t) => t.name && t.url).slice(0, 30) : (profileData.favoriteTrackUrl && profileData.favoriteTrackName ? [{ name: normalizeTrackName(profileData.favoriteTrackName), url: profileData.favoriteTrackUrl, createdAt: '' }] : []);
+    }
     const epn = document.getElementById('ep-name'); if (epn && !editOpen) epn.value = safeName;
     const epu = document.getElementById('ep-username'); if (epu && !editOpen) epu.value = safeUsername;
     const epbio = document.getElementById('ep-bio'); if (epbio && !editOpen) epbio.value = safeBio;
@@ -4445,7 +4447,7 @@
   }
 
   function normalizeTrackName(name) {
-    return String(name || '').replace(/\.mp3$/i, '').trim();
+    return String(name || '').replace(/\.(mp3|m4a)$/i, '').trim();
   }
 
   const trackAudio = new Audio();
@@ -4611,8 +4613,8 @@
       showToast('Можно добавить максимум 30 треков');
       return;
     }
-    if (!/\.mp3$/i.test(file.name) && file.type !== 'audio/mpeg' && file.type !== 'audio/mp3') {
-      showToast('Можно загрузить только MP3');
+    if (!/\.(mp3|m4a)$/i.test(file.name) && !['audio/mpeg','audio/mp3','audio/mp4','audio/x-m4a'].includes(file.type)) {
+      showToast('Можно загрузить только MP3 или M4A');
       return;
     }
     try {
@@ -5004,15 +5006,18 @@
   document.getElementById('composer-file-input')?.addEventListener('change', () => setTimeout(recalcPostBtn, 0));
 
 
-  window.openUserProfile = async function openUserProfile(username) {
+  window.openUserProfile = async function openUserProfile(username, options = {}) {
     const uname = String(username || '').replace(/^@/, '').toLowerCase();
     const modal = document.getElementById('user-profile-modal');
     const body = document.getElementById('upm-body');
     if (!uname || !modal || !body) return;
-    body.innerHTML = '<div style="padding:40px 20px;text-align:center;color:rgba(255,255,255,.5);font-size:14px;">Загрузка...</div>';
-    modal.style.display = 'flex';
-    modal.classList.add('active');
-    requestAnimationFrame(()=>requestAnimationFrame(()=>modal.classList.add('visible')));
+    const silent = !!options.silent;
+    if (!silent) {
+      body.innerHTML = '<div style="padding:40px 20px;text-align:center;color:rgba(255,255,255,.5);font-size:14px;">Загрузка...</div>';
+      modal.style.display = 'flex';
+      modal.classList.add('active');
+      requestAnimationFrame(()=>requestAnimationFrame(()=>modal.classList.add('visible')));
+    }
     try {
       const [uRes, pRes] = await Promise.all([api(`/users/${uname}`), api('/posts')]);
       const u = uRes.user;
@@ -5042,7 +5047,7 @@
   };
   async function refreshOpenedProfileModal() {
     if (!currentViewedProfile?.uname) return;
-    await openUserProfile(currentViewedProfile.uname);
+    await openUserProfile(currentViewedProfile.uname, { silent: true });
   }
 
   window.toggleSubscribe = async function toggleSubscribe(uname) {

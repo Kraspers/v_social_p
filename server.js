@@ -192,7 +192,8 @@ function serveFile(res, pathname) {
     '.jpeg': 'image/jpeg',
     '.svg': 'image/svg+xml',
     '.webp': 'image/webp',
-    '.mp3': 'audio/mpeg'
+    '.mp3': 'audio/mpeg',
+    '.m4a': 'audio/mp4'
   }[ext] || 'application/octet-stream';
   res.writeHead(200, { 'Content-Type': type });
   fs.createReadStream(fp).pipe(res);
@@ -660,14 +661,16 @@ const server = http.createServer(async (req, res) => {
     if (me.favoriteTracks.length >= 30) return sendJson(res, 400, { error: 'Можно добавить максимум 30 треков' });
     const b = await parseBody(req);
     const dataUrl = String(b.dataUrl || '');
-    const m = dataUrl.match(/^data:audio\/(mpeg|mp3);base64,(.+)$/i);
-    if (!m) return sendJson(res, 400, { error: 'Можно загрузить только MP3' });
+    const m = dataUrl.match(/^data:audio\/(mpeg|mp3|mp4|x-m4a);base64,(.+)$/i);
+    if (!m) return sendJson(res, 400, { error: 'Можно загрузить только MP3 или M4A' });
+    const subtype = String(m[1] || '').toLowerCase();
+    const ext = (subtype === 'mp4' || subtype === 'x-m4a') ? 'm4a' : 'mp3';
     const raw = Buffer.from(m[2], 'base64');
     const max = 20 * 1024 * 1024;
     if (raw.length > max) return sendJson(res, 400, { error: 'Файл слишком большой' });
     const uploadDir = path.join(ROOT, 'uploads');
     if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
-    const filename = `${me.id}_track_${Date.now()}_${uid().slice(0,6)}.mp3`;
+    const filename = `${me.id}_track_${Date.now()}_${uid().slice(0,6)}.${ext}`;
     fs.writeFileSync(path.join(uploadDir, filename), raw);
     return sendJson(res, 201, { url: `/uploads/${filename}` });
   }
