@@ -6,9 +6,12 @@ const { URL } = require('url');
 
 const PORT = process.env.PORT || 3000;
 const SECRET = process.env.JWT_SECRET || 'vp_dev_secret_change_me';
+const ADMIN_PASSWORD = process.env.ADMIN_PANEL_PASSWORD || '';
+const ADMIN_PASSWORD_HASH = process.env.ADMIN_PANEL_PASSWORD_HASH || 'e7830615b58952ad7c8a0060fce7627e1d2c67c7f32fa24ce7922a31d937148c';
 const ROOT = __dirname;
 const DB_PATH = path.join(ROOT, 'db.json');
 const VPSC_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789!@#$%&*';
+const VERIFIED_BADGE_PATH = 'assets/stat.png';
 
 function ensureDb() {
   if (!fs.existsSync(DB_PATH)) {
@@ -16,8 +19,14 @@ function ensureDb() {
   }
   const db = JSON.parse(fs.readFileSync(DB_PATH, 'utf8'));
   db.users ||= []; db.posts ||= []; db.comments ||= []; db.likes ||= []; db.follows ||= []; db.stories ||= []; db.commentLikes ||= [];
+  db.archivedPosts ||= [];
+  db.adminLogs ||= [];
+  db.moderatorLogs ||= [];
+  db.moderatorKeys ||= [];
+  db.preverifiedUsernames ||= [];
   if (!db.meta) db.meta = { postSeq: 1, commentSeq: 1, vpscAttempts: {} };
   if (!db.meta.vpscAttempts) db.meta.vpscAttempts = {};
+  if (!db.meta.modKeySeq) db.meta.modKeySeq = 1;
   fs.writeFileSync(DB_PATH, JSON.stringify(db, null, 2));
 }
 function readDb() { ensureDb(); return JSON.parse(fs.readFileSync(DB_PATH, 'utf8')); }
@@ -33,12 +42,32 @@ const makePostId = () => crypto.randomBytes(9).toString('base64url');
 function gc(db) {
   const ttl = Date.now() - 24 * 60 * 60 * 1000;
   db.stories = db.stories.filter((s) => new Date(s.createdAt).getTime() >= ttl);
+  db.archivedPosts = (db.archivedPosts || []).filter((p) => new Date(p.restoreUntil || p.archivedAt).getTime() >= Date.now());
 }
 
 function signToken(userId) {
   const payload = Buffer.from(JSON.stringify({ sub: userId, exp: Date.now() + 1000 * 60 * 60 * 24 * 30 })).toString('base64url');
   const sig = crypto.createHmac('sha256', SECRET).update(payload).digest('base64url');
   return `${payload}.${sig}`;
+}
+function signScopedToken(payload) {
+  const data = { ...payload, exp: Date.now() + 1000 * 60 * 60 * 12 };
+  const encoded = Buffer.from(JSON.stringify(data)).toString('base64url');
+  const sig = crypto.createHmac('sha256', SECRET).update(encoded).digest('base64url');
+  return `${encoded}.${sig}`;
+}
+function verifyScopedToken(token) {
+  const [payload, sig] = String(token || '').split('.');
+  if (!payload || !sig) return null;
+  const good = crypto.createHmac('sha256', SECRET).update(payload).digest('base64url');
+  if (good !== sig) return null;
+  try {
+    const data = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));
+    if (!data.exp || data.exp < Date.now()) return null;
+    return data;
+  } catch {
+    return null;
+  }
 }
 function verifyToken(token) {
   const [payload, sig] = String(token || '').split('.');
@@ -73,9 +102,50 @@ function authUser(req, db) {
   if (!userId) return null;
   return db.users.find((u) => u.id === userId) || null;
 }
+function authScoped(req) {
+  const auth = req.headers.authorization || '';
+  const token = auth.startsWith('Bearer ') ? auth.slice(7) : null;
+  return verifyScopedToken(token);
+}
 function sanitizeUser(u) {
   const { passwordHash, ...safe } = u;
+  if (safe.verified) safe.verificationBadge = VERIFIED_BADGE_PATH;
   return safe;
+}
+function compactNumber(value) {
+  const n = Number(value) || 0;
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1).replace(/\.0$/, '')}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1).replace(/\.0$/, '')}K`;
+  return String(n);
+}
+function addSystemLog(db, level, message, meta = {}) {
+  db.adminLogs.push({ id: uid(), level, message, meta, createdAt: nowIso() });
+  if (db.adminLogs.length > 2000) db.adminLogs = db.adminLogs.slice(-2000);
+}
+function addModeratorLog(db, actor, action, meta = {}) {
+  db.moderatorLogs.push({ id: uid(), actor, action, meta, createdAt: nowIso() });
+  if (db.moderatorLogs.length > 3000) db.moderatorLogs = db.moderatorLogs.slice(-3000);
+}
+function isTempBanned(user) {
+  return !!(user?.tempBanUntil && new Date(user.tempBanUntil).getTime() > Date.now());
+}
+function isPermanentBanned(user) {
+  return !!user?.permanentBanReason;
+}
+function isBlocked(user) {
+  return isPermanentBanned(user) || isTempBanned(user);
+}
+function touchUser(user) {
+  if (user) user.lastSeenAt = nowIso();
+}
+function purgeUserData(db, userId) {
+  const userPostIds = new Set(db.posts.filter((p) => p.authorId === userId).map((p) => p.id));
+  db.posts = db.posts.filter((p) => p.authorId !== userId && !userPostIds.has(p.repostOf));
+  db.comments = db.comments.filter((c) => c.authorId !== userId && !userPostIds.has(c.postId));
+  db.likes = db.likes.filter((l) => l.userId !== userId && !userPostIds.has(l.postId));
+  db.follows = db.follows.filter((f) => f.followerId !== userId && f.followingId !== userId);
+  db.stories = db.stories.filter((s) => s.authorId !== userId);
+  db.commentLikes = db.commentLikes.filter((l) => l.userId !== userId && db.comments.some((c) => c.id === l.commentId));
 }
 
 function normalizeProfileImageUrl(value) {
@@ -136,6 +206,8 @@ function postDto(db, post, viewerId) {
     username: author ? `@${author.username}` : '@deleted',
     avatar: author?.avatar || 'U',
     avatarUrl: author?.avatarUrl || '',
+    verified: !!author?.verified,
+    verificationBadge: author?.verified ? VERIFIED_BADGE_PATH : '',
     time: relativeTime(post.createdAt),
     createdAt: post.createdAt,
     likes,
@@ -153,6 +225,8 @@ function postDto(db, post, viewerId) {
       username: sourceAuthor ? `@${sourceAuthor.username}` : '@deleted',
       avatar: sourceAuthor?.avatar || 'U',
       avatarUrl: sourceAuthor?.avatarUrl || '',
+      verified: !!sourceAuthor?.verified,
+      verificationBadge: sourceAuthor?.verified ? VERIFIED_BADGE_PATH : '',
       time: relativeTime(source.createdAt)
     } : {
       id: post.repostOf,
@@ -172,6 +246,8 @@ function serveFile(res, pathname) {
   let f = pathname === '/' ? '/index.html' : pathname;
   if (pathname === '/privacy') f = '/privacy.html';
   if (pathname === '/terms') f = '/terms.html';
+  if (pathname === '/admt') f = '/admin.html';
+  if (pathname === '/mdr') f = '/moderator.html';
   if (pathname === '/login' || pathname === '/tape' || /^\/post\/[a-zA-Z0-9_-]+$/.test(pathname)) f = '/index.html';
   const fp = path.join(ROOT, decodeURIComponent(f));
   if (!fp.startsWith(ROOT) || !fs.existsSync(fp) || fs.statSync(fp).isDirectory()) return false;
@@ -223,11 +299,14 @@ const server = http.createServer(async (req, res) => {
       avatarUrl: '',
       bannerUrl: '',
       vpsc: code,
+      verified: db.preverifiedUsernames.includes(username),
       pinnedPostId: null,
       pinnedRepostId: null,
-      createdAt: nowIso()
+      createdAt: nowIso(),
+      lastSeenAt: nowIso()
     };
     db.users.push(user);
+    addSystemLog(db, 'info', 'Новый пользователь зарегистрирован', { userId: user.id, username: user.username });
     writeDb(db);
     return sendJson(res, 201, { token: signToken(user.id), user: sanitizeUser(user) });
   }
@@ -238,6 +317,11 @@ const server = http.createServer(async (req, res) => {
     const password = String(b.password || '');
     const user = db.users.find((x) => x.username === username);
     if (!user || user.passwordHash !== sha(password)) return sendJson(res, 401, { error: 'Invalid credentials' });
+    if (isPermanentBanned(user)) return sendJson(res, 403, { error: 'Доступ к ВПизде был ограничен', reason: user.permanentBanReason, type: 'permanent' });
+    if (isTempBanned(user)) return sendJson(res, 403, { error: 'Вы были забанены', reason: user.tempBanReason || 'Нарушение правил', until: user.tempBanUntil, type: 'temporary' });
+    touchUser(user);
+    addSystemLog(db, 'info', 'Пользователь вошёл по логину', { userId: user.id, username: user.username });
+    writeDb(db);
     return sendJson(res, 200, { token: signToken(user.id), user: sanitizeUser(user) });
   }
 
@@ -260,18 +344,300 @@ const server = http.createServer(async (req, res) => {
       writeDb(db);
       return sendJson(res, 401, { error: 'Неверный VPSC-код' });
     }
+    if (isPermanentBanned(user)) return sendJson(res, 403, { error: 'Доступ к ВПизде был ограничен', reason: user.permanentBanReason, type: 'permanent' });
+    if (isTempBanned(user)) return sendJson(res, 403, { error: 'Вы были забанены', reason: user.tempBanReason || 'Нарушение правил', until: user.tempBanUntil, type: 'temporary' });
+    touchUser(user);
+    addSystemLog(db, 'info', 'Пользователь вошёл по VPSC', { userId: user.id, username: user.username });
     db.meta.vpscAttempts[ipKey] = { fails: 0, blockedUntil: 0 };
     writeDb(db);
     return sendJson(res, 200, { token: signToken(user.id), user: sanitizeUser(user) });
   }
 
   const me = authUser(req, db);
+  if (me && u.pathname.startsWith('/api/') && !u.pathname.startsWith('/api/admin') && !u.pathname.startsWith('/api/mod')) {
+    if (isPermanentBanned(me)) return sendJson(res, 403, { error: 'Доступ к ВПизде был ограничен', reason: me.permanentBanReason, type: 'permanent' });
+    if (isTempBanned(me)) return sendJson(res, 403, { error: 'Вы были забанены', reason: me.tempBanReason || 'Нарушение правил', until: me.tempBanUntil, type: 'temporary' });
+    touchUser(me);
+  }
+
+  const scoped = authScoped(req);
+  const isAdmin = scoped?.scope === 'admin';
+  const modKey = scoped?.scope === 'moderator' ? db.moderatorKeys.find((k) => k.id === scoped.keyId && !k.revokedAt) : null;
+  const isModerator = !!modKey;
+
+  if (u.pathname === '/api/admin/login' && req.method === 'POST') {
+    const b = await parseBody(req);
+    const password = String(b.password || '');
+    const providedHash = sha(password);
+    const expectedHash = ADMIN_PASSWORD ? sha(ADMIN_PASSWORD) : ADMIN_PASSWORD_HASH;
+    if (!expectedHash) return sendJson(res, 503, { error: 'Пароль админ-панели не настроен' });
+    if (providedHash !== expectedHash) return sendJson(res, 401, { error: 'Неверный пароль админа' });
+    addSystemLog(db, 'warn', 'Вход в админ-панель', { ip: String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown') });
+    writeDb(db);
+    return sendJson(res, 200, { token: signScopedToken({ scope: 'admin' }) });
+  }
+
+  if (u.pathname === '/api/mod/login' && req.method === 'POST') {
+    const b = await parseBody(req);
+    const key = String(b.key || '').trim();
+    const found = db.moderatorKeys.find((k) => !k.revokedAt && sha(key) === k.keyHash);
+    if (!found) return sendJson(res, 401, { error: 'Неверный ключ модератора' });
+    found.lastUsedAt = nowIso();
+    addModeratorLog(db, found.alias, 'Вход в панель модератора');
+    addSystemLog(db, 'info', 'Вход модератора', { alias: found.alias });
+    writeDb(db);
+    return sendJson(res, 200, { token: signScopedToken({ scope: 'moderator', keyId: found.id }), alias: found.alias });
+  }
+
+  if (u.pathname === '/api/admin/dashboard' && req.method === 'GET') {
+    if (!isAdmin) return sendJson(res, 401, { error: 'Unauthorized' });
+    const onlineThreshold = Date.now() - 70 * 1000;
+    const onlineUsers = db.users.filter((x) => x.lastSeenAt && new Date(x.lastSeenAt).getTime() >= onlineThreshold).length;
+    const blockedUsers = db.users.filter((x) => isBlocked(x)).length;
+    const stats = {
+      users: db.users.length,
+      onlineUsers,
+      posts: db.posts.length,
+      blockedUsers,
+      usersCompact: compactNumber(db.users.length),
+      onlineUsersCompact: compactNumber(onlineUsers),
+      postsCompact: compactNumber(db.posts.length),
+      blockedUsersCompact: compactNumber(blockedUsers)
+    };
+    const logs = db.adminLogs.slice().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 200);
+    return sendJson(res, 200, { stats, logs });
+  }
+
+  if (u.pathname === '/api/admin/posts' && req.method === 'GET') {
+    if (!isAdmin && !isModerator) return sendJson(res, 401, { error: 'Unauthorized' });
+    const q = String(u.searchParams.get('q') || '').trim().toLowerCase();
+    const posts = db.posts
+      .filter((p) => !q || String(p.text || '').toLowerCase().includes(q))
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+      .map((p) => {
+        const author = db.users.find((x) => x.id === p.authorId);
+        return {
+          id: p.id,
+          text: p.text,
+          createdAt: p.createdAt,
+          author: author?.displayName || 'Удалённый пользователь',
+          username: author ? `@${author.username}` : '@deleted',
+          comments: db.comments.filter((c) => c.postId === p.id).map((c) => {
+            const cAuthor = db.users.find((x) => x.id === c.authorId);
+            return { id: c.id, text: c.text, author: cAuthor?.displayName || 'Удалённый пользователь', username: cAuthor ? `@${cAuthor.username}` : '@deleted', createdAt: c.createdAt };
+          })
+        };
+      });
+    return sendJson(res, 200, { posts, archived: db.archivedPosts.slice().sort((a, b) => new Date(b.archivedAt) - new Date(a.archivedAt)).slice(0, 200) });
+  }
+
+  const mAdminDeletePost = u.pathname.match(/^\/api\/admin\/posts\/(\d+)$/);
+  if (mAdminDeletePost && req.method === 'DELETE') {
+    if (!isAdmin && !isModerator) return sendJson(res, 401, { error: 'Unauthorized' });
+    const id = Number(mAdminDeletePost[1]);
+    const idx = db.posts.findIndex((p) => p.id === id);
+    if (idx < 0) return sendJson(res, 404, { error: 'Post not found' });
+    const post = db.posts[idx];
+    const comments = db.comments.filter((c) => c.postId === id);
+    const likes = db.likes.filter((l) => l.postId === id);
+    db.archivedPosts.push({ id: uid(), post, comments, likes, archivedAt: nowIso(), restoreUntil: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), actor: isAdmin ? 'admin' : modKey.alias });
+    db.posts.splice(idx, 1);
+    db.comments = db.comments.filter((c) => c.postId !== id);
+    db.likes = db.likes.filter((l) => l.postId !== id);
+    if (isModerator) addModeratorLog(db, modKey.alias, 'Удалил пост', { postId: id });
+    addSystemLog(db, 'warn', 'Пост удалён модерацией', { postId: id, actor: isAdmin ? 'admin' : modKey.alias });
+    writeDb(db);
+    return sendJson(res, 200, { ok: true });
+  }
+
+  const mAdminRestorePost = u.pathname.match(/^\/api\/admin\/posts\/(\d+)\/restore$/);
+  if (mAdminRestorePost && req.method === 'POST') {
+    if (!isAdmin && !isModerator) return sendJson(res, 401, { error: 'Unauthorized' });
+    const id = Number(mAdminRestorePost[1]);
+    const itemIdx = db.archivedPosts.findIndex((x) => x.post.id === id);
+    if (itemIdx < 0) return sendJson(res, 404, { error: 'Архивная запись не найдена' });
+    const item = db.archivedPosts[itemIdx];
+    if (new Date(item.restoreUntil).getTime() < Date.now()) return sendJson(res, 410, { error: 'Срок восстановления истёк' });
+    db.posts.push(item.post);
+    db.comments.push(...item.comments);
+    db.likes.push(...item.likes);
+    db.archivedPosts.splice(itemIdx, 1);
+    if (isModerator) addModeratorLog(db, modKey.alias, 'Восстановил пост', { postId: id });
+    addSystemLog(db, 'info', 'Пост восстановлен из архива', { postId: id, actor: isAdmin ? 'admin' : modKey.alias });
+    writeDb(db);
+    return sendJson(res, 200, { ok: true });
+  }
+
+  const mAdminDeleteComment = u.pathname.match(/^\/api\/admin\/comments\/(\d+)$/);
+  if (mAdminDeleteComment && req.method === 'DELETE') {
+    if (!isAdmin && !isModerator) return sendJson(res, 401, { error: 'Unauthorized' });
+    const commentId = Number(mAdminDeleteComment[1]);
+    const exists = db.comments.find((c) => c.id === commentId);
+    if (!exists) return sendJson(res, 404, { error: 'Comment not found' });
+    db.comments = db.comments.filter((c) => c.id !== commentId && c.parentId !== commentId);
+    db.commentLikes = db.commentLikes.filter((l) => l.commentId !== commentId);
+    if (isModerator) addModeratorLog(db, modKey.alias, 'Удалил комментарий', { commentId });
+    addSystemLog(db, 'warn', 'Комментарий удалён модерацией', { commentId, actor: isAdmin ? 'admin' : modKey.alias });
+    writeDb(db);
+    return sendJson(res, 200, { ok: true });
+  }
+
+  if (u.pathname === '/api/admin/users' && req.method === 'GET') {
+    if (!isAdmin && !isModerator) return sendJson(res, 401, { error: 'Unauthorized' });
+    const q = String(u.searchParams.get('q') || '').trim().toLowerCase();
+    const users = db.users
+      .filter((usr) => !q || usr.username.toLowerCase().includes(q) || String(usr.displayName || '').toLowerCase().includes(q))
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+      .map((usr) => sanitizeUser(usr));
+    return sendJson(res, 200, { users });
+  }
+
+  const mAdminVerify = u.pathname.match(/^\/api\/admin\/users\/([^/]+)\/verify$/);
+  if (mAdminVerify && req.method === 'POST') {
+    if (!isAdmin) return sendJson(res, 401, { error: 'Unauthorized' });
+    const user = db.users.find((x) => x.id === decodeURIComponent(mAdminVerify[1]));
+    if (!user) return sendJson(res, 404, { error: 'User not found' });
+    const b = await parseBody(req);
+    user.verified = !!b.verified;
+    addSystemLog(db, 'info', `Верификация ${user.verified ? 'выдана' : 'снята'}`, { userId: user.id, username: user.username });
+    writeDb(db);
+    return sendJson(res, 200, { user: sanitizeUser(user) });
+  }
+
+  const mAdminTempBan = u.pathname.match(/^\/api\/admin\/users\/([^/]+)\/temp-ban$/);
+  if (mAdminTempBan && req.method === 'POST') {
+    if (!isAdmin && !isModerator) return sendJson(res, 401, { error: 'Unauthorized' });
+    const user = db.users.find((x) => x.id === decodeURIComponent(mAdminTempBan[1]));
+    if (!user) return sendJson(res, 404, { error: 'User not found' });
+    const b = await parseBody(req);
+    const reason = String(b.reason || '').trim() || 'Нарушение правил';
+    const until = new Date(String(b.until || ''));
+    if (Number.isNaN(until.getTime()) || until.getTime() <= Date.now()) return sendJson(res, 400, { error: 'Некорректная дата окончания бана' });
+    user.tempBanUntil = until.toISOString();
+    user.tempBanReason = reason.slice(0, 300);
+    if (isModerator) addModeratorLog(db, modKey.alias, 'Выдал временный бан', { userId: user.id, username: user.username, until: user.tempBanUntil });
+    addSystemLog(db, 'warn', 'Выдан временный бан', { userId: user.id, username: user.username, actor: isAdmin ? 'admin' : modKey.alias });
+    writeDb(db);
+    return sendJson(res, 200, { user: sanitizeUser(user) });
+  }
+
+  const mAdminUnban = u.pathname.match(/^\/api\/admin\/users\/([^/]+)\/unban$/);
+  if (mAdminUnban && req.method === 'POST') {
+    if (!isAdmin && !isModerator) return sendJson(res, 401, { error: 'Unauthorized' });
+    const user = db.users.find((x) => x.id === decodeURIComponent(mAdminUnban[1]));
+    if (!user) return sendJson(res, 404, { error: 'User not found' });
+    user.tempBanUntil = null;
+    user.tempBanReason = null;
+    user.permanentBanReason = null;
+    user.permanentBannedAt = null;
+    if (isModerator) addModeratorLog(db, modKey.alias, 'Разбанил пользователя', { userId: user.id, username: user.username });
+    addSystemLog(db, 'info', 'Пользователь разбанен', { userId: user.id, username: user.username, actor: isAdmin ? 'admin' : modKey.alias });
+    writeDb(db);
+    return sendJson(res, 200, { user: sanitizeUser(user) });
+  }
+
+  const mAdminPermanentBan = u.pathname.match(/^\/api\/admin\/users\/([^/]+)\/permanent-ban$/);
+  if (mAdminPermanentBan && req.method === 'POST') {
+    if (!isAdmin) return sendJson(res, 401, { error: 'Unauthorized' });
+    const user = db.users.find((x) => x.id === decodeURIComponent(mAdminPermanentBan[1]));
+    if (!user) return sendJson(res, 404, { error: 'User not found' });
+    const b = await parseBody(req);
+    user.permanentBanReason = String(b.reason || '').trim() || 'Грубое нарушение правил';
+    user.permanentBannedAt = nowIso();
+    user.tempBanUntil = null;
+    user.tempBanReason = null;
+    purgeUserData(db, user.id);
+    addSystemLog(db, 'error', 'Выдан перманентный бан', { userId: user.id, username: user.username });
+    writeDb(db);
+    return sendJson(res, 200, { user: sanitizeUser(user) });
+  }
+
+  if (u.pathname === '/api/admin/preverify' && req.method === 'GET') {
+    if (!isAdmin) return sendJson(res, 401, { error: 'Unauthorized' });
+    return sendJson(res, 200, { usernames: db.preverifiedUsernames.slice().sort() });
+  }
+  if (u.pathname === '/api/admin/preverify' && req.method === 'POST') {
+    if (!isAdmin) return sendJson(res, 401, { error: 'Unauthorized' });
+    const b = await parseBody(req);
+    const username = String(b.username || '').trim().toLowerCase().replace(/^@+/, '');
+    if (!usernameRe.test(username)) return sendJson(res, 400, { error: 'Некорректный username' });
+    if (!db.preverifiedUsernames.includes(username)) db.preverifiedUsernames.push(username);
+    addSystemLog(db, 'info', 'Добавлен username в предверификацию', { username });
+    writeDb(db);
+    return sendJson(res, 201, { ok: true, usernames: db.preverifiedUsernames.slice().sort() });
+  }
+  const mPreverifyDelete = u.pathname.match(/^\/api\/admin\/preverify\/([^/]+)$/);
+  if (mPreverifyDelete && req.method === 'DELETE') {
+    if (!isAdmin) return sendJson(res, 401, { error: 'Unauthorized' });
+    const username = decodeURIComponent(mPreverifyDelete[1]).replace(/^@+/, '').toLowerCase();
+    db.preverifiedUsernames = db.preverifiedUsernames.filter((x) => x !== username);
+    addSystemLog(db, 'info', 'Удалён username из предверификации', { username });
+    writeDb(db);
+    return sendJson(res, 200, { ok: true, usernames: db.preverifiedUsernames.slice().sort() });
+  }
+
+  if (u.pathname === '/api/admin/moderators' && req.method === 'GET') {
+    if (!isAdmin) return sendJson(res, 401, { error: 'Unauthorized' });
+    const keys = db.moderatorKeys.slice().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).map(({ keyHash, ...rest }) => rest);
+    return sendJson(res, 200, { keys });
+  }
+  if (u.pathname === '/api/admin/moderators' && req.method === 'POST') {
+    if (!isAdmin) return sendJson(res, 401, { error: 'Unauthorized' });
+    const b = await parseBody(req);
+    const alias = String(b.alias || '').trim().slice(0, 80);
+    if (!alias) return sendJson(res, 400, { error: 'Укажите псевдоним' });
+    const plainKey = `MDR-${crypto.randomBytes(10).toString('base64url')}`;
+    const key = { id: `mk_${db.meta.modKeySeq++}`, alias, accessCode: plainKey, keyHash: sha(plainKey), createdAt: nowIso(), lastUsedAt: null, revokedAt: null };
+    db.moderatorKeys.push(key);
+    addSystemLog(db, 'info', 'Создан ключ модератора', { alias, keyId: key.id });
+    writeDb(db);
+    const { keyHash, ...safe } = key;
+    return sendJson(res, 201, { key: safe, plainKey });
+  }
+  const mModPatch = u.pathname.match(/^\/api\/admin\/moderators\/([^/]+)$/);
+  if (mModPatch && req.method === 'PATCH') {
+    if (!isAdmin) return sendJson(res, 401, { error: 'Unauthorized' });
+    const key = db.moderatorKeys.find((x) => x.id === decodeURIComponent(mModPatch[1]));
+    if (!key) return sendJson(res, 404, { error: 'Key not found' });
+    const b = await parseBody(req);
+    key.alias = String(b.alias || '').trim().slice(0, 80) || key.alias;
+    addSystemLog(db, 'info', 'Переименован ключ модератора', { keyId: key.id, alias: key.alias });
+    writeDb(db);
+    return sendJson(res, 200, { ok: true });
+  }
+  if (mModPatch && req.method === 'DELETE') {
+    if (!isAdmin) return sendJson(res, 401, { error: 'Unauthorized' });
+    const key = db.moderatorKeys.find((x) => x.id === decodeURIComponent(mModPatch[1]));
+    if (!key) return sendJson(res, 404, { error: 'Key not found' });
+    key.revokedAt = nowIso();
+    addSystemLog(db, 'warn', 'Ключ модератора отозван', { keyId: key.id, alias: key.alias });
+    writeDb(db);
+    return sendJson(res, 200, { ok: true });
+  }
+
+  if (u.pathname === '/api/admin/moderator-logs' && req.method === 'GET') {
+    if (!isAdmin) return sendJson(res, 401, { error: 'Unauthorized' });
+    const logs = db.moderatorLogs.slice().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 500);
+    return sendJson(res, 200, { logs });
+  }
+
+  if (u.pathname === '/api/mod/me' && req.method === 'GET') {
+    if (!isModerator) return sendJson(res, 401, { error: 'Unauthorized' });
+    return sendJson(res, 200, { alias: modKey.alias });
+  }
 
   if (u.pathname === '/api/me' && req.method === 'GET') {
     if (!me) return sendJson(res, 401, { error: 'Unauthorized' });
     const followers = db.follows.filter((f) => f.followingId === me.id).length;
     const following = db.follows.filter((f) => f.followerId === me.id).length;
     return sendJson(res, 200, { user: { ...sanitizeUser(me), followers, following } });
+  }
+
+  if (u.pathname === '/api/presence' && req.method === 'GET') {
+    if (!me) return sendJson(res, 401, { error: 'Unauthorized' });
+    me.lastSeenAt = nowIso();
+    writeDb(db);
+    return sendJson(res, 200, { ok: true, ts: me.lastSeenAt });
   }
 
   if (u.pathname === '/api/me' && req.method === 'PATCH') {
@@ -638,7 +1004,9 @@ const server = http.createServer(async (req, res) => {
         displayname: usr.displayName || '',
         bio: usr.bio || '',
         avatar: usr.avatar || 'U',
-        avatarUrl: usr.avatarUrl || ''
+        avatarUrl: usr.avatarUrl || '',
+        verified: !!usr.verified,
+        verificationBadge: usr.verified ? VERIFIED_BADGE_PATH : ''
       }));
     return sendJson(res, 200, { users });
   }
