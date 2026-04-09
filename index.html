@@ -4405,7 +4405,7 @@
     if (!editOpen) {
       profileData.favoriteTrackName = String(me.favoriteTrackName || '').trim();
       profileData.favoriteTrackUrl = absoluteUrl(me.favoriteTrackUrl || '');
-      profileData.favoriteTracks = Array.isArray(me.favoriteTracks) ? me.favoriteTracks.map((t) => ({ name: normalizeTrackName(t?.name || ''), url: absoluteUrl(t?.url || ''), createdAt: t?.createdAt || '' })).filter((t) => t.name && t.url).slice(0, 30) : (profileData.favoriteTrackUrl && profileData.favoriteTrackName ? [{ name: normalizeTrackName(profileData.favoriteTrackName), url: profileData.favoriteTrackUrl, createdAt: '' }] : []);
+      profileData.favoriteTracks = Array.isArray(me.favoriteTracks) ? me.favoriteTracks.map((t) => ({ name: normalizeTrackName(t?.name || ''), url: absoluteUrl(t?.url || ''), coverUrl: absoluteUrl(t?.coverUrl || ''), createdAt: t?.createdAt || '' })).filter((t) => t.name && t.url).slice(0, 30) : (profileData.favoriteTrackUrl && profileData.favoriteTrackName ? [{ name: normalizeTrackName(profileData.favoriteTrackName), url: profileData.favoriteTrackUrl, createdAt: '' }] : []);
     }
     const epn = document.getElementById('ep-name'); if (epn && !editOpen) epn.value = safeName;
     const epu = document.getElementById('ep-username'); if (epu && !editOpen) epu.value = safeUsername;
@@ -4453,6 +4453,7 @@
   const trackAudio = new Audio();
   let trackQueue = [];
   let currentTrackIndex = -1;
+  const trackPositions = new Map();
 
   function trackKey(item) {
     return `${item.name || ''}::${item.url || ''}`;
@@ -4461,9 +4462,10 @@
   function collectAvailableTracks() {
     const arr = [];
     const ownLastTrack = Array.isArray(profileData?.favoriteTracks) && profileData.favoriteTracks.length ? profileData.favoriteTracks[profileData.favoriteTracks.length - 1] : (profileData?.favoriteTrackUrl ? { name: normalizeTrackName(profileData.favoriteTrackName || 'Трек'), url: absoluteUrl(profileData.favoriteTrackUrl), coverUrl: '' } : null);
-    if (ownLastTrack?.url) arr.push({ name: normalizeTrackName(ownLastTrack.name || 'Трек'), url: absoluteUrl(ownLastTrack.url), coverUrl: '' });
+    if (ownLastTrack?.url) arr.push({ name: normalizeTrackName(ownLastTrack.name || 'Трек'), url: absoluteUrl(ownLastTrack.url), coverUrl: absoluteUrl(ownLastTrack.coverUrl || '') });
     const viewed = currentViewedProfile?.userData;
-    if (viewed?.favoriteTrackUrl) arr.push({ name: normalizeTrackName(viewed.favoriteTrackName || 'Трек'), url: absoluteUrl(viewed.favoriteTrackUrl), coverUrl: '' });
+    const viewedLastTrack = Array.isArray(viewed?.favoriteTracks) && viewed.favoriteTracks.length ? viewed.favoriteTracks[viewed.favoriteTracks.length - 1] : (viewed?.favoriteTrackUrl ? { name: viewed.favoriteTrackName, url: viewed.favoriteTrackUrl, coverUrl: '' } : null);
+    if (viewedLastTrack?.url) arr.push({ name: normalizeTrackName(viewedLastTrack.name || 'Трек'), url: absoluteUrl(viewedLastTrack.url), coverUrl: absoluteUrl(viewedLastTrack.coverUrl || '') });
     const uniq = [];
     const seen = new Set();
     arr.forEach((t) => {
@@ -4501,7 +4503,19 @@
     currentTrackIndex = index;
     const container = document.getElementById('track-player');
     if (container) container.classList.add('visible');
-    if (trackAudio.src !== item.url) trackAudio.src = item.url;
+    const currentSrc = trackAudio.src ? new URL(trackAudio.src, location.origin).href : '';
+    const targetSrc = new URL(item.url, location.origin).href;
+    if (currentSrc !== targetSrc) {
+      trackAudio.src = targetSrc;
+      const savedPos = Number(trackPositions.get(targetSrc) || 0);
+      if (savedPos > 0) {
+        const setSavedTime = () => {
+          trackAudio.currentTime = Math.max(0, savedPos);
+          trackAudio.removeEventListener('loadedmetadata', setSavedTime);
+        };
+        trackAudio.addEventListener('loadedmetadata', setSavedTime);
+      }
+    }
     try {
       await trackAudio.play();
       updatePlayerUi(true);
@@ -4522,7 +4536,7 @@
 
   window.playProfileTrack = function playProfileTrack() {
     const last = Array.isArray(profileData.favoriteTracks) && profileData.favoriteTracks.length ? profileData.favoriteTracks[profileData.favoriteTracks.length - 1] : null;
-    const track = { name: normalizeTrackName(last?.name || profileData.favoriteTrackName || ''), url: absoluteUrl(last?.url || profileData.favoriteTrackUrl || ''), coverUrl: '' };
+    const track = { name: normalizeTrackName(last?.name || profileData.favoriteTrackName || ''), url: absoluteUrl(last?.url || profileData.favoriteTrackUrl || ''), coverUrl: absoluteUrl(last?.coverUrl || '') };
     if (!track.url) return;
     initTrackQueue(track);
     playTrackFromQueue(currentTrackIndex);
@@ -4531,7 +4545,8 @@
   window.playViewedProfileTrack = function playViewedProfileTrack() {
     const viewed = currentViewedProfile?.userData;
     if (!viewed) return;
-    const track = { name: normalizeTrackName(viewed.favoriteTrackName || ''), url: absoluteUrl(viewed.favoriteTrackUrl || ''), coverUrl: '' };
+    const viewedLast = Array.isArray(viewed.favoriteTracks) && viewed.favoriteTracks.length ? viewed.favoriteTracks[viewed.favoriteTracks.length - 1] : null;
+    const track = { name: normalizeTrackName(viewedLast?.name || viewed.favoriteTrackName || ''), url: absoluteUrl(viewedLast?.url || viewed.favoriteTrackUrl || ''), coverUrl: absoluteUrl(viewedLast?.coverUrl || '') };
     if (!track.url) return;
     initTrackQueue(track);
     playTrackFromQueue(currentTrackIndex);
@@ -4548,7 +4563,17 @@
   };
 
   window.playPrevTrack = function playPrevTrack() {
-    if (trackQueue.length <= 1 || currentTrackIndex < 0) return;
+    if (currentTrackIndex < 0) return;
+    if (trackAudio.currentTime > 1.2) {
+      trackAudio.currentTime = 0;
+      if (trackAudio.paused) trackAudio.play().catch(() => {});
+      return;
+    }
+    if (trackQueue.length <= 1) {
+      trackAudio.currentTime = 0;
+      if (trackAudio.paused) trackAudio.play().catch(() => {});
+      return;
+    }
     const nextIndex = (currentTrackIndex - 1 + trackQueue.length) % trackQueue.length;
     playTrackFromQueue(nextIndex);
   };
@@ -4572,6 +4597,9 @@
   });
   trackAudio.addEventListener('play', () => updatePlayerUi(true));
   trackAudio.addEventListener('pause', () => updatePlayerUi(false));
+  trackAudio.addEventListener('timeupdate', () => {
+    if (trackAudio.src) trackPositions.set(new URL(trackAudio.src, location.origin).href, trackAudio.currentTime || 0);
+  });
 
   function renderMusicTrackButtons() {
     const lastTrack = Array.isArray(profileData.favoriteTracks) && profileData.favoriteTracks.length ? profileData.favoriteTracks[profileData.favoriteTracks.length - 1] : null;
@@ -4604,6 +4632,39 @@
     document.getElementById('ep-track-input')?.click();
   };
 
+  function findMp4Cover(arrayBuffer) {
+    const bytes = new Uint8Array(arrayBuffer);
+    const text = new TextDecoder('latin1').decode(bytes);
+    const covrIndex = text.indexOf('covr');
+    if (covrIndex < 0) return '';
+    const dataIndex = text.indexOf('data', covrIndex);
+    if (dataIndex < 0) return '';
+    const sizeOffset = dataIndex - 4;
+    if (sizeOffset < 0) return '';
+    const view = new DataView(arrayBuffer);
+    const atomSize = view.getUint32(sizeOffset, false);
+    if (!atomSize || (sizeOffset + atomSize) > arrayBuffer.byteLength) return '';
+    const payloadStart = dataIndex + 12;
+    const payloadEnd = sizeOffset + atomSize;
+    if (payloadEnd <= payloadStart) return '';
+    const payload = bytes.slice(payloadStart, payloadEnd);
+    const sig0 = payload[0], sig1 = payload[1], sig2 = payload[2], sig3 = payload[3];
+    const mime = (sig0 === 0x89 && sig1 === 0x50 && sig2 === 0x4E && sig3 === 0x47) ? 'image/png' : 'image/jpeg';
+    let binary = '';
+    payload.forEach((b) => { binary += String.fromCharCode(b); });
+    return `data:${mime};base64,${btoa(binary)}`;
+  }
+
+  async function extractTrackCover(file) {
+    try {
+      if (!/\.(m4a)$/i.test(file.name) && !['audio/mp4','audio/x-m4a'].includes(file.type)) return '';
+      const ab = await file.arrayBuffer();
+      return findMp4Cover(ab) || '';
+    } catch {
+      return '';
+    }
+  }
+
   window.onTrackSelected = async function onTrackSelected(e) {
     const file = e.target.files?.[0];
     e.target.value = '';
@@ -4623,7 +4684,8 @@
         try {
           const dataUrl = String(ev.target?.result || '');
           const uploadedUrl = await uploadTrackIfNeeded(dataUrl);
-          const track = { name: normalizeTrackName(file.name), url: absoluteUrl(uploadedUrl || ''), createdAt: new Date().toISOString() };
+          const coverUrl = await extractTrackCover(file);
+          const track = { name: normalizeTrackName(file.name), url: absoluteUrl(uploadedUrl || ''), coverUrl, createdAt: new Date().toISOString() };
           profileData.favoriteTracks.push(track);
           profileData.favoriteTrackName = track.name;
           profileData.favoriteTrackUrl = track.url;
@@ -4763,7 +4825,7 @@
       bannerUrl: bannerPreview || profileData?.bannerUrl || '',
       favoriteTrackName: normalizeTrackName(profileData?.favoriteTrackName || ''),
       favoriteTrackUrl: profileData?.favoriteTrackUrl || '',
-      favoriteTracks: Array.isArray(profileData?.favoriteTracks) ? profileData.favoriteTracks.map((t) => ({ name: normalizeTrackName(t?.name || ''), url: absoluteUrl(t?.url || ''), createdAt: t?.createdAt || '' })).filter((t) => t.name && t.url).slice(0, 30) : []
+      favoriteTracks: Array.isArray(profileData?.favoriteTracks) ? profileData.favoriteTracks.map((t) => ({ name: normalizeTrackName(t?.name || ''), url: absoluteUrl(t?.url || ''), coverUrl: absoluteUrl(t?.coverUrl || ''), createdAt: t?.createdAt || '' })).filter((t) => t.name && t.url).slice(0, 30) : []
     };
     if (err) err.textContent = '';
     if (!payload.displayName || !payload.username) {
@@ -4780,7 +4842,7 @@
       profileData.bannerUrl = absoluteUrl(me.bannerUrl || '');
       profileData.favoriteTrackName = normalizeTrackName(me.favoriteTrackName || '');
       profileData.favoriteTrackUrl = absoluteUrl(me.favoriteTrackUrl || '');
-      profileData.favoriteTracks = Array.isArray(me.favoriteTracks) ? me.favoriteTracks.map((t) => ({ name: normalizeTrackName(t?.name || ''), url: absoluteUrl(t?.url || ''), createdAt: t?.createdAt || '' })).filter((t) => t.name && t.url).slice(0, 30) : [];
+      profileData.favoriteTracks = Array.isArray(me.favoriteTracks) ? me.favoriteTracks.map((t) => ({ name: normalizeTrackName(t?.name || ''), url: absoluteUrl(t?.url || ''), coverUrl: absoluteUrl(t?.coverUrl || ''), createdAt: t?.createdAt || '' })).filter((t) => t.name && t.url).slice(0, 30) : [];
       closeEditModal();
       syncProfileUi();
       await Promise.all([syncPosts(), syncStories()]);
@@ -5036,7 +5098,7 @@
         pinnedRepostId: u.pinnedRepostId || null,
         favoriteTrackName: normalizeTrackName(u.favoriteTrackName || ''),
         favoriteTrackUrl: absoluteUrl(u.favoriteTrackUrl || ''),
-        favoriteTracks: Array.isArray(u.favoriteTracks) ? u.favoriteTracks.map((t) => ({ name: normalizeTrackName(t?.name || ''), url: absoluteUrl(t?.url || ''), createdAt: t?.createdAt || '' })).filter((t) => t.name && t.url).slice(0, 30) : [],
+        favoriteTracks: Array.isArray(u.favoriteTracks) ? u.favoriteTracks.map((t) => ({ name: normalizeTrackName(t?.name || ''), url: absoluteUrl(t?.url || ''), coverUrl: absoluteUrl(t?.coverUrl || ''), createdAt: t?.createdAt || '' })).filter((t) => t.name && t.url).slice(0, 30) : [],
         posts: linked.map(p => ({ ...p, avatarUrl: absAvatar }))
       };
       currentViewedProfile = { uname, userData };

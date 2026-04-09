@@ -20,7 +20,7 @@ function ensureDb() {
     if (typeof u.favoriteTrackName !== 'string') u.favoriteTrackName = '';
     if (typeof u.favoriteTrackUrl !== 'string') u.favoriteTrackUrl = '';
     if (!Array.isArray(u.favoriteTracks)) {
-      u.favoriteTracks = (u.favoriteTrackUrl && u.favoriteTrackName) ? [{ name: String(u.favoriteTrackName).slice(0, 140), url: String(u.favoriteTrackUrl), createdAt: u.createdAt || nowIso() }] : [];
+      u.favoriteTracks = (u.favoriteTrackUrl && u.favoriteTrackName) ? [{ name: String(u.favoriteTrackName).slice(0, 140), url: String(u.favoriteTrackUrl), coverUrl: '', createdAt: u.createdAt || nowIso() }] : [];
     }
   });
   if (!db.meta) db.meta = { postSeq: 1, commentSeq: 1, vpscAttempts: {} };
@@ -322,6 +322,7 @@ const server = http.createServer(async (req, res) => {
         .map((t) => ({
           name: String(t?.name || '').slice(0, 140).trim(),
           url: String(t?.url || '').trim(),
+          coverUrl: String(t?.coverUrl || '').trim(),
           createdAt: t?.createdAt || nowIso()
         }))
         .filter((t) => t.name && t.url)
@@ -338,7 +339,7 @@ const server = http.createServer(async (req, res) => {
       if (Object.prototype.hasOwnProperty.call(b, 'favoriteTrackUrl')) me.favoriteTrackUrl = String(b.favoriteTrackUrl || '');
       if (me.favoriteTrackName && me.favoriteTrackUrl && !me.favoriteTracks.find((t) => t.url === me.favoriteTrackUrl)) {
         if (me.favoriteTracks.length >= 30) return sendJson(res, 400, { error: 'Можно добавить максимум 30 треков' });
-        me.favoriteTracks.push({ name: me.favoriteTrackName, url: me.favoriteTrackUrl, createdAt: nowIso() });
+        me.favoriteTracks.push({ name: me.favoriteTrackName, url: me.favoriteTrackUrl, coverUrl: '', createdAt: nowIso() });
       }
     }
     if (Object.prototype.hasOwnProperty.call(b, 'pinnedPostId')) me.pinnedPostId = b.pinnedPostId || null;
