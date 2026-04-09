@@ -1821,7 +1821,7 @@
         <div class="edit-modal-handle"></div>
         <div class="edit-modal-header">
             <div></div>
-            <button class="edit-modal-save" onclick="window.saveProfile()">
+            <button class="edit-modal-save" id="ep-save-btn" onclick="window.saveProfile()">
                 Сохранить
             </button>
         </div>
@@ -3285,6 +3285,7 @@
             profileData.favoriteTrackName = last?.name || '';
             profileData.favoriteTrackUrl = last?.url || '';
             renderMusicTrackButtons();
+            if (typeof window.syncFavoriteTracksAfterEdit === 'function') window.syncFavoriteTracksAfterEdit();
         }
         closeProfileMediaHoldMenu();
     }
@@ -4520,6 +4521,15 @@
       await trackAudio.play();
       updatePlayerUi(true);
     } catch (e) {
+      if (/\.m4a(\?|$)/i.test(targetSrc)) {
+        try {
+          trackAudio.src = `${targetSrc}${targetSrc.includes('?') ? '&' : '?'}v=${Date.now()}`;
+          trackAudio.load();
+          await trackAudio.play();
+          updatePlayerUi(true);
+          return;
+        } catch {}
+      }
       updatePlayerUi(false);
       showToast('Не удалось запустить трек');
     }
@@ -4620,6 +4630,27 @@
     if (editTitle) editTitle.textContent = trackName || 'Добавить трек';
   }
 
+  async function syncFavoriteTracksOnly() {
+    const payload = {
+      favoriteTracks: Array.isArray(profileData?.favoriteTracks)
+        ? profileData.favoriteTracks.map((t) => ({ name: normalizeTrackName(t?.name || ''), url: absoluteUrl(t?.url || ''), coverUrl: absoluteUrl(t?.coverUrl || ''), createdAt: t?.createdAt || '' })).filter((t) => t.name && t.url).slice(0, 30)
+        : []
+    };
+    const r = await api('/me', { method: 'PATCH', body: JSON.stringify(payload) });
+    me = r.user;
+    syncProfileUi();
+  }
+
+  window.syncFavoriteTracksAfterEdit = async function syncFavoriteTracksAfterEdit() {
+    try {
+      showToast('Сохранение треков...');
+      await syncFavoriteTracksOnly();
+      showToast('Треки обновлены');
+    } catch (e) {
+      showToast(e.message || 'Ошибка сохранения треков');
+    }
+  };
+
   async function uploadTrackIfNeeded(dataUrl) {
     const src = String(dataUrl || '');
     if (!src) return '';
@@ -4690,6 +4721,7 @@
           profileData.favoriteTrackName = track.name;
           profileData.favoriteTrackUrl = track.url;
           renderMusicTrackButtons();
+          await syncFavoriteTracksOnly();
           showToast('Трек добавлен');
         } catch (err) {
           showToast(err.message || 'Ошибка загрузки трека');
@@ -4813,6 +4845,8 @@
 
   window.saveProfile = async function saveProfile() {
     const err = document.getElementById('ep-error');
+    const saveBtn = document.getElementById('ep-save-btn');
+    const prevSaveText = saveBtn ? saveBtn.textContent : '';
     const epAvatarImg = document.getElementById('ep-avatar-img');
     const epBannerImg = document.getElementById('ep-banner-img');
     const avatarPreview = (epAvatarImg && epAvatarImg.classList.contains('loaded')) ? String(epAvatarImg.src || '') : '';
@@ -4834,6 +4868,7 @@
       return;
     }
     try {
+      if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Сохранение...'; }
       payload.avatarUrl = await uploadImageIfNeeded(payload.avatarUrl, 'avatar');
       payload.bannerUrl = await uploadImageIfNeeded(payload.bannerUrl, 'banner');
       const r = await api('/me', { method: 'PATCH', body: JSON.stringify(payload) });
@@ -4851,6 +4886,8 @@
       if (err) err.textContent = e.message;
       if (String(e.message).includes('Username already exists')) showToast('Этот username уже занят');
       else if (String(e.message).includes('не могут быть пустыми')) showToast('Имя и username не могут быть пустыми');
+    } finally {
+      if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = prevSaveText || 'Сохранить'; }
     }
   };
 
