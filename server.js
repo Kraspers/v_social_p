@@ -19,6 +19,9 @@ function ensureDb() {
   db.users.forEach((u) => {
     if (typeof u.favoriteTrackName !== 'string') u.favoriteTrackName = '';
     if (typeof u.favoriteTrackUrl !== 'string') u.favoriteTrackUrl = '';
+    if (!Array.isArray(u.favoriteTracks)) {
+      u.favoriteTracks = (u.favoriteTrackUrl && u.favoriteTrackName) ? [{ name: String(u.favoriteTrackName).slice(0, 140), url: String(u.favoriteTrackUrl), createdAt: u.createdAt || nowIso() }] : [];
+    }
   });
   if (!db.meta) db.meta = { postSeq: 1, commentSeq: 1, vpscAttempts: {} };
   if (!db.meta.vpscAttempts) db.meta.vpscAttempts = {};
@@ -229,6 +232,7 @@ const server = http.createServer(async (req, res) => {
       bannerUrl: '',
       favoriteTrackName: '',
       favoriteTrackUrl: '',
+      favoriteTracks: [],
       vpsc: code,
       pinnedPostId: null,
       pinnedRepostId: null,
@@ -310,12 +314,31 @@ const server = http.createServer(async (req, res) => {
       if (prevBannerUrl && prevBannerUrl !== nextBannerUrl) removeUploadedFileIfLocal(prevBannerUrl);
       me.bannerUrl = nextBannerUrl;
     }
-    if (Object.prototype.hasOwnProperty.call(b, 'favoriteTrackName')) me.favoriteTrackName = String(b.favoriteTrackName || '').slice(0, 140);
-    if (Object.prototype.hasOwnProperty.call(b, 'favoriteTrackUrl')) {
-      const nextTrackUrl = String(b.favoriteTrackUrl || '');
-      const prevTrackUrl = String(me.favoriteTrackUrl || '');
-      if (prevTrackUrl && prevTrackUrl !== nextTrackUrl && prevTrackUrl.startsWith('/uploads/')) removeUploadedFileIfLocal(prevTrackUrl);
-      me.favoriteTrackUrl = nextTrackUrl;
+    if (!Array.isArray(me.favoriteTracks)) me.favoriteTracks = [];
+    if (Array.isArray(b.favoriteTracks)) {
+      if (b.favoriteTracks.length > 30) return sendJson(res, 400, { error: 'Можно добавить максимум 30 треков' });
+      const nextTracks = b.favoriteTracks
+        .map((t) => ({
+          name: String(t?.name || '').slice(0, 140).trim(),
+          url: String(t?.url || '').trim(),
+          createdAt: t?.createdAt || nowIso()
+        }))
+        .filter((t) => t.name && t.url)
+        .slice(0, 30);
+      const prevUrls = new Set(me.favoriteTracks.map((t) => String(t?.url || '')).filter(Boolean));
+      const nextUrls = new Set(nextTracks.map((t) => t.url));
+      prevUrls.forEach((u3) => { if (!nextUrls.has(u3) && u3.startsWith('/uploads/')) removeUploadedFileIfLocal(u3); });
+      me.favoriteTracks = nextTracks;
+      const lastTrack = me.favoriteTracks[me.favoriteTracks.length - 1] || null;
+      me.favoriteTrackName = lastTrack?.name || '';
+      me.favoriteTrackUrl = lastTrack?.url || '';
+    } else {
+      if (Object.prototype.hasOwnProperty.call(b, 'favoriteTrackName')) me.favoriteTrackName = String(b.favoriteTrackName || '').slice(0, 140);
+      if (Object.prototype.hasOwnProperty.call(b, 'favoriteTrackUrl')) me.favoriteTrackUrl = String(b.favoriteTrackUrl || '');
+      if (me.favoriteTrackName && me.favoriteTrackUrl && !me.favoriteTracks.find((t) => t.url === me.favoriteTrackUrl)) {
+        if (me.favoriteTracks.length >= 30) return sendJson(res, 400, { error: 'Можно добавить максимум 30 треков' });
+        me.favoriteTracks.push({ name: me.favoriteTrackName, url: me.favoriteTrackUrl, createdAt: nowIso() });
+      }
     }
     if (Object.prototype.hasOwnProperty.call(b, 'pinnedPostId')) me.pinnedPostId = b.pinnedPostId || null;
     if (Object.prototype.hasOwnProperty.call(b, 'pinnedRepostId')) me.pinnedRepostId = b.pinnedRepostId || null;
@@ -633,6 +656,8 @@ const server = http.createServer(async (req, res) => {
 
   if (u.pathname === '/api/upload-track' && req.method === 'POST') {
     if (!me) return sendJson(res, 401, { error: 'Unauthorized' });
+    if (!Array.isArray(me.favoriteTracks)) me.favoriteTracks = [];
+    if (me.favoriteTracks.length >= 30) return sendJson(res, 400, { error: 'Можно добавить максимум 30 треков' });
     const b = await parseBody(req);
     const dataUrl = String(b.dataUrl || '');
     const m = dataUrl.match(/^data:audio\/(mpeg|mp3);base64,(.+)$/i);

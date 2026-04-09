@@ -432,7 +432,7 @@
         .stat-label { color: rgba(255,255,255,0.6); }
         .edit-profile-btn { margin-top: 16px; width: 100%; padding: 14px; background: #ffffff; border: none; border-radius: 22px; font-weight: 700; cursor: pointer; transition: opacity 0.2s; font-size: 16px; color: #000; }
         .edit-profile-btn:hover { opacity: 0.92; }
-        .music-track-btn { margin-top: 16px; width: 100%; padding: 14px; background: rgba(255,255,255,0.35); border: none; border-radius: 22px; font-weight: 700; cursor: pointer; transition: opacity 0.2s; font-size: 16px; color: #fff; position: relative; display: flex; align-items: center; justify-content: center; min-height: 52px; }
+        .music-track-btn { margin-top: 16px; width: 100%; padding: 14px; background: rgba(255,255,255,0.35); border: none; border-radius: 22px; font-weight: 700; cursor: pointer; transition: opacity 0.2s; font-size: 16px; color: #fff; position: relative; display: flex; align-items: center; justify-content: center; }
         .music-track-btn:hover { opacity: 0.92; }
         .music-track-btn.hidden { display: none; }
         .music-track-circle { width: 34px; height: 34px; border-radius: 50%; background: #fff; color: #000; display: inline-flex; align-items: center; justify-content: center; position: absolute; left: 10px; top: 50%; transform: translateY(-50%); }
@@ -446,14 +446,14 @@
         .track-player-main { min-width:0; flex:1; }
         .track-player-name { font-size:14px; font-weight:700; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-bottom:7px; }
         .track-player-controls { display:flex; align-items:center; gap:8px; }
-        .track-player-btn { width:32px; height:32px; border:none; border-radius:50%; background: rgba(255,255,255,0.18); color:#fff; display:flex; align-items:center; justify-content:center; cursor:pointer; transition: transform .14s ease, background .2s ease; }
-        .track-player-btn.primary { width:36px; height:36px; background: rgba(255,255,255,0.28); }
+        .track-player-btn { width:32px; height:32px; border:none; border-radius:50%; background: transparent; color:#fff; display:flex; align-items:center; justify-content:center; cursor:pointer; transition: transform .14s ease, opacity .2s ease; }
+        .track-player-btn.primary { width:36px; height:36px; background: transparent; }
         .track-player-btn:active { transform: scale(0.9); }
         .track-player-btn:disabled { opacity: .4; }
-        .track-player-close { position:absolute; top:8px; right:8px; width:22px; height:22px; border:none; border-radius:50%; background: rgba(0,0,0,0.25); color:#fff; cursor:pointer; display:flex; align-items:center; justify-content:center; }
+        .track-player-close { position:absolute; right:10px; bottom:10px; width:34px; height:34px; border:none; border-radius:50%; background: transparent; color:#fff; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:28px; line-height:1; }
 
         @media (max-width: 900px) {
-            .track-player { top: auto; right: 12px; left: 12px; bottom: calc(84px + env(safe-area-inset-bottom)); width: auto; border-radius: 28px; }
+            .track-player { top: auto; right: 12px; left: 12px; bottom: calc(102px + env(safe-area-inset-bottom)); width: auto; border-radius: 28px; }
         }
 
         /* Profile cover menu button — top-left, frosted glass */
@@ -3160,7 +3160,7 @@
     let cropMode = null, cropImage = null;
     let cropOffsetX = 0, cropOffsetY = 0, cropStartX = 0, cropStartY = 0;
     let cropDragging = false, cropZoom = 1, cropNaturalW = 0, cropNaturalH = 0;
-    let profileData = { name: '', username: '', bio: '', avatarUrl: null, bannerUrl: null, vpsc: '', favoriteTrackName: '', favoriteTrackUrl: '' };
+    let profileData = { name: '', username: '', bio: '', avatarUrl: null, bannerUrl: null, vpsc: '', favoriteTrackName: '', favoriteTrackUrl: '', favoriteTracks: [] };
 
     function openEditModal() {
         const ov = document.getElementById('edit-modal-overlay');
@@ -3230,7 +3230,8 @@
     function openProfileMediaHoldMenu(kind, x, y) {
         const hasAvatar = !!String(profileData.avatarUrl || '').trim();
         const hasBanner = !!String(profileData.bannerUrl || '').trim();
-        if ((kind === 'avatar' && !hasAvatar) || (kind === 'banner' && !hasBanner)) return;
+        const hasTrack = Array.isArray(profileData.favoriteTracks) && profileData.favoriteTracks.length > 0;
+        if ((kind === 'avatar' && !hasAvatar) || (kind === 'banner' && !hasBanner) || (kind === 'track' && !hasTrack)) return;
         heldProfileMediaKind = kind;
         const isDesktop = window.matchMedia('(min-width: 900px)').matches;
         if (!isDesktop) {
@@ -3277,6 +3278,13 @@
             profileData.bannerUrl = '';
             const img = document.getElementById('ep-banner-img');
             if (img) { img.src = ''; img.classList.remove('loaded'); }
+        } else if (heldProfileMediaKind === 'track') {
+            if (!Array.isArray(profileData.favoriteTracks)) profileData.favoriteTracks = [];
+            profileData.favoriteTracks.pop();
+            const last = profileData.favoriteTracks[profileData.favoriteTracks.length - 1] || null;
+            profileData.favoriteTrackName = last?.name || '';
+            profileData.favoriteTrackUrl = last?.url || '';
+            renderMusicTrackButtons();
         }
         closeProfileMediaHoldMenu();
     }
@@ -3307,6 +3315,7 @@
     }
     bindProfileMediaHold(document.getElementById('ep-avatar-wrap'), 'avatar');
     bindProfileMediaHold(document.getElementById('ep-banner-wrap'), 'banner');
+    bindProfileMediaHold(document.getElementById('ep-track-btn'), 'track');
     document.addEventListener('click', (e) => {
         if (e.target.closest('#ep-media-hold-menu')) return;
         closeProfileMediaHoldMenu();
@@ -4386,6 +4395,7 @@
     profileData.vpsc = me.vpsc || profileData.vpsc;
     profileData.favoriteTrackName = String(me.favoriteTrackName || '').trim();
     profileData.favoriteTrackUrl = absoluteUrl(me.favoriteTrackUrl || '');
+    profileData.favoriteTracks = Array.isArray(me.favoriteTracks) ? me.favoriteTracks.map((t) => ({ name: normalizeTrackName(t?.name || ''), url: absoluteUrl(t?.url || ''), createdAt: t?.createdAt || '' })).filter((t) => t.name && t.url).slice(0, 30) : (profileData.favoriteTrackUrl && profileData.favoriteTrackName ? [{ name: normalizeTrackName(profileData.favoriteTrackName), url: profileData.favoriteTrackUrl, createdAt: '' }] : []);
     const nameEl = document.querySelector('.profile-name'); if (nameEl) nameEl.textContent = safeName;
     const uEl = document.querySelector('.profile-username'); if (uEl) uEl.textContent = safeUsername ? `@${safeUsername}` : '@username';
     const bEl = document.querySelector('.profile-bio'); if (bEl) bEl.textContent = safeBio;
@@ -4448,7 +4458,8 @@
 
   function collectAvailableTracks() {
     const arr = [];
-    if (profileData?.favoriteTrackUrl) arr.push({ name: normalizeTrackName(profileData.favoriteTrackName || 'Трек'), url: absoluteUrl(profileData.favoriteTrackUrl), coverUrl: '' });
+    const ownLastTrack = Array.isArray(profileData?.favoriteTracks) && profileData.favoriteTracks.length ? profileData.favoriteTracks[profileData.favoriteTracks.length - 1] : (profileData?.favoriteTrackUrl ? { name: normalizeTrackName(profileData.favoriteTrackName || 'Трек'), url: absoluteUrl(profileData.favoriteTrackUrl), coverUrl: '' } : null);
+    if (ownLastTrack?.url) arr.push({ name: normalizeTrackName(ownLastTrack.name || 'Трек'), url: absoluteUrl(ownLastTrack.url), coverUrl: '' });
     const viewed = currentViewedProfile?.userData;
     if (viewed?.favoriteTrackUrl) arr.push({ name: normalizeTrackName(viewed.favoriteTrackName || 'Трек'), url: absoluteUrl(viewed.favoriteTrackUrl), coverUrl: '' });
     const uniq = [];
@@ -4508,7 +4519,8 @@
   }
 
   window.playProfileTrack = function playProfileTrack() {
-    const track = { name: normalizeTrackName(profileData.favoriteTrackName || ''), url: absoluteUrl(profileData.favoriteTrackUrl || ''), coverUrl: '' };
+    const last = Array.isArray(profileData.favoriteTracks) && profileData.favoriteTracks.length ? profileData.favoriteTracks[profileData.favoriteTracks.length - 1] : null;
+    const track = { name: normalizeTrackName(last?.name || profileData.favoriteTrackName || ''), url: absoluteUrl(last?.url || profileData.favoriteTrackUrl || ''), coverUrl: '' };
     if (!track.url) return;
     initTrackQueue(track);
     playTrackFromQueue(currentTrackIndex);
@@ -4560,8 +4572,9 @@
   trackAudio.addEventListener('pause', () => updatePlayerUi(false));
 
   function renderMusicTrackButtons() {
-    const trackName = normalizeTrackName(profileData.favoriteTrackName || me?.favoriteTrackName || '');
-    const trackUrl = absoluteUrl(profileData.favoriteTrackUrl || me?.favoriteTrackUrl || '');
+    const lastTrack = Array.isArray(profileData.favoriteTracks) && profileData.favoriteTracks.length ? profileData.favoriteTracks[profileData.favoriteTracks.length - 1] : null;
+    const trackName = normalizeTrackName(lastTrack?.name || profileData.favoriteTrackName || me?.favoriteTrackName || '');
+    const trackUrl = absoluteUrl(lastTrack?.url || profileData.favoriteTrackUrl || me?.favoriteTrackUrl || '');
     const profileBtn = document.getElementById('profile-music-track-btn');
     const profileTitle = document.getElementById('profile-music-track-title');
     if (profileBtn && profileTitle) {
@@ -4593,6 +4606,11 @@
     const file = e.target.files?.[0];
     e.target.value = '';
     if (!file) return;
+    if (!Array.isArray(profileData.favoriteTracks)) profileData.favoriteTracks = [];
+    if (profileData.favoriteTracks.length >= 30) {
+      showToast('Можно добавить максимум 30 треков');
+      return;
+    }
     if (!/\.mp3$/i.test(file.name) && file.type !== 'audio/mpeg' && file.type !== 'audio/mp3') {
       showToast('Можно загрузить только MP3');
       return;
@@ -4603,8 +4621,10 @@
         try {
           const dataUrl = String(ev.target?.result || '');
           const uploadedUrl = await uploadTrackIfNeeded(dataUrl);
-          profileData.favoriteTrackName = normalizeTrackName(file.name);
-          profileData.favoriteTrackUrl = absoluteUrl(uploadedUrl || '');
+          const track = { name: normalizeTrackName(file.name), url: absoluteUrl(uploadedUrl || ''), createdAt: new Date().toISOString() };
+          profileData.favoriteTracks.push(track);
+          profileData.favoriteTrackName = track.name;
+          profileData.favoriteTrackUrl = track.url;
           renderMusicTrackButtons();
           showToast('Трек добавлен');
         } catch (err) {
@@ -4740,7 +4760,8 @@
       avatarUrl: avatarPreview || profileData?.avatarUrl || '',
       bannerUrl: bannerPreview || profileData?.bannerUrl || '',
       favoriteTrackName: normalizeTrackName(profileData?.favoriteTrackName || ''),
-      favoriteTrackUrl: profileData?.favoriteTrackUrl || ''
+      favoriteTrackUrl: profileData?.favoriteTrackUrl || '',
+      favoriteTracks: Array.isArray(profileData?.favoriteTracks) ? profileData.favoriteTracks.map((t) => ({ name: normalizeTrackName(t?.name || ''), url: absoluteUrl(t?.url || ''), createdAt: t?.createdAt || '' })).filter((t) => t.name && t.url).slice(0, 30) : []
     };
     if (err) err.textContent = '';
     if (!payload.displayName || !payload.username) {
@@ -4757,6 +4778,7 @@
       profileData.bannerUrl = absoluteUrl(me.bannerUrl || '');
       profileData.favoriteTrackName = normalizeTrackName(me.favoriteTrackName || '');
       profileData.favoriteTrackUrl = absoluteUrl(me.favoriteTrackUrl || '');
+      profileData.favoriteTracks = Array.isArray(me.favoriteTracks) ? me.favoriteTracks.map((t) => ({ name: normalizeTrackName(t?.name || ''), url: absoluteUrl(t?.url || ''), createdAt: t?.createdAt || '' })).filter((t) => t.name && t.url).slice(0, 30) : [];
       closeEditModal();
       syncProfileUi();
       await Promise.all([syncPosts(), syncStories()]);
@@ -5009,6 +5031,7 @@
         pinnedRepostId: u.pinnedRepostId || null,
         favoriteTrackName: normalizeTrackName(u.favoriteTrackName || ''),
         favoriteTrackUrl: absoluteUrl(u.favoriteTrackUrl || ''),
+        favoriteTracks: Array.isArray(u.favoriteTracks) ? u.favoriteTracks.map((t) => ({ name: normalizeTrackName(t?.name || ''), url: absoluteUrl(t?.url || ''), createdAt: t?.createdAt || '' })).filter((t) => t.name && t.url).slice(0, 30) : [],
         posts: linked.map(p => ({ ...p, avatarUrl: absAvatar }))
       };
       currentViewedProfile = { uname, userData };
