@@ -160,6 +160,7 @@
         .action-btn:hover { color: rgba(255,255,255,0.9); }
         .action-btn.liked { color: #ff3b30; }
         .action-btn.reposted { color: #34c759; }
+        .action-btn.passive { cursor: default; pointer-events: none; }
         .action-icon { width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; }
         .bottom-nav { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); width: calc(100% - 32px); max-width: 420px; background: rgba(18,18,20,0.85); backdrop-filter: blur(20px) saturate(180%); -webkit-backdrop-filter: blur(20px) saturate(180%); border: 1px solid rgba(255,255,255,0.08); border-radius: 36px; display: flex; justify-content: space-between; align-items: center; padding: 8px; box-shadow: 0 8px 32px rgba(0,0,0,0.45); z-index: 1000; }
         .nav-slider { display: none; }
@@ -435,6 +436,11 @@
         .music-track-btn { margin-top: 16px; width: 100%; padding: 14px; background: rgba(255,255,255,0.35); border: none; border-radius: 22px; font-weight: 700; cursor: pointer; transition: opacity 0.2s; font-size: 16px; color: #fff; position: relative; display: flex; align-items: center; justify-content: center; }
         .music-track-btn:hover { opacity: 0.92; }
         .music-track-btn.hidden { display: none; }
+        .music-track-btn.loading { color: #fff; background: rgba(255,255,255,0.34); opacity: 1; overflow: hidden; }
+        .music-track-btn.loading::after { content: ''; position: absolute; inset: 0; transform: translateX(-120%); background: linear-gradient(105deg, transparent 10%, rgba(255,255,255,0.06) 35%, rgba(255,255,255,0.65) 50%, rgba(255,255,255,0.06) 65%, transparent 90%); animation: trackBtnLoading 1.15s cubic-bezier(0.22, 0.61, 0.36, 1) infinite; will-change: transform; pointer-events: none; }
+        .music-track-btn.loading .music-track-circle { background: rgba(255,255,255,0.95); }
+        .music-track-btn.loading .music-track-title { position: relative; z-index: 1; }
+        @keyframes trackBtnLoading { to { transform: translateX(120%); } }
         .music-track-circle { width: 34px; height: 34px; border-radius: 50%; background: #fff; color: #000; display: inline-flex; align-items: center; justify-content: center; position: absolute; left: 10px; top: 50%; transform: translateY(-50%); }
         .music-track-title { display:block; width:100%; text-align: center; font-size: 16px; font-weight: 700; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0 40px; }
         .music-track-btn.edit { margin-top: 0; }
@@ -454,6 +460,7 @@
 
         @media (max-width: 900px) {
             .track-player { top: auto; right: 12px; left: 12px; bottom: calc(102px + env(safe-area-inset-bottom)); width: auto; border-radius: 28px; }
+            .track-player.mobile-hidden { opacity: 0 !important; transform: translateY(12px) scale(0.98) !important; pointer-events: none !important; }
         }
 
         /* Profile cover menu button — top-left, frosted glass */
@@ -2158,6 +2165,18 @@
         return text.replace(/#(\w+)/g, '<span class="hashtag">#$1</span>').replace(/@(\w+)/g, '<span class="mention">@$1</span>');
     }
 
+    function formatCompactCount(value) {
+        const n = Number(value || 0);
+        if (!Number.isFinite(n) || n <= 0) return '0';
+        if (n < 1000) return String(Math.floor(n));
+        if (n < 1000000) {
+            const v = n / 1000;
+            return `${Number.isInteger(v) ? v.toFixed(0) : v.toFixed(v >= 10 ? 0 : 1)}K`;
+        }
+        const v = n / 1000000;
+        return `${Number.isInteger(v) ? v.toFixed(0) : v.toFixed(v >= 10 ? 0 : 1)}M`;
+    }
+
     function renderRepostCard(repostOf, extraStyle) {
         const repostIcon = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>';
         // Check if original post still exists
@@ -2232,6 +2251,10 @@
                             </button>
                             <button class="action-btn" data-action="share" data-id="${post.id}">
                                 <svg class="action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>
+                            </button>
+                            <button class="action-btn passive" type="button" aria-label="Просмотры">
+                                <svg class="action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                                <span>${formatCompactCount(post.views)}</span>
                             </button>
                         </div>
                     </div>
@@ -2313,6 +2336,10 @@
                         <button class="action-btn" data-action="share" data-id="${post.id}">
                             <svg class="action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>
                         </button>
+                        <button class="action-btn passive" type="button" aria-label="Просмотры">
+                            <svg class="action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                            <span>${formatCompactCount(post.views)}</span>
+                        </button>
                     </div>
                 </div>
             </div>`;
@@ -2375,6 +2402,10 @@
                                 <svg class="action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
                                 <span>${post.comments}</span>
                             </button>
+                            <button class="action-btn passive" type="button" aria-label="Просмотры">
+                                <svg class="action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                                <span>${formatCompactCount(post.views)}</span>
+                            </button>
                             <button class="action-btn" data-action="share" data-id="${post.id}">
                                 <svg class="action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>
                             </button>
@@ -2398,6 +2429,20 @@
             postModal.classList.add('visible');
             document.body.style.overflow = 'hidden';
         }));
+        api(`/posts/${post.id}/view`, { method: 'POST' })
+            .then((r) => {
+                const nextViews = Number(r?.views || 0);
+                if (!Number.isFinite(nextViews) || nextViews < 0) return;
+                const updatePost = (item) => {
+                    if (!item || item.id !== post.id) return item;
+                    return { ...item, views: nextViews };
+                };
+                posts = posts.map(updatePost);
+                if (upmLocalPosts.has(post.id)) upmLocalPosts.set(post.id, { ...upmLocalPosts.get(post.id), views: nextViews });
+                const viewSpans = document.querySelectorAll(`.post[data-id="${post.id}"] .action-btn.passive span, #modal-post-container .action-btn.passive span`);
+                viewSpans.forEach((el) => { el.textContent = formatCompactCount(nextViews); });
+            })
+            .catch(() => {});
     }
 
     function closePostModal() {
@@ -3253,41 +3298,43 @@
         menu.style.left = Math.min(maxLeft, Math.max(8, x)) + 'px';
         menu.style.top = Math.min(maxTop, Math.max(8, y)) + 'px';
     }
-    function closeProfileMediaHoldMenu() {
+    function closeProfileMediaHoldMenu(immediate = false) {
         const menu = document.getElementById('ep-media-hold-menu');
         if (menu) menu.style.display = 'none';
         const ov = document.getElementById('media-opts-overlay');
         const wrap = document.getElementById('media-opts-wrap');
         ov?.classList.remove('visible');
         wrap?.classList.remove('visible');
-        setTimeout(() => ov?.classList.remove('active'), 260);
+        if (immediate) ov?.classList.remove('active');
+        else setTimeout(() => ov?.classList.remove('active'), 260);
         if (!document.getElementById('post-opts-overlay')?.classList.contains('active') && !document.getElementById('comment-opts-overlay')?.classList.contains('active')) {
             document.body.style.overflow = '';
         }
         heldProfileMediaKind = null;
     }
     function deleteHeldProfileMedia() {
-        if (heldProfileMediaKind === 'avatar') {
+        const kind = heldProfileMediaKind;
+        closeProfileMediaHoldMenu(true);
+        if (kind === 'avatar') {
             profileData.avatarUrl = '';
             const img = document.getElementById('ep-avatar-img');
             if (img) { img.src = ''; img.classList.remove('loaded'); }
             const letter = document.getElementById('ep-avatar-letter');
             if (letter) letter.style.display = '';
             updateNavAvatar();
-        } else if (heldProfileMediaKind === 'banner') {
+        } else if (kind === 'banner') {
             profileData.bannerUrl = '';
             const img = document.getElementById('ep-banner-img');
             if (img) { img.src = ''; img.classList.remove('loaded'); }
-        } else if (heldProfileMediaKind === 'track') {
+        } else if (kind === 'track') {
             if (!Array.isArray(profileData.favoriteTracks)) profileData.favoriteTracks = [];
             profileData.favoriteTracks.pop();
             const last = profileData.favoriteTracks[profileData.favoriteTracks.length - 1] || null;
             profileData.favoriteTrackName = last?.name || '';
             profileData.favoriteTrackUrl = last?.url || '';
             renderMusicTrackButtons();
-            if (typeof window.syncFavoriteTracksAfterEdit === 'function') window.syncFavoriteTracksAfterEdit();
+            showToast('Трек удалён. Нажмите «Сохранить»');
         }
-        closeProfileMediaHoldMenu();
     }
     function bindProfileMediaHold(el, kind) {
         if (!el) return;
@@ -4282,6 +4329,8 @@
   const token = () => localStorage.getItem(TOKEN_KEY);
   const setToken = (t) => localStorage.setItem(TOKEN_KEY, t);
   const dropToken = () => localStorage.removeItem(TOKEN_KEY);
+  let viewsStream = null;
+  let viewsStreamRetryTimer = null;
   let pendingPostRouteId = null;
   let muteNavRouteUpdate = false;
   let commentOptsId = null;
@@ -4296,6 +4345,38 @@
     if (routePath() === next) return;
     const method = replace ? 'replaceState' : 'pushState';
     history[method]({}, '', next);
+  }
+
+  function applyIncomingView(postId, views) {
+    const id = Number(postId);
+    const nextViews = Number(views);
+    if (!Number.isFinite(id) || !Number.isFinite(nextViews) || nextViews < 0) return;
+    posts = posts.map((p) => (p?.id === id ? { ...p, views: nextViews } : p));
+    if (upmLocalPosts.has(id)) upmLocalPosts.set(id, { ...upmLocalPosts.get(id), views: nextViews });
+    const viewSpans = document.querySelectorAll(`.post[data-id="${id}"] .action-btn.passive span, #modal-post-container .action-btn.passive span`);
+    viewSpans.forEach((el) => { el.textContent = formatCompactCount(nextViews); });
+  }
+
+  function disconnectViewsStream() {
+    if (viewsStreamRetryTimer) { clearTimeout(viewsStreamRetryTimer); viewsStreamRetryTimer = null; }
+    if (viewsStream) { viewsStream.close(); viewsStream = null; }
+  }
+
+  function connectViewsStream() {
+    disconnectViewsStream();
+    const t = token();
+    if (!t) return;
+    viewsStream = new EventSource(`${API_BASE}/views/stream?token=${encodeURIComponent(t)}`);
+    viewsStream.addEventListener('view', (ev) => {
+      try {
+        const payload = JSON.parse(String(ev.data || '{}'));
+        applyIncomingView(payload.postId, payload.views);
+      } catch {}
+    });
+    viewsStream.onerror = () => {
+      disconnectViewsStream();
+      viewsStreamRetryTimer = setTimeout(connectViewsStream, 1800);
+    };
   }
   function showNoVpidScreen() {
     document.getElementById('no-vpid-screen')?.classList.add('active');
@@ -4455,6 +4536,7 @@
   let trackQueue = [];
   let currentTrackIndex = -1;
   const trackPositions = new Map();
+  let isTrackUploading = false;
 
   function trackKey(item) {
     return `${item.name || ''}::${item.url || ''}`;
@@ -4487,8 +4569,20 @@
     const cover = document.getElementById('track-player-cover');
     const current = trackQueue[currentTrackIndex];
     if (!container || !title || !toggleBtn || !prevBtn || !nextBtn || !cover || !current) return;
+    const mobile = window.matchMedia('(max-width: 900px)').matches;
+    const activeTab = document.querySelector('.tab-content.active')?.id || '';
+    const blockedOverlayIds = [
+      'edit-modal-overlay','change-pw-overlay','delete-acc-overlay','post-modal','user-profile-modal',
+      'repost-modal-overlay','story-creator','media-opts-overlay','post-opts-overlay','comment-opts-overlay'
+    ];
+    const hasOpenOverlay = blockedOverlayIds.some((id) => {
+      const el = document.getElementById(id);
+      return !!(el && (el.classList.contains('active') || el.classList.contains('visible')));
+    });
+    const shouldHideOnMobile = mobile && (hasOpenOverlay || !['home-tab','profile-tab'].includes(activeTab));
+    container.classList.toggle('mobile-hidden', shouldHideOnMobile);
     title.textContent = current.name || 'Трек';
-    prevBtn.disabled = trackQueue.length <= 1;
+    prevBtn.disabled = false;
     nextBtn.disabled = trackQueue.length <= 1;
     toggleBtn.innerHTML = isPlaying
       ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5h3v14H8zm5 0h3v14h-3z"/></svg>'
@@ -4574,18 +4668,8 @@
 
   window.playPrevTrack = function playPrevTrack() {
     if (currentTrackIndex < 0) return;
-    if (trackAudio.currentTime > 1.2) {
-      trackAudio.currentTime = 0;
-      if (trackAudio.paused) trackAudio.play().catch(() => {});
-      return;
-    }
-    if (trackQueue.length <= 1) {
-      trackAudio.currentTime = 0;
-      if (trackAudio.paused) trackAudio.play().catch(() => {});
-      return;
-    }
-    const nextIndex = (currentTrackIndex - 1 + trackQueue.length) % trackQueue.length;
-    playTrackFromQueue(nextIndex);
+    trackAudio.currentTime = 0;
+    if (trackAudio.paused) trackAudio.play().catch(() => {});
   };
 
   window.playNextTrack = function playNextTrack() {
@@ -4597,7 +4681,10 @@
   window.closeTrackPlayer = function closeTrackPlayer() {
     const container = document.getElementById('track-player');
     if (container) container.classList.remove('visible');
+    const src = trackAudio.src ? new URL(trackAudio.src, location.origin).href : '';
+    if (src) trackPositions.set(src, 0);
     trackAudio.pause();
+    trackAudio.currentTime = 0;
     updatePlayerUi(false);
   };
 
@@ -4610,6 +4697,12 @@
   trackAudio.addEventListener('timeupdate', () => {
     if (trackAudio.src) trackPositions.set(new URL(trackAudio.src, location.origin).href, trackAudio.currentTime || 0);
   });
+  const refreshPlayerVisibility = () => {
+    if (currentTrackIndex < 0 || !trackQueue[currentTrackIndex]) return;
+    updatePlayerUi(!trackAudio.paused);
+  };
+  ['click','touchend'].forEach((evt) => document.addEventListener(evt, () => setTimeout(refreshPlayerVisibility, 0), true));
+  window.addEventListener('resize', refreshPlayerVisibility);
 
   function renderMusicTrackButtons() {
     const lastTrack = Array.isArray(profileData.favoriteTracks) && profileData.favoriteTracks.length ? profileData.favoriteTracks[profileData.favoriteTracks.length - 1] : null;
@@ -4627,7 +4720,7 @@
       }
     }
     const editTitle = document.getElementById('ep-track-btn-title');
-    if (editTitle) editTitle.textContent = trackName || 'Добавить трек';
+    if (editTitle && !isTrackUploading) editTitle.textContent = trackName || 'Добавить трек';
   }
 
   async function syncFavoriteTracksOnly() {
@@ -4698,6 +4791,13 @@
 
   window.onTrackSelected = async function onTrackSelected(e) {
     const file = e.target.files?.[0];
+    const trackBtn = document.getElementById('ep-track-btn');
+    const trackTitle = document.getElementById('ep-track-btn-title');
+    const stopTrackLoading = () => {
+      isTrackUploading = false;
+      if (trackBtn) { trackBtn.disabled = false; trackBtn.classList.remove('loading'); }
+      renderMusicTrackButtons();
+    };
     e.target.value = '';
     if (!file) return;
     if (!Array.isArray(profileData.favoriteTracks)) profileData.favoriteTracks = [];
@@ -4710,7 +4810,14 @@
       return;
     }
     try {
+      isTrackUploading = true;
+      if (trackBtn) { trackBtn.disabled = true; trackBtn.classList.add('loading'); }
+      if (trackTitle) trackTitle.textContent = 'Загрузка...';
       const reader = new FileReader();
+      reader.onerror = () => {
+        showToast('Ошибка чтения файла');
+        stopTrackLoading();
+      };
       reader.onload = async (ev) => {
         try {
           const dataUrl = String(ev.target?.result || '');
@@ -4725,11 +4832,14 @@
           showToast('Трек добавлен');
         } catch (err) {
           showToast(err.message || 'Ошибка загрузки трека');
+        } finally {
+          stopTrackLoading();
         }
       };
       reader.readAsDataURL(file);
     } catch (err) {
       showToast(err.message || 'Ошибка чтения файла');
+      stopTrackLoading();
     }
   };
 
@@ -4765,6 +4875,7 @@
   }
 
   window.doLogout = function doLogout() {
+    disconnectViewsStream();
     dropToken();
     location.reload();
   };
@@ -4778,6 +4889,7 @@
     try {
       const r = await api('/auth/login', { method: 'POST', body: JSON.stringify({ username: u, password: p }) });
       setToken(r.token);
+      connectViewsStream();
       await syncMe();
       syncProfileUi();
       hideNoVpidScreen();
@@ -4795,6 +4907,7 @@
     try {
       const r = await api('/auth/vpsc', { method: 'POST', body: JSON.stringify({ code: vpscValue }) });
       setToken(r.token);
+      connectViewsStream();
       await syncMe();
       syncProfileUi();
       hideNoVpidScreen();
@@ -4816,6 +4929,7 @@
     try {
       const r = await api('/auth/register', { method: 'POST', body: JSON.stringify({ username: u, password: p, displayName: dn }) });
       setToken(r.token);
+      connectViewsStream();
       await syncMe();
       syncProfileUi();
       hideNoVpidScreen();
@@ -5537,6 +5651,7 @@
       return;
     }
     try {
+      connectViewsStream();
       await syncMe();
       syncProfileUi();
       hideLoginScreen();
@@ -5554,6 +5669,7 @@
         await openPostByRoute(toOpen);
       }
     } catch {
+      disconnectViewsStream();
       dropToken();
       resetClientUiState();
       showLoginScreen();

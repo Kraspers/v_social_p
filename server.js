@@ -12,10 +12,10 @@ const VPSC_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789!@#$%&*';
 
 function ensureDb() {
   if (!fs.existsSync(DB_PATH)) {
-    fs.writeFileSync(DB_PATH, JSON.stringify({ users: [], posts: [], comments: [], likes: [], follows: [], stories: [] }, null, 2));
+    fs.writeFileSync(DB_PATH, JSON.stringify({ users: [], posts: [], comments: [], likes: [], follows: [], stories: [], postViews: [] }, null, 2));
   }
   const db = JSON.parse(fs.readFileSync(DB_PATH, 'utf8'));
-  db.users ||= []; db.posts ||= []; db.comments ||= []; db.likes ||= []; db.follows ||= []; db.stories ||= []; db.commentLikes ||= [];
+  db.users ||= []; db.posts ||= []; db.comments ||= []; db.likes ||= []; db.follows ||= []; db.stories ||= []; db.commentLikes ||= []; db.postViews ||= [];
   db.users.forEach((u) => {
     if (typeof u.favoriteTrackName !== 'string') u.favoriteTrackName = '';
     if (typeof u.favoriteTrackUrl !== 'string') u.favoriteTrackUrl = '';
@@ -36,6 +36,14 @@ const usernameRe = /^[a-zA-Z0-9_.]{5,24}$/;
 const postIdRe = /^[a-zA-Z0-9_-]{6,64}$/;
 const makeVpsc = () => Array.from({ length: 6 }, () => VPSC_ALPHABET[Math.floor(Math.random() * VPSC_ALPHABET.length)]).join('');
 const makePostId = () => crypto.randomBytes(9).toString('base64url');
+const viewStreamClients = new Set();
+
+function broadcastViewUpdate(postId, views) {
+  const payload = `event: view\ndata: ${JSON.stringify({ postId, views })}\n\n`;
+  viewStreamClients.forEach((client) => {
+    try { client.res.write(payload); } catch {}
+  });
+}
 
 function gc(db) {
   const ttl = Date.now() - 24 * 60 * 60 * 1000;
@@ -76,6 +84,11 @@ function parseBody(req) {
 function authUser(req, db) {
   const auth = req.headers.authorization || '';
   const token = auth.startsWith('Bearer ') ? auth.slice(7) : null;
+  const userId = verifyToken(token);
+  if (!userId) return null;
+  return db.users.find((u) => u.id === userId) || null;
+}
+function authUserFromToken(token, db) {
   const userId = verifyToken(token);
   if (!userId) return null;
   return db.users.find((u) => u.id === userId) || null;
@@ -132,6 +145,7 @@ function postDto(db, post, viewerId) {
   const likes = db.likes.filter((l) => l.postId === post.id).length;
   const comments = countAllComments(db, post.id);
   const reposts = db.posts.filter((p) => p.repostOf === post.id).length;
+  const views = db.postViews.filter((v) => v.postId === post.id).length;
   const source = post.repostOf ? db.posts.find((p) => p.id === post.repostOf) : null;
   const sourceAuthor = source ? db.users.find((u) => u.id === source.authorId) : null;
   return {
@@ -148,6 +162,7 @@ function postDto(db, post, viewerId) {
     likes,
     comments,
     reposts,
+    views,
     liked: !!db.likes.find((l) => l.postId === post.id && l.userId === viewerId),
     reposted: !!db.posts.find((p) => p.repostOf === post.id && p.authorId === viewerId),
     isRepost: !!post.repostOf,
@@ -201,7 +216,7 @@ function serveFile(res, pathname) {
 }
 
 const server = http.createServer(async (req, res) => {
-  const u = new URL(req.url, `http://localhost:${PORT}`);
+  const u = new URL(req.url, `http://${req.headers.host || `localhost:${PORT}`}`);
   const db = readDb();
   gc(db);
 
@@ -275,6 +290,23 @@ const server = http.createServer(async (req, res) => {
     db.meta.vpscAttempts[ipKey] = { fails: 0, blockedUntil: 0 };
     writeDb(db);
     return sendJson(res, 200, { token: signToken(user.id), user: sanitizeUser(user) });
+  }
+
+  if (u.pathname === '/api/views/stream' && req.method === 'GET') {
+    const streamToken = String(u.searchParams.get('token') || '');
+    const streamUser = authUserFromToken(streamToken, db);
+    if (!streamUser) return sendJson(res, 401, { error: 'Unauthorized' });
+    res.writeHead(200, {
+      'Content-Type': 'text/event-stream; charset=utf-8',
+      'Cache-Control': 'no-cache, no-transform',
+      Connection: 'keep-alive',
+      'Access-Control-Allow-Origin': '*'
+    });
+    const client = { res };
+    viewStreamClients.add(client);
+    res.write('event: ready\ndata: {"ok":true}\n\n');
+    req.on('close', () => viewStreamClients.delete(client));
+    return;
   }
 
   const me = authUser(req, db);
@@ -409,6 +441,18 @@ const server = http.createServer(async (req, res) => {
     else db.likes.push({ id: uid(), postId, userId: me.id, createdAt: nowIso() });
     writeDb(db);
     return sendJson(res, 200, { liked, likes: db.likes.filter((l) => l.postId === postId).length });
+  }
+
+  const mView = u.pathname.match(/^\/api\/posts\/(\d+)\/view$/);
+  if (mView && req.method === 'POST') {
+    if (!me) return sendJson(res, 401, { error: 'Unauthorized' });
+    const postId = Number(mView[1]);
+    if (!db.posts.find((p) => p.id === postId)) return sendJson(res, 404, { error: 'Post not found' });
+    db.postViews.push({ id: uid(), postId, userId: me.id, createdAt: nowIso() });
+    writeDb(db);
+    const views = db.postViews.filter((v) => v.postId === postId).length;
+    broadcastViewUpdate(postId, views);
+    return sendJson(res, 200, { views });
   }
 
   const mRepost = u.pathname.match(/^\/api\/posts\/(\d+)\/repost$/);
@@ -556,6 +600,7 @@ const server = http.createServer(async (req, res) => {
     if (idx < 0) return sendJson(res, 404, { error: 'Post not found' });
     db.posts.splice(idx, 1);
     db.likes = db.likes.filter((l) => l.postId !== id);
+    db.postViews = db.postViews.filter((v) => v.postId !== id);
     const removedComments = new Set(db.comments.filter((c) => c.postId === id).map((c) => c.id));
     db.comments = db.comments.filter((c) => c.postId !== id);
     db.commentLikes = db.commentLikes.filter((l) => !removedComments.has(l.commentId));
