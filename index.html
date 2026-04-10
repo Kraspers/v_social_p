@@ -160,6 +160,7 @@
         .action-btn:hover { color: rgba(255,255,255,0.9); }
         .action-btn.liked { color: #ff3b30; }
         .action-btn.reposted { color: #34c759; }
+        .action-btn.passive { cursor: default; pointer-events: none; }
         .action-icon { width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; }
         .bottom-nav { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); width: calc(100% - 32px); max-width: 420px; background: rgba(18,18,20,0.85); backdrop-filter: blur(20px) saturate(180%); -webkit-backdrop-filter: blur(20px) saturate(180%); border: 1px solid rgba(255,255,255,0.08); border-radius: 36px; display: flex; justify-content: space-between; align-items: center; padding: 8px; box-shadow: 0 8px 32px rgba(0,0,0,0.45); z-index: 1000; }
         .nav-slider { display: none; }
@@ -2164,6 +2165,18 @@
         return text.replace(/#(\w+)/g, '<span class="hashtag">#$1</span>').replace(/@(\w+)/g, '<span class="mention">@$1</span>');
     }
 
+    function formatCompactCount(value) {
+        const n = Number(value || 0);
+        if (!Number.isFinite(n) || n <= 0) return '0';
+        if (n < 1000) return String(Math.floor(n));
+        if (n < 1000000) {
+            const v = n / 1000;
+            return `${Number.isInteger(v) ? v.toFixed(0) : v.toFixed(v >= 10 ? 0 : 1)}K`;
+        }
+        const v = n / 1000000;
+        return `${Number.isInteger(v) ? v.toFixed(0) : v.toFixed(v >= 10 ? 0 : 1)}M`;
+    }
+
     function renderRepostCard(repostOf, extraStyle) {
         const repostIcon = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>';
         // Check if original post still exists
@@ -2235,6 +2248,10 @@
                             <button class="action-btn" data-action="comment" data-id="${post.id}">
                                 <svg class="action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
                                 <span>${post.comments}</span>
+                            </button>
+                            <button class="action-btn passive" type="button" aria-label="Просмотры">
+                                <svg class="action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                                <span>${formatCompactCount(post.views)}</span>
                             </button>
                             <button class="action-btn" data-action="share" data-id="${post.id}">
                                 <svg class="action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>
@@ -2316,6 +2333,10 @@
                             <svg class="action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
                             <span>${post.comments}</span>
                         </button>
+                        <button class="action-btn passive" type="button" aria-label="Просмотры">
+                            <svg class="action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                            <span>${formatCompactCount(post.views)}</span>
+                        </button>
                         <button class="action-btn" data-action="share" data-id="${post.id}">
                             <svg class="action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>
                         </button>
@@ -2381,6 +2402,10 @@
                                 <svg class="action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
                                 <span>${post.comments}</span>
                             </button>
+                            <button class="action-btn passive" type="button" aria-label="Просмотры">
+                                <svg class="action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                                <span>${formatCompactCount(post.views)}</span>
+                            </button>
                             <button class="action-btn" data-action="share" data-id="${post.id}">
                                 <svg class="action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>
                             </button>
@@ -2404,6 +2429,20 @@
             postModal.classList.add('visible');
             document.body.style.overflow = 'hidden';
         }));
+        api(`/posts/${post.id}/view`, { method: 'POST' })
+            .then((r) => {
+                const nextViews = Number(r?.views || 0);
+                if (!Number.isFinite(nextViews) || nextViews < 0) return;
+                const updatePost = (item) => {
+                    if (!item || item.id !== post.id) return item;
+                    return { ...item, views: nextViews };
+                };
+                posts = posts.map(updatePost);
+                if (upmLocalPosts.has(post.id)) upmLocalPosts.set(post.id, { ...upmLocalPosts.get(post.id), views: nextViews });
+                const viewSpans = document.querySelectorAll(`.post[data-id="${post.id}"] .action-btn.passive span, #modal-post-container .action-btn.passive span`);
+                viewSpans.forEach((el) => { el.textContent = formatCompactCount(nextViews); });
+            })
+            .catch(() => {});
     }
 
     function closePostModal() {

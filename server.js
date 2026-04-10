@@ -12,10 +12,10 @@ const VPSC_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789!@#$%&*';
 
 function ensureDb() {
   if (!fs.existsSync(DB_PATH)) {
-    fs.writeFileSync(DB_PATH, JSON.stringify({ users: [], posts: [], comments: [], likes: [], follows: [], stories: [] }, null, 2));
+    fs.writeFileSync(DB_PATH, JSON.stringify({ users: [], posts: [], comments: [], likes: [], follows: [], stories: [], postViews: [] }, null, 2));
   }
   const db = JSON.parse(fs.readFileSync(DB_PATH, 'utf8'));
-  db.users ||= []; db.posts ||= []; db.comments ||= []; db.likes ||= []; db.follows ||= []; db.stories ||= []; db.commentLikes ||= [];
+  db.users ||= []; db.posts ||= []; db.comments ||= []; db.likes ||= []; db.follows ||= []; db.stories ||= []; db.commentLikes ||= []; db.postViews ||= [];
   db.users.forEach((u) => {
     if (typeof u.favoriteTrackName !== 'string') u.favoriteTrackName = '';
     if (typeof u.favoriteTrackUrl !== 'string') u.favoriteTrackUrl = '';
@@ -132,6 +132,7 @@ function postDto(db, post, viewerId) {
   const likes = db.likes.filter((l) => l.postId === post.id).length;
   const comments = countAllComments(db, post.id);
   const reposts = db.posts.filter((p) => p.repostOf === post.id).length;
+  const views = db.postViews.filter((v) => v.postId === post.id).length;
   const source = post.repostOf ? db.posts.find((p) => p.id === post.repostOf) : null;
   const sourceAuthor = source ? db.users.find((u) => u.id === source.authorId) : null;
   return {
@@ -148,6 +149,7 @@ function postDto(db, post, viewerId) {
     likes,
     comments,
     reposts,
+    views,
     liked: !!db.likes.find((l) => l.postId === post.id && l.userId === viewerId),
     reposted: !!db.posts.find((p) => p.repostOf === post.id && p.authorId === viewerId),
     isRepost: !!post.repostOf,
@@ -411,6 +413,20 @@ const server = http.createServer(async (req, res) => {
     return sendJson(res, 200, { liked, likes: db.likes.filter((l) => l.postId === postId).length });
   }
 
+  const mView = u.pathname.match(/^\/api\/posts\/(\d+)\/view$/);
+  if (mView && req.method === 'POST') {
+    if (!me) return sendJson(res, 401, { error: 'Unauthorized' });
+    const postId = Number(mView[1]);
+    if (!db.posts.find((p) => p.id === postId)) return sendJson(res, 404, { error: 'Post not found' });
+    const exists = db.postViews.find((v) => v.postId === postId && v.userId === me.id);
+    if (!exists) {
+      db.postViews.push({ id: uid(), postId, userId: me.id, createdAt: nowIso() });
+      writeDb(db);
+    }
+    const views = db.postViews.filter((v) => v.postId === postId).length;
+    return sendJson(res, 200, { views });
+  }
+
   const mRepost = u.pathname.match(/^\/api\/posts\/(\d+)\/repost$/);
   if (mRepost && req.method === 'POST') {
     if (!me) return sendJson(res, 401, { error: 'Unauthorized' });
@@ -556,6 +572,7 @@ const server = http.createServer(async (req, res) => {
     if (idx < 0) return sendJson(res, 404, { error: 'Post not found' });
     db.posts.splice(idx, 1);
     db.likes = db.likes.filter((l) => l.postId !== id);
+    db.postViews = db.postViews.filter((v) => v.postId !== id);
     const removedComments = new Set(db.comments.filter((c) => c.postId === id).map((c) => c.id));
     db.comments = db.comments.filter((c) => c.postId !== id);
     db.commentLikes = db.commentLikes.filter((l) => !removedComments.has(l.commentId));
