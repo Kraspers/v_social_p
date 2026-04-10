@@ -216,7 +216,7 @@ function serveFile(res, pathname) {
 }
 
 const server = http.createServer(async (req, res) => {
-  const u = new URL(req.url, `http://localhost:${PORT}`);
+  const u = new URL(req.url, `http://${req.headers.host || `localhost:${PORT}`}`);
   const db = readDb();
   gc(db);
 
