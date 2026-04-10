@@ -36,6 +36,14 @@ const usernameRe = /^[a-zA-Z0-9_.]{5,24}$/;
 const postIdRe = /^[a-zA-Z0-9_-]{6,64}$/;
 const makeVpsc = () => Array.from({ length: 6 }, () => VPSC_ALPHABET[Math.floor(Math.random() * VPSC_ALPHABET.length)]).join('');
 const makePostId = () => crypto.randomBytes(9).toString('base64url');
+const viewStreamClients = new Set();
+
+function broadcastViewUpdate(postId, views) {
+  const payload = `event: view\ndata: ${JSON.stringify({ postId, views })}\n\n`;
+  viewStreamClients.forEach((client) => {
+    try { client.res.write(payload); } catch {}
+  });
+}
 
 function gc(db) {
   const ttl = Date.now() - 24 * 60 * 60 * 1000;
@@ -76,6 +84,11 @@ function parseBody(req) {
 function authUser(req, db) {
   const auth = req.headers.authorization || '';
   const token = auth.startsWith('Bearer ') ? auth.slice(7) : null;
+  const userId = verifyToken(token);
+  if (!userId) return null;
+  return db.users.find((u) => u.id === userId) || null;
+}
+function authUserFromToken(token, db) {
   const userId = verifyToken(token);
   if (!userId) return null;
   return db.users.find((u) => u.id === userId) || null;
@@ -279,6 +292,23 @@ const server = http.createServer(async (req, res) => {
     return sendJson(res, 200, { token: signToken(user.id), user: sanitizeUser(user) });
   }
 
+  if (u.pathname === '/api/views/stream' && req.method === 'GET') {
+    const streamToken = String(u.searchParams.get('token') || '');
+    const streamUser = authUserFromToken(streamToken, db);
+    if (!streamUser) return sendJson(res, 401, { error: 'Unauthorized' });
+    res.writeHead(200, {
+      'Content-Type': 'text/event-stream; charset=utf-8',
+      'Cache-Control': 'no-cache, no-transform',
+      Connection: 'keep-alive',
+      'Access-Control-Allow-Origin': '*'
+    });
+    const client = { res };
+    viewStreamClients.add(client);
+    res.write('event: ready\ndata: {"ok":true}\n\n');
+    req.on('close', () => viewStreamClients.delete(client));
+    return;
+  }
+
   const me = authUser(req, db);
 
   if (u.pathname === '/api/me' && req.method === 'GET') {
@@ -421,6 +451,7 @@ const server = http.createServer(async (req, res) => {
     db.postViews.push({ id: uid(), postId, userId: me.id, createdAt: nowIso() });
     writeDb(db);
     const views = db.postViews.filter((v) => v.postId === postId).length;
+    broadcastViewUpdate(postId, views);
     return sendJson(res, 200, { views });
   }
 
