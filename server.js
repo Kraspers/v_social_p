@@ -16,6 +16,7 @@ function ensureDb() {
   }
   const db = JSON.parse(fs.readFileSync(DB_PATH, 'utf8'));
   db.users ||= []; db.posts ||= []; db.comments ||= []; db.likes ||= []; db.follows ||= []; db.stories ||= []; db.commentLikes ||= []; db.postViews ||= [];
+  normalizePostViews(db);
   db.users.forEach((u) => {
     if (typeof u.favoriteTrackName !== 'string') u.favoriteTrackName = '';
     if (typeof u.favoriteTrackUrl !== 'string') u.favoriteTrackUrl = '';
@@ -37,12 +38,29 @@ const postIdRe = /^[a-zA-Z0-9_-]{6,64}$/;
 const makeVpsc = () => Array.from({ length: 6 }, () => VPSC_ALPHABET[Math.floor(Math.random() * VPSC_ALPHABET.length)]).join('');
 const makePostId = () => crypto.randomBytes(9).toString('base64url');
 const viewStreamClients = new Set();
+const VIEW_DEDUP_WINDOW_MS = 6 * 60 * 60 * 1000;
 
 function broadcastViewUpdate(postId, views) {
   const payload = `event: view\ndata: ${JSON.stringify({ postId, views })}\n\n`;
   viewStreamClients.forEach((client) => {
     try { client.res.write(payload); } catch {}
   });
+}
+
+function normalizePostViews(db) {
+  if (!Array.isArray(db.postViews)) db.postViews = [];
+  const byPostUser = new Map();
+  db.postViews.forEach((v) => {
+    if (!v || !Number.isFinite(Number(v.postId)) || !v.userId) return;
+    const postId = Number(v.postId);
+    const key = `${postId}:${String(v.userId)}`;
+    const createdAt = String(v.createdAt || nowIso());
+    const prev = byPostUser.get(key);
+    if (!prev || new Date(createdAt).getTime() > new Date(prev.createdAt).getTime()) {
+      byPostUser.set(key, { id: prev?.id || uid(), postId, userId: String(v.userId), createdAt });
+    }
+  });
+  db.postViews = Array.from(byPostUser.values());
 }
 
 function gc(db) {
@@ -305,7 +323,13 @@ const server = http.createServer(async (req, res) => {
     const client = { res };
     viewStreamClients.add(client);
     res.write('event: ready\ndata: {"ok":true}\n\n');
-    req.on('close', () => viewStreamClients.delete(client));
+    const keepAlive = setInterval(() => {
+      try { res.write('event: ping\ndata: {"ok":true}\n\n'); } catch {}
+    }, 25000);
+    req.on('close', () => {
+      clearInterval(keepAlive);
+      viewStreamClients.delete(client);
+    });
     return;
   }
 
@@ -447,12 +471,25 @@ const server = http.createServer(async (req, res) => {
   if (mView && req.method === 'POST') {
     if (!me) return sendJson(res, 401, { error: 'Unauthorized' });
     const postId = Number(mView[1]);
-    if (!db.posts.find((p) => p.id === postId)) return sendJson(res, 404, { error: 'Post not found' });
-    db.postViews.push({ id: uid(), postId, userId: me.id, createdAt: nowIso() });
+    const post = db.posts.find((p) => p.id === postId);
+    if (!post) return sendJson(res, 404, { error: 'Post not found' });
+    const nowTs = Date.now();
+    const existingView = db.postViews.find((v) => v.postId === postId && v.userId === me.id);
+    let counted = false;
+    if (!existingView) {
+      db.postViews.push({ id: uid(), postId, userId: me.id, createdAt: nowIso() });
+      counted = true;
+    } else {
+      const lastTs = new Date(existingView.createdAt).getTime();
+      if (!Number.isFinite(lastTs) || (nowTs - lastTs) >= VIEW_DEDUP_WINDOW_MS) {
+        existingView.createdAt = nowIso();
+        counted = true;
+      }
+    }
     writeDb(db);
     const views = db.postViews.filter((v) => v.postId === postId).length;
-    broadcastViewUpdate(postId, views);
-    return sendJson(res, 200, { views });
+    if (counted) broadcastViewUpdate(postId, views);
+    return sendJson(res, 200, { views, counted });
   }
 
   const mRepost = u.pathname.match(/^\/api\/posts\/(\d+)\/repost$/);
