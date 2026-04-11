@@ -2443,7 +2443,7 @@
                 };
                 posts = posts.map(updatePost);
                 if (upmLocalPosts.has(post.id)) upmLocalPosts.set(post.id, { ...upmLocalPosts.get(post.id), views: nextViews });
-                const viewSpans = document.querySelectorAll(`.post[data-id="${post.id}"] .views-counter span, #modal-post-container .views-counter span`);
+                const viewSpans = document.querySelectorAll(`.post[data-id="${post.id}"] .views-counter span, .post[data-id="${post.id}"] .action-btn.passive span, #modal-post-container .views-counter span, #modal-post-container .action-btn.passive span`);
                 viewSpans.forEach((el) => { el.textContent = formatCompactCount(nextViews); });
             })
             .catch((err) => { console.warn('view track failed', err); });
@@ -4360,7 +4360,7 @@
     if (!Number.isFinite(id) || !Number.isFinite(nextViews) || nextViews < 0) return;
     posts = posts.map((p) => (p?.id === id ? { ...p, views: nextViews } : p));
     if (upmLocalPosts.has(id)) upmLocalPosts.set(id, { ...upmLocalPosts.get(id), views: nextViews });
-    const viewSpans = document.querySelectorAll(`.post[data-id="${id}"] .views-counter span, #modal-post-container .views-counter span`);
+    const viewSpans = document.querySelectorAll(`.post[data-id="${id}"] .views-counter span, .post[data-id="${id}"] .action-btn.passive span, #modal-post-container .views-counter span, #modal-post-container .action-btn.passive span`);
     viewSpans.forEach((el) => { el.textContent = formatCompactCount(nextViews); });
   }
 
