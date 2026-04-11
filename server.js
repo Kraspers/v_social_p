@@ -218,6 +218,14 @@ function resolvePostByIdentifier(db, rawIdentifier) {
   return post || null;
 }
 
+function recordPostView(db, postId, userId) {
+  const existingView = db.postViews.find((v) => v.postId === postId && v.userId === userId);
+  const counted = !existingView;
+  if (counted) db.postViews.push({ id: uid(), postId, userId, createdAt: nowIso() });
+  const views = db.postViews.filter((v) => v.postId === postId).length;
+  return { counted, views };
+}
+
 function serveFile(req, res, pathname) {
   let f = pathname === '/' ? '/index.html' : pathname;
   if (pathname === '/privacy') f = '/privacy.html';
@@ -505,15 +513,9 @@ const server = http.createServer(async (req, res) => {
     if (!me) return sendJson(res, 401, { error: 'Unauthorized' });
     const post = resolvePostByIdentifier(db, mView[1]);
     if (!post) return sendJson(res, 404, { error: 'Post not found' });
-    const postId = post.id;
-    const existingView = db.postViews.find((v) => v.postId === postId && v.userId === me.id);
-    const counted = !existingView;
-    if (counted) {
-      db.postViews.push({ id: uid(), postId, userId: me.id, createdAt: nowIso() });
-    }
+    const { counted, views } = recordPostView(db, post.id, me.id);
     writeDb(db);
-    const views = db.postViews.filter((v) => v.postId === postId).length;
-    if (counted) broadcastViewUpdate(postId, views);
+    if (counted) broadcastViewUpdate(post.id, views);
     return sendJson(res, 200, { views, counted });
   }
 
@@ -630,6 +632,11 @@ const server = http.createServer(async (req, res) => {
     if (!me) return sendJson(res, 401, { error: 'Unauthorized' });
     const post = resolvePostByIdentifier(db, mPostById[1]);
     if (!post) return sendJson(res, 404, { error: 'Post not found' });
+    const { counted, views } = recordPostView(db, post.id, me.id);
+    if (counted) {
+      writeDb(db);
+      broadcastViewUpdate(post.id, views);
+    }
     return sendJson(res, 200, { post: postDto(db, post, me.id) });
   }
   const mPatch = u.pathname.match(/^\/api\/posts\/(\d+)$/);
