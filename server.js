@@ -530,11 +530,10 @@ const server = http.createServer(async (req, res) => {
     if (!me) return sendJson(res, 401, { error: 'Unauthorized' });
     const post = resolvePostByIdentifier(db, mView[1]);
     if (!post) return sendJson(res, 404, { error: 'Post not found' });
-    db.postViews.push({ id: uid(), postId: post.id, userId: me.id, createdAt: nowIso() });
+    const { counted, views } = recordPostView(db, post.id, me.id);
     writeDb(db);
-    const views = db.postViews.filter((v) => v.postId === post.id).length;
-    broadcastViewUpdate(post.id, views);
-    return sendJson(res, 200, { views, counted: true });
+    if (counted) broadcastViewUpdate(post.id, views);
+    return sendJson(res, 200, { views, counted });
   }
 
   const mRepost = u.pathname.match(/^\/api\/posts\/(\d+)\/repost$/);
