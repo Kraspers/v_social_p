@@ -207,6 +207,17 @@ function postDto(db, post, viewerId) {
   };
 }
 
+function resolvePostByIdentifier(db, rawIdentifier) {
+  const identifier = String(rawIdentifier || '');
+  let post = db.posts.find((p) => p.publicId === identifier);
+  if (!post && /^vp_[a-z0-9]+$/i.test(identifier)) {
+    const legacyId = Number.parseInt(identifier.slice(3), 36);
+    if (Number.isFinite(legacyId)) post = db.posts.find((p) => p.id === legacyId);
+  }
+  if (!post && !postIdRe.test(identifier)) post = db.posts.find((p) => p.id === Number(identifier));
+  return post || null;
+}
+
 function serveFile(req, res, pathname) {
   let f = pathname === '/' ? '/index.html' : pathname;
   if (pathname === '/privacy') f = '/privacy.html';
@@ -489,12 +500,12 @@ const server = http.createServer(async (req, res) => {
     return sendJson(res, 200, { liked, likes: db.likes.filter((l) => l.postId === postId).length });
   }
 
-  const mView = u.pathname.match(/^\/api\/posts\/(\d+)\/view$/);
+  const mView = u.pathname.match(/^\/api\/posts\/([^/]+)\/view$/);
   if (mView && req.method === 'POST') {
     if (!me) return sendJson(res, 401, { error: 'Unauthorized' });
-    const postId = Number(mView[1]);
-    const post = db.posts.find((p) => p.id === postId);
+    const post = resolvePostByIdentifier(db, mView[1]);
     if (!post) return sendJson(res, 404, { error: 'Post not found' });
+    const postId = post.id;
     const existingView = db.postViews.find((v) => v.postId === postId && v.userId === me.id);
     const counted = !existingView;
     if (counted) {
@@ -617,13 +628,7 @@ const server = http.createServer(async (req, res) => {
   const mPostById = u.pathname.match(/^\/api\/posts\/([^/]+)$/);
   if (mPostById && req.method === 'GET') {
     if (!me) return sendJson(res, 401, { error: 'Unauthorized' });
-    const identifier = String(mPostById[1] || '');
-    let post = db.posts.find((p) => p.publicId === identifier);
-    if (!post && /^vp_[a-z0-9]+$/i.test(identifier)) {
-      const legacyId = Number.parseInt(identifier.slice(3), 36);
-      if (Number.isFinite(legacyId)) post = db.posts.find((p) => p.id === legacyId);
-    }
-    if (!post && !postIdRe.test(identifier)) post = db.posts.find((p) => p.id === Number(identifier));
+    const post = resolvePostByIdentifier(db, mPostById[1]);
     if (!post) return sendJson(res, 404, { error: 'Post not found' });
     return sendJson(res, 200, { post: postDto(db, post, me.id) });
   }

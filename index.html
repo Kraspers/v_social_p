@@ -2431,7 +2431,9 @@
             postModal.classList.add('visible');
             document.body.style.overflow = 'hidden';
         }));
-        api(`/posts/${post.id}/view`, { method: 'POST' })
+        const viewTarget = encodeURIComponent(post.publicId || String(post.id || ''));
+        if (!viewTarget) return;
+        api(`/posts/${viewTarget}/view`, { method: 'POST' })
             .then((r) => {
                 const nextViews = Number(r?.views || 0);
                 if (!Number.isFinite(nextViews) || nextViews < 0) return;
@@ -2444,7 +2446,7 @@
                 const viewSpans = document.querySelectorAll(`.post[data-id="${post.id}"] .action-btn.passive span, #modal-post-container .action-btn.passive span`);
                 viewSpans.forEach((el) => { el.textContent = formatCompactCount(nextViews); });
             })
-            .catch(() => {});
+            .catch((err) => { console.warn('view track failed', err); });
     }
 
     function closePostModal() {
