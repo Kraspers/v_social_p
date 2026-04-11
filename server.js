@@ -231,7 +231,7 @@ function resolvePostByIdentifier(db, rawIdentifier) {
     const legacyId = Number.parseInt(identifier.slice(3), 36);
     if (Number.isFinite(legacyId)) post = db.posts.find((p) => p.id === legacyId);
   }
-  if (!post && !postIdRe.test(identifier)) post = db.posts.find((p) => p.id === Number(identifier));
+  if (!post && /^\d+$/.test(identifier)) post = db.posts.find((p) => p.id === Number(identifier));
   return post || null;
 }
 
