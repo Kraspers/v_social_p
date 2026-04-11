@@ -2402,12 +2402,12 @@
                                 <svg class="action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
                                 <span>${post.comments}</span>
                             </button>
+                            <button class="action-btn" data-action="share" data-id="${post.id}">
+                                <svg class="action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>
+                            </button>
                             <button class="action-btn passive" type="button" aria-label="Просмотры">
                                 <svg class="action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"></path><circle cx="12" cy="12" r="3"></circle></svg>
                                 <span>${formatCompactCount(post.views)}</span>
-                            </button>
-                            <button class="action-btn" data-action="share" data-id="${post.id}">
-                                <svg class="action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>
                             </button>
                         </div>
                     </div>
@@ -2508,42 +2508,6 @@
     }
 
     commentInput.addEventListener('input', () => { commentSubmit.disabled = !commentInput.value.trim(); });
-    commentSubmit.addEventListener('click', () => {
-        const text = commentInput.value.trim();
-        if (!text) return;
-        if (!postComments[currentPostId]) postComments[currentPostId] = [];
-        if (replyTargetCommentId) {
-            const comments = postComments[currentPostId];
-            function findRoot(list, targetId) {
-                for (let c of list) {
-                    if (c.id === targetId) return c;
-                    if (c.replies) {
-                        for (let r of c.replies) if (r.id === targetId) return c;
-                        const found = findRoot(c.replies, targetId);
-                        if (found) return found;
-                    }
-                }
-                return null;
-            }
-            const rootComment = findRoot(comments, replyTargetCommentId);
-            if (rootComment) {
-                rootComment.replies.push({ id: Date.now(), author:"Вы", username:"@username", avatar:"Я", text, time:"Только что", likes:0, liked:false, replies:[] });
-            } else {
-                postComments[currentPostId].unshift({ id: Date.now(), author:"Вы", username:"@username", avatar:"Я", text, time:"Только что", likes:0, liked:false, replies:[] });
-            }
-        } else {
-            postComments[currentPostId].unshift({ id: Date.now(), author:"Вы", username:"@username", avatar:"Я", text, time:"Только что", likes:0, liked:false, replies:[] });
-        }
-        const post = posts.find(p => p.id === currentPostId);
-        if (!replyTargetCommentId && post) post.comments++;
-        if (post) renderPosts();
-        if (postModal.classList.contains('active')) openPostModal(post || upmLocalPosts.get(currentPostId));
-        commentInput.value = '';
-        commentInput.style.height = '40px';
-        commentSubmit.disabled = true;
-        replyTargetCommentId = null;
-        renderComments();
-    });
 
     // ===== LOGIN SCREEN =====
     const USERS_KEY = 'vp_users';
