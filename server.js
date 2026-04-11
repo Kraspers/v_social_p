@@ -11,22 +11,32 @@ const DB_PATH = path.join(ROOT, 'db.json');
 const VPSC_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789!@#$%&*';
 
 function ensureDb() {
+  let dirty = false;
   if (!fs.existsSync(DB_PATH)) {
     fs.writeFileSync(DB_PATH, JSON.stringify({ users: [], posts: [], comments: [], likes: [], follows: [], stories: [], postViews: [] }, null, 2));
+    dirty = true;
   }
   const db = JSON.parse(fs.readFileSync(DB_PATH, 'utf8'));
-  db.users ||= []; db.posts ||= []; db.comments ||= []; db.likes ||= []; db.follows ||= []; db.stories ||= []; db.commentLikes ||= []; db.postViews ||= [];
-  normalizePostViews(db);
+  if (!Array.isArray(db.users)) { db.users = []; dirty = true; }
+  if (!Array.isArray(db.posts)) { db.posts = []; dirty = true; }
+  if (!Array.isArray(db.comments)) { db.comments = []; dirty = true; }
+  if (!Array.isArray(db.likes)) { db.likes = []; dirty = true; }
+  if (!Array.isArray(db.follows)) { db.follows = []; dirty = true; }
+  if (!Array.isArray(db.stories)) { db.stories = []; dirty = true; }
+  if (!Array.isArray(db.commentLikes)) { db.commentLikes = []; dirty = true; }
+  if (!Array.isArray(db.postViews)) { db.postViews = []; dirty = true; }
+  if (normalizePostViews(db)) dirty = true;
   db.users.forEach((u) => {
-    if (typeof u.favoriteTrackName !== 'string') u.favoriteTrackName = '';
-    if (typeof u.favoriteTrackUrl !== 'string') u.favoriteTrackUrl = '';
+    if (typeof u.favoriteTrackName !== 'string') { u.favoriteTrackName = ''; dirty = true; }
+    if (typeof u.favoriteTrackUrl !== 'string') { u.favoriteTrackUrl = ''; dirty = true; }
     if (!Array.isArray(u.favoriteTracks)) {
       u.favoriteTracks = (u.favoriteTrackUrl && u.favoriteTrackName) ? [{ name: String(u.favoriteTrackName).slice(0, 140), url: String(u.favoriteTrackUrl), coverUrl: '', createdAt: u.createdAt || nowIso() }] : [];
+      dirty = true;
     }
   });
-  if (!db.meta) db.meta = { postSeq: 1, commentSeq: 1, vpscAttempts: {} };
-  if (!db.meta.vpscAttempts) db.meta.vpscAttempts = {};
-  fs.writeFileSync(DB_PATH, JSON.stringify(db, null, 2));
+  if (!db.meta) { db.meta = { postSeq: 1, commentSeq: 1, vpscAttempts: {} }; dirty = true; }
+  if (!db.meta.vpscAttempts) { db.meta.vpscAttempts = {}; dirty = true; }
+  if (dirty) fs.writeFileSync(DB_PATH, JSON.stringify(db, null, 2));
 }
 function readDb() { ensureDb(); return JSON.parse(fs.readFileSync(DB_PATH, 'utf8')); }
 function writeDb(db) { fs.writeFileSync(DB_PATH, JSON.stringify(db, null, 2)); }
@@ -48,6 +58,7 @@ function broadcastViewUpdate(postId, views) {
 
 function normalizePostViews(db) {
   if (!Array.isArray(db.postViews)) db.postViews = [];
+  const initialLength = db.postViews.length;
   const byPostUser = new Map();
   db.postViews.forEach((v) => {
     if (!v || !Number.isFinite(Number(v.postId)) || !v.userId) return;
@@ -60,6 +71,13 @@ function normalizePostViews(db) {
     }
   });
   db.postViews = Array.from(byPostUser.values());
+  if (db.postViews.length !== initialLength) return true;
+  for (let i = 0; i < db.postViews.length; i += 1) {
+    const a = db.postViews[i];
+    const b = byPostUser.get(`${a.postId}:${a.userId}`);
+    if (!b || a.id !== b.id || a.createdAt !== b.createdAt) return true;
+  }
+  return false;
 }
 
 function gc(db) {
