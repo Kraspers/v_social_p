@@ -564,6 +564,12 @@ const server = http.createServer(async (req, res) => {
   if (mCom && req.method === 'GET') {
     if (!me) return sendJson(res, 401, { error: 'Unauthorized' });
     const postId = Number(mCom[1]);
+    if (!db.posts.find((p) => p.id === postId)) return sendJson(res, 404, { error: 'Post not found' });
+    const { counted, views } = recordPostView(db, postId, me.id);
+    if (counted) {
+      writeDb(db);
+      broadcastViewUpdate(postId, views);
+    }
     const comments = db.comments
       .filter((c) => c.postId === postId)
       .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt))
@@ -589,7 +595,7 @@ const server = http.createServer(async (req, res) => {
           time: relativeTime(c.createdAt)
         };
       });
-    return sendJson(res, 200, { comments });
+    return sendJson(res, 200, { comments, views: db.postViews.filter((v) => v.postId === postId).length });
   }
   if (mCom && req.method === 'POST') {
     if (!me) return sendJson(res, 401, { error: 'Unauthorized' });
