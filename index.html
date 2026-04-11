@@ -2414,21 +2414,6 @@
                 </div>
             </div>`;
         renderComments();
-        api(`/posts/${post.id}/comments`)
-            .then((r) => {
-                const flat = Array.isArray(r?.comments) ? r.comments : [];
-                const byId = new Map();
-                flat.forEach((c) => byId.set(c.id, { ...c, avatarUrl: absoluteUrl(c.avatarUrl || ''), replies: [] }));
-                const roots = [];
-                flat.forEach((c) => {
-                    const node = byId.get(c.id);
-                    if (c.parentId && byId.has(c.parentId)) byId.get(c.parentId).replies.push(node);
-                    else roots.push(node);
-                });
-                postComments[post.id] = roots;
-                if (currentPostId === post.id) renderComments();
-            })
-            .catch(() => {});
         // Show 3-dot for own posts in modal header
         const optsBtnSlot = document.getElementById('modal-post-options-btn');
         if (optsBtnSlot) {
@@ -2444,6 +2429,13 @@
             postModal.classList.add('visible');
             document.body.style.overflow = 'hidden';
         }));
+        Promise.resolve()
+            .then(() => api(`/posts/${post.id}/comments`))
+            .then((r) => {
+                postComments[post.id] = buildCommentTree(Array.isArray(r?.comments) ? r.comments : []);
+                if (currentPostId === post.id) renderComments();
+            })
+            .catch(() => {});
         api(`/posts/${post.id}/view`, { method: 'POST' })
             .then((r) => {
                 const nextViews = Number(r?.views || 0);
