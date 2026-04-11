@@ -565,11 +565,6 @@ const server = http.createServer(async (req, res) => {
     if (!me) return sendJson(res, 401, { error: 'Unauthorized' });
     const postId = Number(mCom[1]);
     if (!db.posts.find((p) => p.id === postId)) return sendJson(res, 404, { error: 'Post not found' });
-    const { counted, views } = recordPostView(db, postId, me.id);
-    if (counted) {
-      writeDb(db);
-      broadcastViewUpdate(postId, views);
-    }
     const comments = db.comments
       .filter((c) => c.postId === postId)
       .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt))
