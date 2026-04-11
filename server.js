@@ -25,7 +25,6 @@ function ensureDb() {
   if (!Array.isArray(db.stories)) { db.stories = []; dirty = true; }
   if (!Array.isArray(db.commentLikes)) { db.commentLikes = []; dirty = true; }
   if (!Array.isArray(db.postViews)) { db.postViews = []; dirty = true; }
-  if (normalizePostViews(db)) dirty = true;
   db.users.forEach((u) => {
     if (typeof u.favoriteTrackName !== 'string') { u.favoriteTrackName = ''; dirty = true; }
     if (typeof u.favoriteTrackUrl !== 'string') { u.favoriteTrackUrl = ''; dirty = true; }
@@ -531,10 +530,11 @@ const server = http.createServer(async (req, res) => {
     if (!me) return sendJson(res, 401, { error: 'Unauthorized' });
     const post = resolvePostByIdentifier(db, mView[1]);
     if (!post) return sendJson(res, 404, { error: 'Post not found' });
-    const { counted, views } = recordPostView(db, post.id, me.id);
+    db.postViews.push({ id: uid(), postId: post.id, userId: me.id, createdAt: nowIso() });
     writeDb(db);
-    if (counted) broadcastViewUpdate(post.id, views);
-    return sendJson(res, 200, { views, counted });
+    const views = db.postViews.filter((v) => v.postId === post.id).length;
+    broadcastViewUpdate(post.id, views);
+    return sendJson(res, 200, { views, counted: true });
   }
 
   const mRepost = u.pathname.match(/^\/api\/posts\/(\d+)\/repost$/);
