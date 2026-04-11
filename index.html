@@ -2252,7 +2252,7 @@
                             <button class="action-btn" data-action="share" data-id="${post.id}">
                                 <svg class="action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>
                             </button>
-                            <button class="action-btn passive" type="button" aria-label="Просмотры">
+                            <button class="action-btn passive" type="button" aria-label="Просмотры" style="margin-left:auto;">
                                 <svg class="action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"></path><circle cx="12" cy="12" r="3"></circle></svg>
                                 <span>${formatCompactCount(post.views)}</span>
                             </button>
@@ -2336,7 +2336,7 @@
                         <button class="action-btn" data-action="share" data-id="${post.id}">
                             <svg class="action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>
                         </button>
-                        <button class="action-btn passive" type="button" aria-label="Просмотры">
+                        <button class="action-btn passive" type="button" aria-label="Просмотры" style="margin-left:auto;">
                             <svg class="action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"></path><circle cx="12" cy="12" r="3"></circle></svg>
                             <span>${formatCompactCount(post.views)}</span>
                         </button>
@@ -2369,9 +2369,44 @@
     let replyTargetCommentId = null;
     const postComments = {};
     const expandedReplies = {};
+    const commentsLoading = new Set();
 
     function runOutsideUserProfile(onReady) {
         onReady();
+    }
+
+    function syncPostComments(postId) {
+        const id = Number(postId);
+        if (!Number.isFinite(id) || commentsLoading.has(id)) return;
+        commentsLoading.add(id);
+        api(`/posts/${id}/comments`)
+            .then((r) => {
+                postComments[id] = buildCommentTree(Array.isArray(r?.comments) ? r.comments : []);
+                if (currentPostId === id) renderComments();
+            })
+            .catch(() => {})
+            .finally(() => commentsLoading.delete(id));
+    }
+
+    function registerPostView(postId, attempt = 0) {
+        const id = Number(postId);
+        if (!Number.isFinite(id)) return;
+        api(`/posts/${id}/view`, { method: 'POST' })
+            .then((r) => {
+                const nextViews = Number(r?.views || 0);
+                if (!Number.isFinite(nextViews) || nextViews < 0) return;
+                const updatePost = (item) => {
+                    if (!item || item.id !== id) return item;
+                    return { ...item, views: nextViews };
+                };
+                posts = posts.map(updatePost);
+                if (upmLocalPosts.has(id)) upmLocalPosts.set(id, { ...upmLocalPosts.get(id), views: nextViews });
+                const viewSpans = document.querySelectorAll(`.post[data-id="${id}"] .action-btn.passive span, #modal-post-container .action-btn.passive span`);
+                viewSpans.forEach((el) => { el.textContent = formatCompactCount(nextViews); });
+            })
+            .catch(() => {
+                if (attempt < 1) setTimeout(() => registerPostView(id, attempt + 1), 500);
+            });
     }
 
     function openPostModal(post) {
@@ -2429,20 +2464,8 @@
             postModal.classList.add('visible');
             document.body.style.overflow = 'hidden';
         }));
-        api(`/posts/${post.id}/view`, { method: 'POST' })
-            .then((r) => {
-                const nextViews = Number(r?.views || 0);
-                if (!Number.isFinite(nextViews) || nextViews < 0) return;
-                const updatePost = (item) => {
-                    if (!item || item.id !== post.id) return item;
-                    return { ...item, views: nextViews };
-                };
-                posts = posts.map(updatePost);
-                if (upmLocalPosts.has(post.id)) upmLocalPosts.set(post.id, { ...upmLocalPosts.get(post.id), views: nextViews });
-                const viewSpans = document.querySelectorAll(`.post[data-id="${post.id}"] .action-btn.passive span, #modal-post-container .action-btn.passive span`);
-                viewSpans.forEach((el) => { el.textContent = formatCompactCount(nextViews); });
-            })
-            .catch(() => {});
+        syncPostComments(post.id);
+        registerPostView(post.id);
     }
 
     function closePostModal() {
@@ -2461,6 +2484,7 @@
         commentsList.innerHTML = '';
         const comments = postComments[currentPostId] || [];
         if (!comments.length) {
+            if (currentPostId && !Object.prototype.hasOwnProperty.call(postComments, currentPostId)) syncPostComments(currentPostId);
             commentsList.innerHTML = '<div class="empty-comments">Здесь пока нет комментариев. Будьте первым!</div>';
             return;
         }
@@ -2508,42 +2532,6 @@
     }
 
     commentInput.addEventListener('input', () => { commentSubmit.disabled = !commentInput.value.trim(); });
-    commentSubmit.addEventListener('click', () => {
-        const text = commentInput.value.trim();
-        if (!text) return;
-        if (!postComments[currentPostId]) postComments[currentPostId] = [];
-        if (replyTargetCommentId) {
-            const comments = postComments[currentPostId];
-            function findRoot(list, targetId) {
-                for (let c of list) {
-                    if (c.id === targetId) return c;
-                    if (c.replies) {
-                        for (let r of c.replies) if (r.id === targetId) return c;
-                        const found = findRoot(c.replies, targetId);
-                        if (found) return found;
-                    }
-                }
-                return null;
-            }
-            const rootComment = findRoot(comments, replyTargetCommentId);
-            if (rootComment) {
-                rootComment.replies.push({ id: Date.now(), author:"Вы", username:"@username", avatar:"Я", text, time:"Только что", likes:0, liked:false, replies:[] });
-            } else {
-                postComments[currentPostId].unshift({ id: Date.now(), author:"Вы", username:"@username", avatar:"Я", text, time:"Только что", likes:0, liked:false, replies:[] });
-            }
-        } else {
-            postComments[currentPostId].unshift({ id: Date.now(), author:"Вы", username:"@username", avatar:"Я", text, time:"Только что", likes:0, liked:false, replies:[] });
-        }
-        const post = posts.find(p => p.id === currentPostId);
-        if (!replyTargetCommentId && post) post.comments++;
-        if (post) renderPosts();
-        if (postModal.classList.contains('active')) openPostModal(post || upmLocalPosts.get(currentPostId));
-        commentInput.value = '';
-        commentInput.style.height = '40px';
-        commentSubmit.disabled = true;
-        replyTargetCommentId = null;
-        renderComments();
-    });
 
     // ===== LOGIN SCREEN =====
     const USERS_KEY = 'vp_users';
