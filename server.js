@@ -38,7 +38,6 @@ const postIdRe = /^[a-zA-Z0-9_-]{6,64}$/;
 const makeVpsc = () => Array.from({ length: 6 }, () => VPSC_ALPHABET[Math.floor(Math.random() * VPSC_ALPHABET.length)]).join('');
 const makePostId = () => crypto.randomBytes(9).toString('base64url');
 const viewStreamClients = new Set();
-const VIEW_DEDUP_WINDOW_MS = 6 * 60 * 60 * 1000;
 
 function broadcastViewUpdate(postId, views) {
   const payload = `event: view\ndata: ${JSON.stringify({ postId, views })}\n\n`;
@@ -208,7 +207,7 @@ function postDto(db, post, viewerId) {
   };
 }
 
-function serveFile(res, pathname) {
+function serveFile(req, res, pathname) {
   let f = pathname === '/' ? '/index.html' : pathname;
   if (pathname === '/privacy') f = '/privacy.html';
   if (pathname === '/terms') f = '/terms.html';
@@ -228,7 +227,30 @@ function serveFile(res, pathname) {
     '.mp3': 'audio/mpeg',
     '.m4a': 'audio/mp4'
   }[ext] || 'application/octet-stream';
-  res.writeHead(200, { 'Content-Type': type });
+  const stat = fs.statSync(fp);
+  const range = String(req.headers.range || '').trim();
+  const isMedia = type.startsWith('audio/') || type.startsWith('video/');
+  if (isMedia && range.startsWith('bytes=')) {
+    const [startRaw, endRaw] = range.replace(/^bytes=/, '').split('-');
+    const start = Number(startRaw);
+    const end = endRaw ? Number(endRaw) : (stat.size - 1);
+    if (!Number.isFinite(start) || start < 0 || start >= stat.size) {
+      res.writeHead(416, { 'Content-Range': `bytes */${stat.size}` });
+      res.end();
+      return true;
+    }
+    const safeEnd = Number.isFinite(end) ? Math.min(end, stat.size - 1) : (stat.size - 1);
+    const chunkSize = (safeEnd - start) + 1;
+    res.writeHead(206, {
+      'Content-Type': type,
+      'Content-Length': chunkSize,
+      'Content-Range': `bytes ${start}-${safeEnd}/${stat.size}`,
+      'Accept-Ranges': 'bytes'
+    });
+    fs.createReadStream(fp, { start, end: safeEnd }).pipe(res);
+    return true;
+  }
+  res.writeHead(200, { 'Content-Type': type, 'Content-Length': stat.size, 'Accept-Ranges': isMedia ? 'bytes' : 'none' });
   fs.createReadStream(fp).pipe(res);
   return true;
 }
@@ -473,18 +495,10 @@ const server = http.createServer(async (req, res) => {
     const postId = Number(mView[1]);
     const post = db.posts.find((p) => p.id === postId);
     if (!post) return sendJson(res, 404, { error: 'Post not found' });
-    const nowTs = Date.now();
     const existingView = db.postViews.find((v) => v.postId === postId && v.userId === me.id);
-    let counted = false;
-    if (!existingView) {
+    const counted = !existingView;
+    if (counted) {
       db.postViews.push({ id: uid(), postId, userId: me.id, createdAt: nowIso() });
-      counted = true;
-    } else {
-      const lastTs = new Date(existingView.createdAt).getTime();
-      if (!Number.isFinite(lastTs) || (nowTs - lastTs) >= VIEW_DEDUP_WINDOW_MS) {
-        existingView.createdAt = nowIso();
-        counted = true;
-      }
     }
     writeDb(db);
     const views = db.postViews.filter((v) => v.postId === postId).length;
@@ -786,7 +800,7 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (u.pathname.startsWith('/api/')) return sendJson(res, 404, { error: 'Not found' });
-  if (!serveFile(res, u.pathname)) sendJson(res, 404, { error: 'Not found' });
+  if (!serveFile(req, res, u.pathname)) sendJson(res, 404, { error: 'Not found' });
 });
 
 ensureDb();
