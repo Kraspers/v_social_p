@@ -11,31 +11,21 @@ const DB_PATH = path.join(ROOT, 'db.json');
 const VPSC_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789!@#$%&*';
 
 function ensureDb() {
-  let dirty = false;
   if (!fs.existsSync(DB_PATH)) {
     fs.writeFileSync(DB_PATH, JSON.stringify({ users: [], posts: [], comments: [], likes: [], follows: [], stories: [], postViews: [] }, null, 2));
-    dirty = true;
   }
   const db = JSON.parse(fs.readFileSync(DB_PATH, 'utf8'));
-  if (!Array.isArray(db.users)) { db.users = []; dirty = true; }
-  if (!Array.isArray(db.posts)) { db.posts = []; dirty = true; }
-  if (!Array.isArray(db.comments)) { db.comments = []; dirty = true; }
-  if (!Array.isArray(db.likes)) { db.likes = []; dirty = true; }
-  if (!Array.isArray(db.follows)) { db.follows = []; dirty = true; }
-  if (!Array.isArray(db.stories)) { db.stories = []; dirty = true; }
-  if (!Array.isArray(db.commentLikes)) { db.commentLikes = []; dirty = true; }
-  if (!Array.isArray(db.postViews)) { db.postViews = []; dirty = true; }
+  db.users ||= []; db.posts ||= []; db.comments ||= []; db.likes ||= []; db.follows ||= []; db.stories ||= []; db.commentLikes ||= []; db.postViews ||= [];
   db.users.forEach((u) => {
-    if (typeof u.favoriteTrackName !== 'string') { u.favoriteTrackName = ''; dirty = true; }
-    if (typeof u.favoriteTrackUrl !== 'string') { u.favoriteTrackUrl = ''; dirty = true; }
+    if (typeof u.favoriteTrackName !== 'string') u.favoriteTrackName = '';
+    if (typeof u.favoriteTrackUrl !== 'string') u.favoriteTrackUrl = '';
     if (!Array.isArray(u.favoriteTracks)) {
       u.favoriteTracks = (u.favoriteTrackUrl && u.favoriteTrackName) ? [{ name: String(u.favoriteTrackName).slice(0, 140), url: String(u.favoriteTrackUrl), coverUrl: '', createdAt: u.createdAt || nowIso() }] : [];
-      dirty = true;
     }
   });
-  if (!db.meta) { db.meta = { postSeq: 1, commentSeq: 1, vpscAttempts: {} }; dirty = true; }
-  if (!db.meta.vpscAttempts) { db.meta.vpscAttempts = {}; dirty = true; }
-  if (dirty) fs.writeFileSync(DB_PATH, JSON.stringify(db, null, 2));
+  if (!db.meta) db.meta = { postSeq: 1, commentSeq: 1, vpscAttempts: {} };
+  if (!db.meta.vpscAttempts) db.meta.vpscAttempts = {};
+  fs.writeFileSync(DB_PATH, JSON.stringify(db, null, 2));
 }
 function readDb() { ensureDb(); return JSON.parse(fs.readFileSync(DB_PATH, 'utf8')); }
 function writeDb(db) { fs.writeFileSync(DB_PATH, JSON.stringify(db, null, 2)); }
@@ -53,30 +43,6 @@ function broadcastViewUpdate(postId, views) {
   viewStreamClients.forEach((client) => {
     try { client.res.write(payload); } catch {}
   });
-}
-
-function normalizePostViews(db) {
-  if (!Array.isArray(db.postViews)) db.postViews = [];
-  const initialLength = db.postViews.length;
-  const byPostUser = new Map();
-  db.postViews.forEach((v) => {
-    if (!v || !Number.isFinite(Number(v.postId)) || !v.userId) return;
-    const postId = Number(v.postId);
-    const key = `${postId}:${String(v.userId)}`;
-    const createdAt = String(v.createdAt || nowIso());
-    const prev = byPostUser.get(key);
-    if (!prev || new Date(createdAt).getTime() > new Date(prev.createdAt).getTime()) {
-      byPostUser.set(key, { id: prev?.id || uid(), postId, userId: String(v.userId), createdAt });
-    }
-  });
-  db.postViews = Array.from(byPostUser.values());
-  if (db.postViews.length !== initialLength) return true;
-  for (let i = 0; i < db.postViews.length; i += 1) {
-    const a = db.postViews[i];
-    const b = byPostUser.get(`${a.postId}:${a.userId}`);
-    if (!b || a.id !== b.id || a.createdAt !== b.createdAt) return true;
-  }
-  return false;
 }
 
 function gc(db) {
@@ -224,26 +190,7 @@ function postDto(db, post, viewerId) {
   };
 }
 
-function resolvePostByIdentifier(db, rawIdentifier) {
-  const identifier = String(rawIdentifier || '');
-  let post = db.posts.find((p) => p.publicId === identifier);
-  if (!post && /^vp_[a-z0-9]+$/i.test(identifier)) {
-    const legacyId = Number.parseInt(identifier.slice(3), 36);
-    if (Number.isFinite(legacyId)) post = db.posts.find((p) => p.id === legacyId);
-  }
-  if (!post && !postIdRe.test(identifier)) post = db.posts.find((p) => p.id === Number(identifier));
-  return post || null;
-}
-
-function recordPostView(db, postId, userId) {
-  const existingView = db.postViews.find((v) => v.postId === postId && v.userId === userId);
-  const counted = !existingView;
-  if (counted) db.postViews.push({ id: uid(), postId, userId, createdAt: nowIso() });
-  const views = db.postViews.filter((v) => v.postId === postId).length;
-  return { counted, views };
-}
-
-function serveFile(req, res, pathname) {
+function serveFile(res, pathname) {
   let f = pathname === '/' ? '/index.html' : pathname;
   if (pathname === '/privacy') f = '/privacy.html';
   if (pathname === '/terms') f = '/terms.html';
@@ -263,36 +210,13 @@ function serveFile(req, res, pathname) {
     '.mp3': 'audio/mpeg',
     '.m4a': 'audio/mp4'
   }[ext] || 'application/octet-stream';
-  const stat = fs.statSync(fp);
-  const range = String(req.headers.range || '').trim();
-  const isMedia = type.startsWith('audio/') || type.startsWith('video/');
-  if (isMedia && range.startsWith('bytes=')) {
-    const [startRaw, endRaw] = range.replace(/^bytes=/, '').split('-');
-    const start = Number(startRaw);
-    const end = endRaw ? Number(endRaw) : (stat.size - 1);
-    if (!Number.isFinite(start) || start < 0 || start >= stat.size) {
-      res.writeHead(416, { 'Content-Range': `bytes */${stat.size}` });
-      res.end();
-      return true;
-    }
-    const safeEnd = Number.isFinite(end) ? Math.min(end, stat.size - 1) : (stat.size - 1);
-    const chunkSize = (safeEnd - start) + 1;
-    res.writeHead(206, {
-      'Content-Type': type,
-      'Content-Length': chunkSize,
-      'Content-Range': `bytes ${start}-${safeEnd}/${stat.size}`,
-      'Accept-Ranges': 'bytes'
-    });
-    fs.createReadStream(fp, { start, end: safeEnd }).pipe(res);
-    return true;
-  }
-  res.writeHead(200, { 'Content-Type': type, 'Content-Length': stat.size, 'Accept-Ranges': isMedia ? 'bytes' : 'none' });
+  res.writeHead(200, { 'Content-Type': type });
   fs.createReadStream(fp).pipe(res);
   return true;
 }
 
 const server = http.createServer(async (req, res) => {
-  const u = new URL(req.url, `http://${req.headers.host || `localhost:${PORT}`}`);
+  const u = new URL(req.url, `http://localhost:${PORT}`);
   const db = readDb();
   gc(db);
 
@@ -381,13 +305,7 @@ const server = http.createServer(async (req, res) => {
     const client = { res };
     viewStreamClients.add(client);
     res.write('event: ready\ndata: {"ok":true}\n\n');
-    const keepAlive = setInterval(() => {
-      try { res.write('event: ping\ndata: {"ok":true}\n\n'); } catch {}
-    }, 25000);
-    req.on('close', () => {
-      clearInterval(keepAlive);
-      viewStreamClients.delete(client);
-    });
+    req.on('close', () => viewStreamClients.delete(client));
     return;
   }
 
@@ -525,16 +443,16 @@ const server = http.createServer(async (req, res) => {
     return sendJson(res, 200, { liked, likes: db.likes.filter((l) => l.postId === postId).length });
   }
 
-  const mView = u.pathname.match(/^\/api\/posts\/([^/]+)\/view$/);
+  const mView = u.pathname.match(/^\/api\/posts\/(\d+)\/view$/);
   if (mView && req.method === 'POST') {
     if (!me) return sendJson(res, 401, { error: 'Unauthorized' });
-    const post = resolvePostByIdentifier(db, mView[1]);
-    if (!post) return sendJson(res, 404, { error: 'Post not found' });
-    db.postViews.push({ id: uid(), postId: post.id, userId: me.id, createdAt: nowIso() });
+    const postId = Number(mView[1]);
+    if (!db.posts.find((p) => p.id === postId)) return sendJson(res, 404, { error: 'Post not found' });
+    db.postViews.push({ id: uid(), postId, userId: me.id, createdAt: nowIso() });
     writeDb(db);
-    const views = db.postViews.filter((v) => v.postId === post.id).length;
-    broadcastViewUpdate(post.id, views);
-    return sendJson(res, 200, { views, counted: true });
+    const views = db.postViews.filter((v) => v.postId === postId).length;
+    broadcastViewUpdate(postId, views);
+    return sendJson(res, 200, { views });
   }
 
   const mRepost = u.pathname.match(/^\/api\/posts\/(\d+)\/repost$/);
@@ -648,13 +566,14 @@ const server = http.createServer(async (req, res) => {
   const mPostById = u.pathname.match(/^\/api\/posts\/([^/]+)$/);
   if (mPostById && req.method === 'GET') {
     if (!me) return sendJson(res, 401, { error: 'Unauthorized' });
-    const post = resolvePostByIdentifier(db, mPostById[1]);
-    if (!post) return sendJson(res, 404, { error: 'Post not found' });
-    const { counted, views } = recordPostView(db, post.id, me.id);
-    if (counted) {
-      writeDb(db);
-      broadcastViewUpdate(post.id, views);
+    const identifier = String(mPostById[1] || '');
+    let post = db.posts.find((p) => p.publicId === identifier);
+    if (!post && /^vp_[a-z0-9]+$/i.test(identifier)) {
+      const legacyId = Number.parseInt(identifier.slice(3), 36);
+      if (Number.isFinite(legacyId)) post = db.posts.find((p) => p.id === legacyId);
     }
+    if (!post && !postIdRe.test(identifier)) post = db.posts.find((p) => p.id === Number(identifier));
+    if (!post) return sendJson(res, 404, { error: 'Post not found' });
     return sendJson(res, 200, { post: postDto(db, post, me.id) });
   }
   const mPatch = u.pathname.match(/^\/api\/posts\/(\d+)$/);
@@ -830,7 +749,7 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (u.pathname.startsWith('/api/')) return sendJson(res, 404, { error: 'Not found' });
-  if (!serveFile(req, res, u.pathname)) sendJson(res, 404, { error: 'Not found' });
+  if (!serveFile(res, u.pathname)) sendJson(res, 404, { error: 'Not found' });
 });
 
 ensureDb();
