@@ -2369,9 +2369,44 @@
     let replyTargetCommentId = null;
     const postComments = {};
     const expandedReplies = {};
+    const commentsLoading = new Set();
 
     function runOutsideUserProfile(onReady) {
         onReady();
+    }
+
+    function syncPostComments(postId) {
+        const id = Number(postId);
+        if (!Number.isFinite(id) || commentsLoading.has(id)) return;
+        commentsLoading.add(id);
+        api(`/posts/${id}/comments`)
+            .then((r) => {
+                postComments[id] = buildCommentTree(Array.isArray(r?.comments) ? r.comments : []);
+                if (currentPostId === id) renderComments();
+            })
+            .catch(() => {})
+            .finally(() => commentsLoading.delete(id));
+    }
+
+    function registerPostView(postId, attempt = 0) {
+        const id = Number(postId);
+        if (!Number.isFinite(id)) return;
+        api(`/posts/${id}/view`, { method: 'POST' })
+            .then((r) => {
+                const nextViews = Number(r?.views || 0);
+                if (!Number.isFinite(nextViews) || nextViews < 0) return;
+                const updatePost = (item) => {
+                    if (!item || item.id !== id) return item;
+                    return { ...item, views: nextViews };
+                };
+                posts = posts.map(updatePost);
+                if (upmLocalPosts.has(id)) upmLocalPosts.set(id, { ...upmLocalPosts.get(id), views: nextViews });
+                const viewSpans = document.querySelectorAll(`.post[data-id="${id}"] .action-btn.passive span, #modal-post-container .action-btn.passive span`);
+                viewSpans.forEach((el) => { el.textContent = formatCompactCount(nextViews); });
+            })
+            .catch(() => {
+                if (attempt < 1) setTimeout(() => registerPostView(id, attempt + 1), 500);
+            });
     }
 
     function openPostModal(post) {
@@ -2429,27 +2464,8 @@
             postModal.classList.add('visible');
             document.body.style.overflow = 'hidden';
         }));
-        Promise.resolve()
-            .then(() => api(`/posts/${post.id}/comments`))
-            .then((r) => {
-                postComments[post.id] = buildCommentTree(Array.isArray(r?.comments) ? r.comments : []);
-                if (currentPostId === post.id) renderComments();
-            })
-            .catch(() => {});
-        api(`/posts/${post.id}/view`, { method: 'POST' })
-            .then((r) => {
-                const nextViews = Number(r?.views || 0);
-                if (!Number.isFinite(nextViews) || nextViews < 0) return;
-                const updatePost = (item) => {
-                    if (!item || item.id !== post.id) return item;
-                    return { ...item, views: nextViews };
-                };
-                posts = posts.map(updatePost);
-                if (upmLocalPosts.has(post.id)) upmLocalPosts.set(post.id, { ...upmLocalPosts.get(post.id), views: nextViews });
-                const viewSpans = document.querySelectorAll(`.post[data-id="${post.id}"] .action-btn.passive span, #modal-post-container .action-btn.passive span`);
-                viewSpans.forEach((el) => { el.textContent = formatCompactCount(nextViews); });
-            })
-            .catch(() => {});
+        syncPostComments(post.id);
+        registerPostView(post.id);
     }
 
     function closePostModal() {
@@ -2468,6 +2484,7 @@
         commentsList.innerHTML = '';
         const comments = postComments[currentPostId] || [];
         if (!comments.length) {
+            if (currentPostId && !Object.prototype.hasOwnProperty.call(postComments, currentPostId)) syncPostComments(currentPostId);
             commentsList.innerHTML = '<div class="empty-comments">Здесь пока нет комментариев. Будьте первым!</div>';
             return;
         }
