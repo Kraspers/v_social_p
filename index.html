@@ -5157,6 +5157,7 @@
       const r = await api(`/posts/${post.id}/comments`);
       const flat = r.comments || [];
       postComments[post.id] = buildCommentTree(flat);
+      if (typeof r.views !== 'undefined') applyIncomingView(post.id, r.views);
       renderComments();
     } catch (_) {}
   };
