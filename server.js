@@ -560,11 +560,17 @@ const server = http.createServer(async (req, res) => {
     return sendJson(res, 200, { reposted, reposts: db.posts.filter((p) => p.repostOf === postId).length });
   }
 
-  const mCom = u.pathname.match(/^\/api\/posts\/(\d+)\/comments$/);
+  const mCom = u.pathname.match(/^\/api\/posts\/([^/]+)\/comments$/);
   if (mCom && req.method === 'GET') {
     if (!me) return sendJson(res, 401, { error: 'Unauthorized' });
-    const postId = Number(mCom[1]);
-    if (!db.posts.find((p) => p.id === postId)) return sendJson(res, 404, { error: 'Post not found' });
+    const post = resolvePostByIdentifier(db, mCom[1]);
+    if (!post) return sendJson(res, 404, { error: 'Post not found' });
+    const postId = post.id;
+    const { counted, views } = recordPostView(db, postId, me.id);
+    if (counted) {
+      writeDb(db);
+      broadcastViewUpdate(postId, views);
+    }
     const comments = db.comments
       .filter((c) => c.postId === postId)
       .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt))
@@ -594,11 +600,12 @@ const server = http.createServer(async (req, res) => {
   }
   if (mCom && req.method === 'POST') {
     if (!me) return sendJson(res, 401, { error: 'Unauthorized' });
-    const postId = Number(mCom[1]);
+    const post = resolvePostByIdentifier(db, mCom[1]);
+    if (!post) return sendJson(res, 404, { error: 'Post not found' });
+    const postId = post.id;
     const b = await parseBody(req);
     const text = String(b.text || '').trim();
     if (!text) return sendJson(res, 400, { error: 'text required' });
-    if (!db.posts.find((p) => p.id === postId)) return sendJson(res, 404, { error: 'Post not found' });
     db.comments.push({ id: db.meta.commentSeq++, postId, parentId: b.parentId || null, authorId: me.id, text: text.slice(0, 2000), createdAt: nowIso() });
     writeDb(db);
     return sendJson(res, 201, { ok: true });
