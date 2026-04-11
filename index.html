@@ -2450,6 +2450,9 @@
     }
 
     function closePostModal() {
+        if (/^\/post\/[a-zA-Z0-9_-]+$/.test(location.pathname)) {
+            history.replaceState({}, '', '/tape');
+        }
         postModal.classList.remove('visible');
         postModal.classList.remove('active');
         const profileModal = document.getElementById('user-profile-modal');
