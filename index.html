@@ -2443,20 +2443,13 @@
                 };
                 posts = posts.map(updatePost);
                 if (upmLocalPosts.has(post.id)) upmLocalPosts.set(post.id, { ...upmLocalPosts.get(post.id), views: nextViews });
-                const viewSpans = document.querySelectorAll(`.post[data-id="${post.id}"] .views-counter span, .post[data-id="${post.id}"] .action-btn.passive span, #modal-post-container .views-counter span, #modal-post-container .action-btn.passive span`);
-                if (!viewSpans.length) {
-                    renderPosts();
-                } else {
-                    viewSpans.forEach((el) => { el.textContent = formatCompactCount(nextViews); });
-                }
+                const viewSpans = document.querySelectorAll(`.post[data-id="${post.id}"] .action-btn.passive span, #modal-post-container .action-btn.passive span`);
+                viewSpans.forEach((el) => { el.textContent = formatCompactCount(nextViews); });
             })
             .catch((err) => { console.warn('view track failed', err); });
     }
 
     function closePostModal() {
-        if (/^\/post\/[a-zA-Z0-9_-]+$/.test(location.pathname)) {
-            history.replaceState({}, '', '/tape');
-        }
         postModal.classList.remove('visible');
         postModal.classList.remove('active');
         const profileModal = document.getElementById('user-profile-modal');
@@ -4364,12 +4357,8 @@
     if (!Number.isFinite(id) || !Number.isFinite(nextViews) || nextViews < 0) return;
     posts = posts.map((p) => (p?.id === id ? { ...p, views: nextViews } : p));
     if (upmLocalPosts.has(id)) upmLocalPosts.set(id, { ...upmLocalPosts.get(id), views: nextViews });
-    const viewSpans = document.querySelectorAll(`.post[data-id="${id}"] .views-counter span, .post[data-id="${id}"] .action-btn.passive span, #modal-post-container .views-counter span, #modal-post-container .action-btn.passive span`);
-    if (!viewSpans.length) {
-      renderPosts();
-    } else {
-      viewSpans.forEach((el) => { el.textContent = formatCompactCount(nextViews); });
-    }
+    const viewSpans = document.querySelectorAll(`.post[data-id="${id}"] .action-btn.passive span, #modal-post-container .action-btn.passive span`);
+    viewSpans.forEach((el) => { el.textContent = formatCompactCount(nextViews); });
   }
 
   function disconnectViewsStream() {
@@ -5157,7 +5146,6 @@
       const r = await api(`/posts/${post.id}/comments`);
       const flat = r.comments || [];
       postComments[post.id] = buildCommentTree(flat);
-      if (typeof r.views !== 'undefined') applyIncomingView(post.id, r.views);
       renderComments();
     } catch (_) {}
   };
