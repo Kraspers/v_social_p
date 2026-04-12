@@ -5142,10 +5142,12 @@
       renderComments();
     } catch (_) {}
   };
+  if (typeof openPostModal === 'function') openPostModal = window.openPostModal;
   window.closePostModal = function closePostModalPatched() {
     if (routePath().startsWith('/post/')) navigateTo('/tape');
     return originalClosePostModal();
   };
+  if (typeof closePostModal === 'function') closePostModal = window.closePostModal;
 
   // publish/comment/like/repost via backend (no mocks)
   document.addEventListener('click', async (e) => {
