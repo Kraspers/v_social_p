@@ -2369,6 +2369,27 @@
     let replyTargetCommentId = null;
     const postComments = {};
     const expandedReplies = {};
+    async function loadCommentsForPost(postId) {
+        if (!postId) return;
+        try {
+            const token = localStorage.getItem('vp_token');
+            const headers = token ? { Authorization: `Bearer ${token}` } : {};
+            const res = await fetch(`/api/posts/${postId}/comments`, { headers });
+            if (!res.ok) return;
+            const data = await res.json().catch(() => ({}));
+            const flat = Array.isArray(data.comments) ? data.comments : [];
+            const byId = new Map();
+            flat.forEach((c) => byId.set(c.id, { ...c, replies: [] }));
+            const roots = [];
+            flat.forEach((c) => {
+                const node = byId.get(c.id);
+                if (c.parentId && byId.has(c.parentId)) byId.get(c.parentId).replies.push(node);
+                else roots.push(node);
+            });
+            postComments[postId] = roots;
+            if (currentPostId === postId) renderComments();
+        } catch (_) {}
+    }
 
     function runOutsideUserProfile(onReady) {
         onReady();
@@ -2414,6 +2435,7 @@
                 </div>
             </div>`;
         renderComments();
+        loadCommentsForPost(post.id);
         // Show 3-dot for own posts in modal header
         const optsBtnSlot = document.getElementById('modal-post-options-btn');
         if (optsBtnSlot) {
@@ -5142,10 +5164,12 @@
       renderComments();
     } catch (_) {}
   };
+  if (typeof openPostModal === 'function') openPostModal = window.openPostModal;
   window.closePostModal = function closePostModalPatched() {
     if (routePath().startsWith('/post/')) navigateTo('/tape');
     return originalClosePostModal();
   };
+  if (typeof closePostModal === 'function') closePostModal = window.closePostModal;
 
   // publish/comment/like/repost via backend (no mocks)
   document.addEventListener('click', async (e) => {
