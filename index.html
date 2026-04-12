@@ -2375,37 +2375,45 @@
         onReady();
     }
 
+    function postKey(postId) {
+        if (postId === null || postId === undefined) return '';
+        const key = String(postId).trim();
+        return key;
+    }
+
     function syncPostComments(postId) {
-        const id = Number(postId);
-        if (!Number.isFinite(id) || commentsLoading.has(id)) return;
-        commentsLoading.add(id);
-        api(`/posts/${id}/comments`)
+        const key = postKey(postId);
+        if (!key || commentsLoading.has(key)) return;
+        commentsLoading.add(key);
+        api(`/posts/${encodeURIComponent(key)}/comments`)
             .then((r) => {
-                postComments[id] = buildCommentTree(Array.isArray(r?.comments) ? r.comments : []);
-                if (currentPostId === id) renderComments();
+                postComments[key] = buildCommentTree(Array.isArray(r?.comments) ? r.comments : []);
+                if (postKey(currentPostId) === key) renderComments();
             })
             .catch(() => {})
-            .finally(() => commentsLoading.delete(id));
+            .finally(() => commentsLoading.delete(key));
     }
 
     function registerPostView(postId, attempt = 0) {
-        const id = Number(postId);
-        if (!Number.isFinite(id)) return;
-        api(`/posts/${id}/view`, { method: 'POST' })
+        const key = postKey(postId);
+        if (!key) return;
+        api(`/posts/${encodeURIComponent(key)}/view`, { method: 'POST' })
             .then((r) => {
                 const nextViews = Number(r?.views || 0);
                 if (!Number.isFinite(nextViews) || nextViews < 0) return;
                 const updatePost = (item) => {
-                    if (!item || item.id !== id) return item;
+                    if (!item || postKey(item.id) !== key) return item;
                     return { ...item, views: nextViews };
                 };
                 posts = posts.map(updatePost);
-                if (upmLocalPosts.has(id)) upmLocalPosts.set(id, { ...upmLocalPosts.get(id), views: nextViews });
-                const viewSpans = document.querySelectorAll(`.post[data-id="${id}"] .action-btn.passive span, #modal-post-container .action-btn.passive span`);
+                upmLocalPosts.forEach((value, mapKey) => {
+                    if (postKey(mapKey) === key) upmLocalPosts.set(mapKey, { ...value, views: nextViews });
+                });
+                const viewSpans = document.querySelectorAll(`.post[data-id="${key}"] .action-btn.passive span, #modal-post-container .action-btn.passive span`);
                 viewSpans.forEach((el) => { el.textContent = formatCompactCount(nextViews); });
             })
             .catch(() => {
-                if (attempt < 1) setTimeout(() => registerPostView(id, attempt + 1), 500);
+                if (attempt < 1) setTimeout(() => registerPostView(key, attempt + 1), 500);
             });
     }
 
@@ -4336,11 +4344,13 @@
   }
 
   function applyIncomingView(postId, views) {
-    const id = Number(postId);
+    const id = postKey(postId);
     const nextViews = Number(views);
-    if (!Number.isFinite(id) || !Number.isFinite(nextViews) || nextViews < 0) return;
-    posts = posts.map((p) => (p?.id === id ? { ...p, views: nextViews } : p));
-    if (upmLocalPosts.has(id)) upmLocalPosts.set(id, { ...upmLocalPosts.get(id), views: nextViews });
+    if (!id || !Number.isFinite(nextViews) || nextViews < 0) return;
+    posts = posts.map((p) => (postKey(p?.id) === id ? { ...p, views: nextViews } : p));
+    upmLocalPosts.forEach((value, mapKey) => {
+      if (postKey(mapKey) === id) upmLocalPosts.set(mapKey, { ...value, views: nextViews });
+    });
     const viewSpans = document.querySelectorAll(`.post[data-id="${id}"] .action-btn.passive span, #modal-post-container .action-btn.passive span`);
     viewSpans.forEach((el) => { el.textContent = formatCompactCount(nextViews); });
   }
