@@ -2260,6 +2260,7 @@
                     </div>
                 </div>`;
             el.addEventListener('click', e => {
+                registerPostView(post.id);
                 if (e.target.closest('.action-btn')) return;
                 if (e.target.closest('.post-options-btn')) return;
                 if (e.target.closest('.post-media-item')) return;
@@ -2345,6 +2346,7 @@
                 </div>
             </div>`;
         el.addEventListener('click', e => {
+            registerPostView(post.id);
             if (e.target.closest('.action-btn')) return;
             if (e.target.closest('.post-options-btn')) return;
             if (e.target.closest('.post-media-item')) return;
@@ -2371,7 +2373,6 @@
     const postComments = {};
     const expandedReplies = {};
     const commentsLoading = new Set();
-    const viewedPostIds = new Set();
     let postViewObserver = null;
 
     function runOutsideUserProfile(onReady) {
@@ -2412,8 +2413,6 @@
     function registerPostView(postId, attempt = 0) {
         const id = Number(postId);
         if (!Number.isFinite(id)) return;
-        if (viewedPostIds.has(id)) return;
-        viewedPostIds.add(id);
         api(`/posts/${id}/view`, { method: 'POST' })
             .then((r) => {
                 const nextViews = Number(r?.views || 0);
@@ -2428,7 +2427,6 @@
                 viewSpans.forEach((el) => { el.textContent = formatCompactCount(nextViews); });
             })
             .catch(() => {
-                viewedPostIds.delete(id);
                 if (attempt < 1) setTimeout(() => registerPostView(id, attempt + 1), 500);
             });
     }
