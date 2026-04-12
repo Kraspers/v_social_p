@@ -2508,41 +2508,9 @@
     }
 
     commentInput.addEventListener('input', () => { commentSubmit.disabled = !commentInput.value.trim(); });
-    commentSubmit.addEventListener('click', () => {
-        const text = commentInput.value.trim();
-        if (!text) return;
-        if (!postComments[currentPostId]) postComments[currentPostId] = [];
-        if (replyTargetCommentId) {
-            const comments = postComments[currentPostId];
-            function findRoot(list, targetId) {
-                for (let c of list) {
-                    if (c.id === targetId) return c;
-                    if (c.replies) {
-                        for (let r of c.replies) if (r.id === targetId) return c;
-                        const found = findRoot(c.replies, targetId);
-                        if (found) return found;
-                    }
-                }
-                return null;
-            }
-            const rootComment = findRoot(comments, replyTargetCommentId);
-            if (rootComment) {
-                rootComment.replies.push({ id: Date.now(), author:"Вы", username:"@username", avatar:"Я", text, time:"Только что", likes:0, liked:false, replies:[] });
-            } else {
-                postComments[currentPostId].unshift({ id: Date.now(), author:"Вы", username:"@username", avatar:"Я", text, time:"Только что", likes:0, liked:false, replies:[] });
-            }
-        } else {
-            postComments[currentPostId].unshift({ id: Date.now(), author:"Вы", username:"@username", avatar:"Я", text, time:"Только что", likes:0, liked:false, replies:[] });
-        }
-        const post = posts.find(p => p.id === currentPostId);
-        if (!replyTargetCommentId && post) post.comments++;
-        if (post) renderPosts();
-        if (postModal.classList.contains('active')) openPostModal(post || upmLocalPosts.get(currentPostId));
-        commentInput.value = '';
-        commentInput.style.height = '40px';
-        commentSubmit.disabled = true;
-        replyTargetCommentId = null;
-        renderComments();
+    commentSubmit.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopImmediatePropagation();
     });
 
     // ===== LOGIN SCREEN =====
@@ -5136,11 +5104,25 @@
       }
     }
     try {
-      const r = await api(`/posts/${post.id}/comments`);
-      const flat = r.comments || [];
-      postComments[post.id] = buildCommentTree(flat);
-      renderComments();
-    } catch (_) {}
+      const loadComments = async () => {
+        const r = await api(`/posts/${post.id}/comments`);
+        const flat = Array.isArray(r.comments) ? r.comments : [];
+        postComments[post.id] = buildCommentTree(flat);
+        const current = posts.find((p) => p.id === post.id);
+        if (current) current.comments = flat.length;
+        if (currentPostId === post.id) renderComments();
+      };
+      await loadComments();
+    } catch (_) {
+      setTimeout(async () => {
+        try {
+          const r = await api(`/posts/${post.id}/comments`);
+          const flat = Array.isArray(r.comments) ? r.comments : [];
+          postComments[post.id] = buildCommentTree(flat);
+          if (currentPostId === post.id) renderComments();
+        } catch {}
+      }, 180);
+    }
   };
   window.closePostModal = function closePostModalPatched() {
     if (routePath().startsWith('/post/')) navigateTo('/tape');
