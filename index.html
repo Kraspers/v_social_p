@@ -2271,6 +2271,7 @@
             feed.appendChild(el);
         });
         renderProfileFeeds();
+        observeFeedPostViews();
     }
 
     function renderProfileFeeds() {
@@ -2370,6 +2371,8 @@
     const postComments = {};
     const expandedReplies = {};
     const commentsLoading = new Set();
+    const viewedPostIds = new Set();
+    let postViewObserver = null;
 
     function runOutsideUserProfile(onReady) {
         onReady();
@@ -2388,9 +2391,29 @@
             .finally(() => commentsLoading.delete(id));
     }
 
+    function ensurePostViewObserver() {
+        if (postViewObserver || typeof IntersectionObserver !== 'function') return;
+        postViewObserver = new IntersectionObserver((entries) => {
+            entries.forEach((entry) => {
+                if (!entry.isIntersecting || entry.intersectionRatio < 0.6) return;
+                const id = Number(entry.target?.dataset?.id);
+                if (!Number.isFinite(id)) return;
+                registerPostView(id);
+            });
+        }, { threshold: [0.6] });
+    }
+
+    function observeFeedPostViews() {
+        ensurePostViewObserver();
+        if (!postViewObserver) return;
+        document.querySelectorAll('#feed .post[data-id]').forEach((el) => postViewObserver.observe(el));
+    }
+
     function registerPostView(postId, attempt = 0) {
         const id = Number(postId);
         if (!Number.isFinite(id)) return;
+        if (viewedPostIds.has(id)) return;
+        viewedPostIds.add(id);
         api(`/posts/${id}/view`, { method: 'POST' })
             .then((r) => {
                 const nextViews = Number(r?.views || 0);
@@ -2405,6 +2428,7 @@
                 viewSpans.forEach((el) => { el.textContent = formatCompactCount(nextViews); });
             })
             .catch(() => {
+                viewedPostIds.delete(id);
                 if (attempt < 1) setTimeout(() => registerPostView(id, attempt + 1), 500);
             });
     }
@@ -2484,7 +2508,15 @@
         commentsList.innerHTML = '';
         const comments = postComments[currentPostId] || [];
         if (!comments.length) {
-            if (currentPostId && !Object.prototype.hasOwnProperty.call(postComments, currentPostId)) syncPostComments(currentPostId);
+            if (currentPostId && !Object.prototype.hasOwnProperty.call(postComments, currentPostId)) {
+                syncPostComments(currentPostId);
+                commentsList.innerHTML = '<div class="empty-comments">Загрузка комментариев…</div>';
+                return;
+            }
+            if (currentPostId && commentsLoading.has(Number(currentPostId))) {
+                commentsList.innerHTML = '<div class="empty-comments">Загрузка комментариев…</div>';
+                return;
+            }
             commentsList.innerHTML = '<div class="empty-comments">Здесь пока нет комментариев. Будьте первым!</div>';
             return;
         }
