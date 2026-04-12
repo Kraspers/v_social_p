@@ -2375,41 +2375,53 @@
         onReady();
     }
 
+    function postKey(postId) {
+        if (postId === null || postId === undefined) return '';
+        const key = String(postId).trim();
+        return key;
+    }
+
     function syncPostComments(postId) {
-        const id = Number(postId);
-        if (!Number.isFinite(id) || commentsLoading.has(id)) return;
-        commentsLoading.add(id);
-        api(`/posts/${id}/comments`)
+        const key = postKey(postId);
+        if (!key || commentsLoading.has(key)) return;
+        commentsLoading.add(key);
+        api(`/posts/${encodeURIComponent(key)}/comments`)
             .then((r) => {
-                postComments[id] = buildCommentTree(Array.isArray(r?.comments) ? r.comments : []);
-                if (currentPostId === id) renderComments();
+                postComments[key] = buildCommentTree(Array.isArray(r?.comments) ? r.comments : []);
+                if (postKey(currentPostId) === key) renderComments();
             })
             .catch(() => {})
-            .finally(() => commentsLoading.delete(id));
+            .finally(() => commentsLoading.delete(key));
     }
 
     function registerPostView(postId, attempt = 0) {
-        const id = Number(postId);
-        if (!Number.isFinite(id)) return;
-        api(`/posts/${id}/view`, { method: 'POST' })
+        const key = postKey(postId);
+        if (!key) return;
+        api(`/posts/${encodeURIComponent(key)}/view`, { method: 'POST' })
             .then((r) => {
                 const nextViews = Number(r?.views || 0);
                 if (!Number.isFinite(nextViews) || nextViews < 0) return;
                 const updatePost = (item) => {
-                    if (!item || item.id !== id) return item;
+                    if (!item || postKey(item.id) !== key) return item;
                     return { ...item, views: nextViews };
                 };
                 posts = posts.map(updatePost);
-                if (upmLocalPosts.has(id)) upmLocalPosts.set(id, { ...upmLocalPosts.get(id), views: nextViews });
-                const viewSpans = document.querySelectorAll(`.post[data-id="${id}"] .action-btn.passive span, #modal-post-container .action-btn.passive span`);
+                upmLocalPosts.forEach((value, mapKey) => {
+                    if (postKey(mapKey) === key) upmLocalPosts.set(mapKey, { ...value, views: nextViews });
+                });
+                const viewSpans = document.querySelectorAll(`.post[data-id="${key}"] .action-btn.passive span, #modal-post-container .action-btn.passive span`);
                 viewSpans.forEach((el) => { el.textContent = formatCompactCount(nextViews); });
             })
             .catch(() => {
-                if (attempt < 1) setTimeout(() => registerPostView(id, attempt + 1), 500);
+                if (attempt < 1) setTimeout(() => registerPostView(key, attempt + 1), 500);
             });
     }
 
     function openPostModal(post) {
+        if (post?.publicId || post?.id) {
+            const fallbackId = (typeof post.id === 'number') ? `vp_${post.id.toString(36)}` : String(post.id || '');
+            navigateTo(`/post/${post.publicId || fallbackId}`);
+        }
         currentPostId = post.id;
         modalPostContainer.innerHTML = `
             <div class="post">
@@ -2452,7 +2464,8 @@
         // Show 3-dot for own posts in modal header
         const optsBtnSlot = document.getElementById('modal-post-options-btn');
         if (optsBtnSlot) {
-            if (post.author === 'Вы' || post.username === '@username') {
+            const modalOwn = !!(me && post && String(post.username || '').toLowerCase() === `@${me.username}`.toLowerCase());
+            if (modalOwn) {
                 optsBtnSlot.innerHTML = `<button class="post-options-btn" onclick="handlePostOptionsClick(event,${post.id},this)" style="margin-left:0;"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg></button>`;
             } else {
                 optsBtnSlot.innerHTML = '';
@@ -2469,6 +2482,7 @@
     }
 
     function closePostModal() {
+        if (routePath().startsWith('/post/')) navigateTo('/tape');
         postModal.classList.remove('visible');
         postModal.classList.remove('active');
         const profileModal = document.getElementById('user-profile-modal');
@@ -2476,6 +2490,8 @@
         replyTargetCommentId = null;
         setTimeout(() => { postModal.style.display = 'none'; }, 400);
     }
+    window.openPostModal = openPostModal;
+    window.closePostModal = closePostModal;
     document.getElementById('post-modal-close').addEventListener('click', closePostModal);
     postModal.addEventListener('click', e => { if (e.target === postModal) closePostModal(); });
 
@@ -2763,20 +2779,6 @@
         if (!saveBtn) return;
         saveBtn.disabled = text.length === 0 && editPostMedia.length === 0;
     }
-
-    postSubmit.addEventListener('click', () => {
-        const text = postInput.value.trim();
-        if (!text && composerMedia.length === 0) return;
-        const mediaSnap = [...composerMedia];
-        posts.unshift({ id: posts.length+1, author:"Вы", username:"@username", avatar:"Я", text: text || '', media: mediaSnap, time:"Только что", likes:0, reposts:0, comments:0, liked:false, reposted:false });
-        renderPosts();
-        postInput.value = '';
-        composerMedia = [];
-        renderComposerPreviews();
-        charCounter.textContent = '0/280';
-        charCounter.classList.remove('visible','warning','danger');
-        postSubmit.disabled = true;
-    });
 
     // ===== POST ACTIONS =====
     document.addEventListener('click', e => {
@@ -4336,11 +4338,13 @@
   }
 
   function applyIncomingView(postId, views) {
-    const id = Number(postId);
+    const id = postKey(postId);
     const nextViews = Number(views);
-    if (!Number.isFinite(id) || !Number.isFinite(nextViews) || nextViews < 0) return;
-    posts = posts.map((p) => (p?.id === id ? { ...p, views: nextViews } : p));
-    if (upmLocalPosts.has(id)) upmLocalPosts.set(id, { ...upmLocalPosts.get(id), views: nextViews });
+    if (!id || !Number.isFinite(nextViews) || nextViews < 0) return;
+    posts = posts.map((p) => (postKey(p?.id) === id ? { ...p, views: nextViews } : p));
+    upmLocalPosts.forEach((value, mapKey) => {
+      if (postKey(mapKey) === id) upmLocalPosts.set(mapKey, { ...value, views: nextViews });
+    });
     const viewSpans = document.querySelectorAll(`.post[data-id="${id}"] .action-btn.passive span, #modal-post-container .action-btn.passive span`);
     viewSpans.forEach((el) => { el.textContent = formatCompactCount(nextViews); });
   }
@@ -5103,37 +5107,6 @@
     });
     return roots;
   }
-
-  const originalOpenPostModal = window.openPostModal;
-  const originalClosePostModal = window.closePostModal;
-  window.openPostModal = async function(post) {
-    if (post?.publicId || post?.id) navigateTo(`/post/${post.publicId || `vp_${post.id.toString(36)}`}`);
-    originalOpenPostModal(post);
-    const modalOwn = me && post && String(post.username || '').toLowerCase() === `@${me.username}`.toLowerCase();
-    const optsWrap = document.getElementById('modal-post-options-btn');
-    if (optsWrap) {
-      optsWrap.innerHTML = '';
-      if (modalOwn) {
-        const btn = document.createElement('button');
-        btn.className = 'post-options-btn';
-        btn.style.marginLeft = '0';
-        btn.setAttribute('data-post-id', String(post.id));
-        btn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"></circle><circle cx="12" cy="12" r="2"></circle><circle cx="19" cy="12" r="2"></circle></svg>';
-        btn.onclick = (ev) => handlePostOptionsClick(ev, post.id, btn);
-        optsWrap.appendChild(btn);
-      }
-    }
-    try {
-      const r = await api(`/posts/${post.id}/comments`);
-      const flat = r.comments || [];
-      postComments[post.id] = buildCommentTree(flat);
-      renderComments();
-    } catch (_) {}
-  };
-  window.closePostModal = function closePostModalPatched() {
-    if (routePath().startsWith('/post/')) navigateTo('/tape');
-    return originalClosePostModal();
-  };
 
   // publish/comment/like/repost via backend (no mocks)
   document.addEventListener('click', async (e) => {
