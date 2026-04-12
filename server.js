@@ -448,10 +448,13 @@ const server = http.createServer(async (req, res) => {
     if (!me) return sendJson(res, 401, { error: 'Unauthorized' });
     const postId = Number(mView[1]);
     if (!db.posts.find((p) => p.id === postId)) return sendJson(res, 404, { error: 'Post not found' });
-    db.postViews.push({ id: uid(), postId, userId: me.id, createdAt: nowIso() });
-    writeDb(db);
+    const alreadyViewed = db.postViews.some((v) => v.postId === postId && v.userId === me.id);
+    if (!alreadyViewed) {
+      db.postViews.push({ id: uid(), postId, userId: me.id, createdAt: nowIso() });
+      writeDb(db);
+    }
     const views = db.postViews.filter((v) => v.postId === postId).length;
-    broadcastViewUpdate(postId, views);
+    if (!alreadyViewed) broadcastViewUpdate(postId, views);
     return sendJson(res, 200, { views });
   }
 
