@@ -4336,6 +4336,8 @@
     const method = replace ? 'replaceState' : 'pushState';
     history[method]({}, '', next);
   }
+  window.routePath = routePath;
+  window.navigateTo = navigateTo;
 
   function applyIncomingView(postId, views) {
     const id = postKey(postId);
