@@ -195,6 +195,20 @@ function serveFile(res, pathname) {
   if (pathname === '/privacy') f = '/privacy.html';
   if (pathname === '/terms') f = '/terms.html';
   if (pathname === '/login' || pathname === '/tape' || /^\/post\/[a-zA-Z0-9_-]+$/.test(pathname)) f = '/index.html';
+  const allowedTopLevelFiles = new Set([
+    '/index.html',
+    '/privacy.html',
+    '/terms.html',
+    '/logo.png',
+    '/logo_splash.png',
+    '/stories.png',
+    '/vpizde.png'
+  ]);
+  const allowedPrefixes = ['/assets/', '/uploads/'];
+  const isAllowed =
+    allowedTopLevelFiles.has(f) ||
+    allowedPrefixes.some((prefix) => f.startsWith(prefix));
+  if (!isAllowed) return false;
   const fp = path.join(ROOT, decodeURIComponent(f));
   if (!fp.startsWith(ROOT) || !fs.existsSync(fp) || fs.statSync(fp).isDirectory()) return false;
   const ext = path.extname(fp).toLowerCase();
