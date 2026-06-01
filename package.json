@@ -4,6 +4,7 @@
   "description": "VP social backend",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "check": "node --check server.js"
   }
 }

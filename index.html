@@ -114,7 +114,9 @@
             display: none;
         }
         .creator-done:hover { background: #0066dd; }
-        .creator-done.is-loading { opacity: 0.85; cursor: wait; }
+        .creator-done.is-loading { opacity: 1; cursor: wait; position: relative; overflow: hidden; background: #0D7EFF; color: white; }
+        .creator-done.is-loading::after { content: ''; position: absolute; inset: 0; transform: translateX(-120%); background: linear-gradient(105deg, transparent 10%, rgba(255,255,255,0.08) 35%, rgba(255,255,255,0.75) 50%, rgba(255,255,255,0.08) 65%, transparent 90%); animation: trackBtnLoading 1.15s cubic-bezier(0.22, 0.61, 0.36, 1) infinite; pointer-events: none; }
+        .creator-done.is-loading span { position: relative; z-index: 1; }
         .creator-content { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px; padding: 20px; }
         .creator-preview { max-width: 100%; max-height: 60vh; object-fit: contain; display: none; }
         .creator-preview.active { display: block; }
@@ -142,6 +144,9 @@
         .post-btn:hover:not(:disabled) { background: #0060cc; }
         .post-btn:not(:disabled) { background: #0078FF; color: white; }
         .post-btn:disabled { background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.25); cursor: not-allowed; }
+        .post-btn.loading, .post-btn.loading:disabled { background: #0078FF; color: white; opacity: 1; cursor: wait; position: relative; overflow: hidden; min-width: 112px; }
+        .post-btn.loading::after { content: ''; position: absolute; inset: 0; transform: translateX(-120%); background: linear-gradient(105deg, transparent 10%, rgba(255,255,255,0.08) 35%, rgba(255,255,255,0.75) 50%, rgba(255,255,255,0.08) 65%, transparent 90%); animation: trackBtnLoading 1.15s cubic-bezier(0.22, 0.61, 0.36, 1) infinite; pointer-events: none; }
+        .post-btn.loading span { position: relative; z-index: 1; }
         .feed { padding: 12px 16px; padding-bottom: 110px; display: flex; flex-direction: column; gap: 10px; }
         .post { padding: 16px; background: rgba(255,255,255,0.03); border-radius: 18px; border: none; transition: background 0.15s; overflow: hidden; }
         .post:hover { background: rgba(255,255,255,0.045); }
@@ -387,7 +392,7 @@
 
         .post-modal .action-btn { flex: 1; justify-content: center; }
         #post-modal { z-index: 12050; }
-        #repost-modal-overlay { z-index: 12100 !important; }
+        #repost-modal-overlay { z-index: 14000 !important; }
         #user-profile-modal .post {
             background: rgba(255,255,255,0.03) !important;
             border-radius: 18px;
@@ -431,8 +436,13 @@
         .stat-item { display: flex; gap: 4px; font-size: 15px; cursor: pointer; }
         .stat-number { font-weight: 700; }
         .stat-label { color: rgba(255,255,255,0.6); }
-        .edit-profile-btn { margin-top: 16px; width: 100%; padding: 14px; background: #ffffff; border: none; border-radius: 22px; font-weight: 700; cursor: pointer; transition: opacity 0.2s; font-size: 16px; color: #000; }
+        .profile-action-row { display: flex; align-items: center; gap: 10px; margin-top: 16px; }
+        .edit-profile-btn { width: 100%; padding: 14px; background: #ffffff; border: none; border-radius: 22px; font-weight: 700; cursor: pointer; transition: opacity 0.2s; font-size: 16px; color: #000; }
+        .profile-action-row .edit-profile-btn { flex: 1; min-width: 0; }
         .edit-profile-btn:hover { opacity: 0.92; }
+        .profile-link-btn { width: 48px; height: 48px; flex: 0 0 48px; border: none; border-radius: 50%; background: rgba(255,255,255,0.10); color: #fff; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; transition: opacity 0.2s, background 0.2s; }
+        .profile-link-btn:hover { opacity: 0.92; background: rgba(255,255,255,0.16); }
+        .profile-link-btn svg { width: 22px; height: 22px; fill: currentColor; }
         .music-track-btn { margin-top: 16px; width: 100%; padding: 14px; background: rgba(255,255,255,0.35); border: none; border-radius: 22px; font-weight: 700; cursor: pointer; transition: opacity 0.2s; font-size: 16px; color: #fff; position: relative; display: flex; align-items: center; justify-content: center; }
         .music-track-btn:hover { opacity: 0.92; }
         .music-track-btn.hidden { display: none; }
@@ -1183,6 +1193,9 @@
             transition: background 0.2s, color 0.2s;
         }
         .edit-post-save-btn:hover { background: #0066dd; }
+        .edit-post-save-btn.loading, .edit-post-save-btn.loading:disabled { background: #0D7EFF; color: white; opacity: 1; cursor: wait; position: relative; overflow: hidden; min-width: 128px; }
+        .edit-post-save-btn.loading::after { content: ''; position: absolute; inset: 0; transform: translateX(-120%); background: linear-gradient(105deg, transparent 10%, rgba(255,255,255,0.08) 35%, rgba(255,255,255,0.75) 50%, rgba(255,255,255,0.08) 65%, transparent 90%); animation: trackBtnLoading 1.15s cubic-bezier(0.22, 0.61, 0.36, 1) infinite; pointer-events: none; }
+        .edit-post-save-btn.loading span { position: relative; z-index: 1; }
         .edit-post-save-btn:disabled {
             background: rgba(255,255,255,0.12);
             color: rgba(255,255,255,0.45);
@@ -1629,7 +1642,10 @@
                     </span>
                     <span class="music-track-title" id="profile-music-track-title"></span>
                 </button>
-                <button class="edit-profile-btn">Редактировать профиль</button>
+                <div class="profile-action-row">
+                    <button class="edit-profile-btn">Редактировать профиль</button>
+                    <button class="profile-link-btn" type="button" onclick="copyOwnProfileLink()" aria-label="Скопировать ссылку на профиль"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" aria-hidden="true"><path d="M451.5 160C434.9 160 418.8 164.5 404.7 172.7C388.9 156.7 370.5 143.3 350.2 133.2C378.4 109.2 414.3 96 451.5 96C537.9 96 608 166 608 252.5C608 294 591.5 333.8 562.2 363.1L491.1 434.2C461.8 463.5 422 480 380.5 480C294.1 480 224 410 224 323.5C224 322 224 320.5 224.1 319C224.6 301.3 239.3 287.4 257 287.9C274.7 288.4 288.6 303.1 288.1 320.8C288.1 321.7 288.1 322.6 288.1 323.4C288.1 374.5 329.5 415.9 380.6 415.9C405.1 415.9 428.6 406.2 446 388.8L517.1 317.7C534.4 300.4 544.2 276.8 544.2 252.3C544.2 201.2 502.8 159.8 451.7 159.8zM307.2 237.3C305.3 236.5 303.4 235.4 301.7 234.2C289.1 227.7 274.7 224 259.6 224C235.1 224 211.6 233.7 194.2 251.1L123.1 322.2C105.8 339.5 96 363.1 96 387.6C96 438.7 137.4 480.1 188.5 480.1C205 480.1 221.1 475.7 235.2 467.5C251 483.5 269.4 496.9 289.8 507C261.6 530.9 225.8 544.2 188.5 544.2C102.1 544.2 32 474.2 32 387.7C32 346.2 48.5 306.4 77.8 277.1L148.9 206C178.2 176.7 218 160.2 259.5 160.2C346.1 160.2 416 230.8 416 317.1C416 318.4 416 319.7 416 321C415.6 338.7 400.9 352.6 383.2 352.2C365.5 351.8 351.6 337.1 352 319.4C352 318.6 352 317.9 352 317.1C352 283.4 334 253.8 307.2 237.5z"/></svg></button>
+                </div>
             </div>
         </div>
         <div class="profile-tabs-bar">
@@ -2011,7 +2027,7 @@
 </div>
 
 <!-- Repost Modal — full screen like screenshot -->
-<div class="post-modal" id="repost-modal-overlay" style="z-index:10500;">
+<div class="post-modal" id="repost-modal-overlay" style="z-index:14000;">
     <div class="post-modal-wrap">
     <div class="post-modal-outer-header">
         <button class="post-modal-outer-back" onclick="closeRepostModal()">
@@ -4028,6 +4044,7 @@
         document.body.style.overflow = (postModal.classList.contains('active') || (repostModal && repostModal.classList.contains('active'))) ? 'hidden' : '';
         upmLocalPosts.clear();
         currentViewedProfile = null;
+        if ((location.pathname.replace(/\/+$/, '') || '/').startsWith('/user/')) history.pushState({}, '', '/tape');
         setTimeout(() => { modal.style.zIndex = '11000'; modal.style.display = 'none'; }, 350);
     }
 
@@ -4199,10 +4216,13 @@
                     <div style="font-size:15px;"><span style="font-weight:700;">${repostsCount}</span> <span style="color:rgba(255,255,255,0.6);">Репостов</span></div>
                 </div>
                 ${u.favoriteTrackName && u.favoriteTrackUrl ? `<button type="button" class="music-track-btn" style="margin-top:16px;" onclick="playViewedProfileTrack()"><span class="music-track-circle"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3v10.55a4 4 0 1 0 2 3.45V8h6V3h-8z"/></svg></span><span class="music-track-title">${u.favoriteTrackName}</span></button>` : ''}
-                <button id="upm-subscribe-btn" onclick="toggleSubscribe('${uname}')"
-                    style="width:100%;margin-top:16px;padding:14px;background:${isSubscribed ? 'rgba(255,255,255,0.08)' : 'white'};border:none;border-radius:22px;font-size:16px;font-weight:700;cursor:pointer;font-family:inherit;color:${isSubscribed ? '#e6e6e9' : '#000'};transition:all 0.2s;">
-                    ${isSubscribed ? 'Вы подписаны' : 'Подписаться'}
-                </button>
+                <div class="profile-action-row">
+                    <button id="upm-subscribe-btn" onclick="toggleSubscribe('${uname}')"
+                        style="flex:1;min-width:0;padding:14px;background:${isSubscribed ? 'rgba(255,255,255,0.08)' : 'white'};border:none;border-radius:22px;font-size:16px;font-weight:700;cursor:pointer;font-family:inherit;color:${isSubscribed ? '#e6e6e9' : '#000'};transition:all 0.2s;">
+                        ${isSubscribed ? 'Вы подписаны' : 'Подписаться'}
+                    </button>
+                    <button class="profile-link-btn" type="button" onclick="copyViewedProfileLink('${uname}')" aria-label="Скопировать ссылку на профиль"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" aria-hidden="true"><path d="M451.5 160C434.9 160 418.8 164.5 404.7 172.7C388.9 156.7 370.5 143.3 350.2 133.2C378.4 109.2 414.3 96 451.5 96C537.9 96 608 166 608 252.5C608 294 591.5 333.8 562.2 363.1L491.1 434.2C461.8 463.5 422 480 380.5 480C294.1 480 224 410 224 323.5C224 322 224 320.5 224.1 319C224.6 301.3 239.3 287.4 257 287.9C274.7 288.4 288.6 303.1 288.1 320.8C288.1 321.7 288.1 322.6 288.1 323.4C288.1 374.5 329.5 415.9 380.6 415.9C405.1 415.9 428.6 406.2 446 388.8L517.1 317.7C534.4 300.4 544.2 276.8 544.2 252.3C544.2 201.2 502.8 159.8 451.7 159.8zM307.2 237.3C305.3 236.5 303.4 235.4 301.7 234.2C289.1 227.7 274.7 224 259.6 224C235.1 224 211.6 233.7 194.2 251.1L123.1 322.2C105.8 339.5 96 363.1 96 387.6C96 438.7 137.4 480.1 188.5 480.1C205 480.1 221.1 475.7 235.2 467.5C251 483.5 269.4 496.9 289.8 507C261.6 530.9 225.8 544.2 188.5 544.2C102.1 544.2 32 474.2 32 387.7C32 346.2 48.5 306.4 77.8 277.1L148.9 206C178.2 176.7 218 160.2 259.5 160.2C346.1 160.2 416 230.8 416 317.1C416 318.4 416 319.7 416 321C415.6 338.7 400.9 352.6 383.2 352.2C365.5 351.8 351.6 337.1 352 319.4C352 318.6 352 317.9 352 317.1C352 283.4 334 253.8 307.2 237.5z"/></svg></button>
+                </div>
             </div>
             <div class="profile-tabs-bar" style="position:sticky;top:0;z-index:2;background:#1a1b1f;">
                 <div class="profile-tabs-bar-inner">
@@ -4354,6 +4374,7 @@
   let viewsStream = null;
   let viewsStreamRetryTimer = null;
   let pendingPostRouteId = null;
+  let pendingUserRouteName = null;
   let muteNavRouteUpdate = false;
   let commentOptsId = null;
   let editingCommentId = null;
@@ -4446,6 +4467,86 @@
     return data;
   }
   window.api = api;
+
+
+
+  function profileUrl(username) {
+    const uname = String(username || '').replace(/^@/, '').trim().toLowerCase();
+    return `${location.origin}/user/${encodeURIComponent(uname)}`;
+  }
+
+  async function copyProfileLink(username) {
+    const url = profileUrl(username);
+    try {
+      if (navigator.clipboard?.writeText) await navigator.clipboard.writeText(url);
+      else {
+        const ta = document.createElement('textarea');
+        ta.value = url;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        ta.remove();
+      }
+      showToast('Ссылка скопирована');
+    } catch {
+      showToast('Не удалось скопировать ссылку');
+    }
+  }
+
+  window.copyOwnProfileLink = function copyOwnProfileLink() {
+    copyProfileLink(me?.username || profileData?.username || '');
+  };
+
+  window.copyViewedProfileLink = function copyViewedProfileLink(username) {
+    copyProfileLink(username);
+  };
+
+  function formatMb(bytes) {
+    const value = Math.max(0, Number(bytes) || 0) / (1024 * 1024);
+    return `${value.toFixed(value >= 10 ? 0 : 1)} МБ`;
+  }
+
+  function uploadLabel(loaded, total) {
+    return `${formatMb(loaded)} / ${formatMb(total || loaded)}`;
+  }
+
+  function buttonLabel(btn, text) {
+    if (!btn) return;
+    btn.innerHTML = `<span>${text}</span>`;
+  }
+
+  function setUploadButton(btn, loading, text) {
+    if (!btn) return;
+    btn.disabled = !!loading;
+    btn.classList.toggle('loading', !!loading);
+    btn.classList.toggle('is-loading', !!loading);
+    buttonLabel(btn, text || btn.dataset.defaultText || btn.textContent || 'Опубликовать');
+  }
+
+  async function apiWithUploadProgress(path, payload, onProgress) {
+    const body = JSON.stringify(payload || {});
+    const totalBytes = new TextEncoder().encode(body).length;
+    onProgress?.(0, totalBytes);
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', `${API_BASE}${path}`, true);
+      xhr.setRequestHeader('Content-Type', 'application/json');
+      if (token()) xhr.setRequestHeader('Authorization', `Bearer ${token()}`);
+      xhr.upload.onprogress = (event) => onProgress?.(event.lengthComputable ? event.loaded : Math.min(totalBytes, event.loaded || 0), event.lengthComputable ? event.total : totalBytes);
+      xhr.onload = () => {
+        let data = {};
+        try { data = xhr.responseText ? JSON.parse(xhr.responseText) : {}; } catch {}
+        if (xhr.status >= 200 && xhr.status < 300) resolve(data);
+        else reject(new Error(data.error || 'API error'));
+      };
+      xhr.onerror = () => reject(new Error('Ошибка загрузки'));
+      xhr.onabort = () => reject(new Error('Загрузка отменена'));
+      xhr.send(body);
+    });
+  }
+
 
   window.doUserSearch = async function doUserSearch(query) {
     const q = String(query || '').trim();
@@ -4767,11 +4868,11 @@
     }
   };
 
-  async function uploadTrackIfNeeded(dataUrl) {
+  async function uploadTrackIfNeeded(dataUrl, onProgress) {
     const src = String(dataUrl || '');
     if (!src) return '';
     if (!src.startsWith('data:audio/')) return src;
-    const r = await api('/upload-track', { method: 'POST', body: JSON.stringify({ dataUrl: src }) });
+    const r = await apiWithUploadProgress('/upload-track', { dataUrl: src }, onProgress);
     return r.url || '';
   }
 
@@ -4835,7 +4936,7 @@
     try {
       isTrackUploading = true;
       if (trackBtn) { trackBtn.disabled = true; trackBtn.classList.add('loading'); }
-      if (trackTitle) trackTitle.textContent = 'Загрузка...';
+      if (trackTitle) trackTitle.textContent = uploadLabel(0, file.size || 0);
       const reader = new FileReader();
       reader.onerror = () => {
         showToast('Ошибка чтения файла');
@@ -4844,7 +4945,7 @@
       reader.onload = async (ev) => {
         try {
           const dataUrl = String(ev.target?.result || '');
-          const uploadedUrl = await uploadTrackIfNeeded(dataUrl);
+          const uploadedUrl = await uploadTrackIfNeeded(dataUrl, (loaded, total) => { if (trackTitle) trackTitle.textContent = uploadLabel(Math.min(loaded, file.size || loaded), file.size || total); });
           const coverUrl = await extractTrackCover(file);
           const track = { name: normalizeTrackName(file.name), url: absoluteUrl(uploadedUrl || ''), coverUrl, createdAt: new Date().toISOString() };
           profileData.favoriteTracks.push(track);
@@ -5108,12 +5209,11 @@
     const storyText = document.getElementById('creator-text-input').value.trim();
     const payload = img.classList.contains('active') ? { mediaType:'image', src: img.dataset.src, caption: storyText } : (vid.classList.contains('active') ? { mediaType:'video', src: vid.dataset.src, caption: storyText } : null);
     if (!payload) return;
-    const prevText = btn.textContent;
-    btn.disabled = true;
-    btn.classList.add('is-loading');
-    btn.textContent = 'Загрузка...';
+    const prevText = btn.textContent || 'Опубликовать';
+    btn.dataset.defaultText = prevText;
+    setUploadButton(btn, true, uploadLabel(0, JSON.stringify(payload).length));
     try {
-      await api('/stories', { method: 'POST', body: JSON.stringify(payload) });
+      await apiWithUploadProgress('/stories', payload, (loaded, total) => setUploadButton(btn, true, uploadLabel(loaded, total)));
       await syncStories();
       const sc=document.getElementById('story-creator');
       sc.classList.remove('visible');
@@ -5121,9 +5221,7 @@
     } catch(err){
       alert(err.message);
     } finally {
-      btn.disabled = false;
-      btn.classList.remove('is-loading');
-      btn.textContent = prevText;
+      setUploadButton(btn, false, prevText);
     }
   }, true);
 
@@ -5179,14 +5277,18 @@
       e.preventDefault(); e.stopImmediatePropagation();
       const text = postInput.value.trim();
       if (!text && composerMedia.length === 0) return;
+      const payload = { text, media: composerMedia };
+      const prevText = postBtn.textContent || 'Опубликовать';
+      postBtn.dataset.defaultText = prevText;
+      setUploadButton(postBtn, true, uploadLabel(0, JSON.stringify(payload).length));
       try {
-        await api('/posts', { method: 'POST', body: JSON.stringify({ text, media: composerMedia }) });
+        await apiWithUploadProgress('/posts', payload, (loaded, total) => setUploadButton(postBtn, true, uploadLabel(loaded, total)));
         postInput.value = ''; composerMedia = []; renderComposerPreviews();
         charCounter.textContent = '0/280';
         charCounter.classList.remove('visible','warning','danger');
-        document.getElementById('post-submit').disabled = true;
         await syncPosts();
       } catch (err) { alert(err.message); }
+      finally { setUploadButton(postBtn, false, prevText); postBtn.disabled = postInput.value.trim().length === 0 && composerMedia.length === 0; }
       return;
     }
 
@@ -5238,6 +5340,7 @@
   const recalcPostBtn = () => {
     const b = document.getElementById('post-submit');
     if (!b) return;
+    if (b.classList.contains('loading')) return;
     b.disabled = postInput.value.trim().length === 0 && composerMedia.length === 0;
   };
   postInput?.addEventListener('input', recalcPostBtn);
@@ -5250,6 +5353,7 @@
     const body = document.getElementById('upm-body');
     if (!uname || !modal || !body) return;
     const silent = !!options.silent;
+    if (!silent) navigateTo(`/user/${encodeURIComponent(uname)}`);
     if (!silent) {
       body.innerHTML = '<div style="padding:40px 20px;text-align:center;color:rgba(255,255,255,.5);font-size:14px;">Загрузка...</div>';
       modal.style.display = 'flex';
@@ -5371,14 +5475,37 @@
       showToast('Пустой пост сохранить нельзя');
       return;
     }
+    const saveBtn = document.getElementById('edit-post-save-btn');
+    const prevText = saveBtn?.textContent || 'Сохранить';
+    const payload = { text: nextText, media: editPostMedia.map((m) => ({ ...m })) };
+    setUploadButton(saveBtn, true, uploadLabel(0, JSON.stringify(payload).length));
     try {
-      await api(`/posts/${id}`, { method: 'PATCH', body: JSON.stringify({ text: nextText, media: editPostMedia.map((m) => ({ ...m })) }) });
+      await new Promise((resolve, reject) => {
+        const body = JSON.stringify(payload);
+        const totalBytes = new TextEncoder().encode(body).length;
+        const xhr = new XMLHttpRequest();
+        xhr.open('PATCH', `${API_BASE}/posts/${id}`, true);
+        xhr.setRequestHeader('Content-Type', 'application/json');
+        if (token()) xhr.setRequestHeader('Authorization', `Bearer ${token()}`);
+        xhr.upload.onprogress = (event) => setUploadButton(saveBtn, true, uploadLabel(event.lengthComputable ? event.loaded : 0, event.lengthComputable ? event.total : totalBytes));
+        xhr.onload = () => {
+          let data = {};
+          try { data = xhr.responseText ? JSON.parse(xhr.responseText) : {}; } catch {}
+          if (xhr.status >= 200 && xhr.status < 300) resolve(data);
+          else reject(new Error(data.error || 'API error'));
+        };
+        xhr.onerror = () => reject(new Error('Ошибка загрузки'));
+        xhr.send(body);
+      });
       closeEditPostSheet();
       postOptsId = null;
       await syncPosts();
       showToast('Пост обновлён');
     } catch (e) {
       showToast(e.message);
+    } finally {
+      setUploadButton(saveBtn, false, prevText);
+      updateEditPostSaveState();
     }
   };
 
@@ -5619,7 +5746,7 @@
   function applyRoute() {
     const p = routePath();
     if (!token()) {
-      if (/^\/post\/[a-zA-Z0-9_-]+$/.test(p)) {
+      if (/^\/post\/[a-zA-Z0-9_-]+$/.test(p) || /^\/user\/[a-zA-Z0-9_.-]+$/.test(p)) {
         showNoVpidScreen();
         return;
       }
@@ -5650,6 +5777,17 @@
         muteNavRouteUpdate = false;
       }
       pendingPostRouteId = postMatch[1];
+      return;
+    }
+    const userMatch = p.match(/^\/user\/([a-zA-Z0-9_.-]+)$/);
+    if (userMatch) {
+      const homeBtn = document.querySelector('.nav-btn[data-tab="home"]');
+      if (homeBtn) {
+        muteNavRouteUpdate = true;
+        homeBtn.click();
+        muteNavRouteUpdate = false;
+      }
+      pendingUserRouteName = userMatch[1];
     }
   }
   window.addEventListener('popstate', applyRoute);
@@ -5672,7 +5810,7 @@
     if (!token()) {
       resetClientUiState();
       applyRoute();
-      if (!routePath().startsWith('/post/') && routePath() !== '/login') navigateTo('/login', true);
+      if (!routePath().startsWith('/post/') && !routePath().startsWith('/user/') && routePath() !== '/login') navigateTo('/login', true);
       return;
     }
     try {
@@ -5692,6 +5830,11 @@
         const toOpen = pendingPostRouteId;
         pendingPostRouteId = null;
         await openPostByRoute(toOpen);
+      }
+      if (pendingUserRouteName) {
+        const toOpenUser = pendingUserRouteName;
+        pendingUserRouteName = null;
+        await openUserProfile(toOpenUser);
       }
     } catch {
       disconnectViewsStream();
