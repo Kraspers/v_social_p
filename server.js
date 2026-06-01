@@ -250,7 +250,7 @@ function publicFilePath(pathname) {
   let f = pathname === '/' ? '/index.html' : pathname;
   if (pathname === '/privacy') f = '/privacy.html';
   if (pathname === '/terms') f = '/terms.html';
-  if (pathname === '/login' || pathname === '/tape' || /^\/post\/[a-zA-Z0-9_-]+$/.test(pathname)) f = '/index.html';
+  if (pathname === '/login' || pathname === '/tape' || /^\/post\/[a-zA-Z0-9_-]+$/.test(pathname) || /^\/user\/[a-zA-Z0-9_.-]+$/.test(pathname)) f = '/index.html';
   const decoded = decodeURIComponent(f).replace(/\\/g, '/');
   if (decoded.includes('\0')) return null;
   if (decoded.startsWith('/uploads/')) {
