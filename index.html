@@ -453,9 +453,10 @@
         @keyframes trackBtnLoading { to { transform: translateX(120%); } }
         .music-track-circle { width: 34px; height: 34px; border-radius: 50%; background: #fff; color: #000; display: inline-flex; align-items: center; justify-content: center; position: absolute; left: 10px; top: 50%; transform: translateY(-50%); }
         .music-track-title { display:block; width:100%; text-align: center; font-size: 16px; font-weight: 700; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0 40px; }
-        .music-track-count { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); width: 5px; height: 24px; border-radius: 999px; overflow: hidden; display: none; flex-direction: column; gap: 2px; z-index: 1; }
-        .music-track-count-segment { flex: 1; min-height: 3px; border-radius: 999px; background: rgba(255,255,255,0.92); }
-        .music-track-count.visible { display: flex; }
+        .music-track-count { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); width: 5px; height: 24px; border-radius: 999px; overflow: hidden; display: none; grid-template-rows: repeat(var(--track-count, 1), minmax(0, 1fr)); gap: 2px; z-index: 1; }
+        .music-track-count-segment { min-height: 0; border-radius: 999px; background: rgba(255,255,255,0.30); }
+        .music-track-count-segment.active { background: rgba(255,255,255,0.96); }
+        .music-track-count.visible { display: grid; }
         .music-track-btn.edit { margin-top: 0; }
 
         .track-player { position: fixed; z-index: 18050; right: 16px; top: 16px; width: min(360px, calc(100vw - 32px)); background: rgba(31,31,35,0.58); border: 1px solid rgba(255,255,255,0.14); border-radius: 30px; backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); padding: 12px; display:flex; align-items:center; gap:12px; opacity:0; transform: translateY(-10px) scale(0.98); pointer-events:none; transition: opacity .26s ease, transform .26s ease; }
@@ -1647,7 +1648,7 @@
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3v10.55a4 4 0 1 0 2 3.45V8h6V3h-8z"/></svg>
                     </span>
                     <span class="music-track-title" id="profile-music-track-title"></span>
-                    <span class="music-track-count" id="profile-music-track-count"></span>
+                    <span class="music-track-count" id="profile-music-track-count" data-track-count-source="own"></span>
                 </button>
                 <div class="profile-action-row">
                     <button class="edit-profile-btn">Редактировать профиль</button>
@@ -1879,7 +1880,7 @@
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3v10.55a4 4 0 1 0 2 3.45V8h6V3h-8z"/></svg>
                     </span>
                     <span class="music-track-title" id="ep-track-btn-title">Добавить трек</span>
-                    <span class="music-track-count" id="ep-track-btn-count"></span>
+                    <span class="music-track-count" id="ep-track-btn-count" data-track-count-source="own"></span>
                 </button>
                 <div>
                     <div style="font-size:13px;font-weight:700;color:#e6e6e9;margin-bottom:6px;">Имя</div>
@@ -4223,7 +4224,7 @@
                     <div style="font-size:15px;"><span style="font-weight:700;" id="upm-followers">${followers}</span> <span style="color:rgba(255,255,255,0.6);">Подписчиков</span></div>
                     <div style="font-size:15px;"><span style="font-weight:700;">${repostsCount}</span> <span style="color:rgba(255,255,255,0.6);">Репостов</span></div>
                 </div>
-                ${u.favoriteTrackName && u.favoriteTrackUrl ? `<button type="button" class="music-track-btn" style="margin-top:16px;" onclick="playViewedProfileTrack()"><span class="music-track-circle"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3v10.55a4 4 0 1 0 2 3.45V8h6V3h-8z"/></svg></span><span class="music-track-title">${u.favoriteTrackName}</span>${renderTrackCountHtml(Array.isArray(u.favoriteTracks) ? u.favoriteTracks.length : 1)}</button>` : ''}
+                ${u.favoriteTrackName && u.favoriteTrackUrl ? `<button type="button" class="music-track-btn" style="margin-top:16px;" onclick="playViewedProfileTrack()"><span class="music-track-circle"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3v10.55a4 4 0 1 0 2 3.45V8h6V3h-8z"/></svg></span><span class="music-track-title">${u.favoriteTrackName}</span>${renderTrackCountHtml(Array.isArray(u.favoriteTracks) ? u.favoriteTracks.length : 1, 'viewed')}</button>` : ''}
                 <div class="profile-action-row">
                     <button id="upm-subscribe-btn" onclick="toggleSubscribe('${uname}')"
                         style="flex:1;min-width:0;padding:14px;background:${isSubscribed ? 'rgba(255,255,255,0.08)' : 'white'};border:none;border-radius:22px;font-size:16px;font-weight:700;cursor:pointer;font-family:inherit;color:${isSubscribed ? '#e6e6e9' : '#000'};transition:all 0.2s;">
@@ -4356,13 +4357,13 @@
         <div class="track-player-name" id="track-player-name"></div>
         <div class="track-player-controls">
             <button class="track-player-btn" id="track-prev-btn" type="button" onclick="playPrevTrack()">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M18 6v12h-2V6h2ZM6 12l8 6V6l-8 6Z"/></svg>
+                <svg width="16" height="16" viewBox="0 0 640 640" fill="currentColor"><path d="M556.2 541.6C544.2 546.6 530.5 543.8 521.3 534.7L352 365.3L352 512C352 524.9 344.2 536.6 332.2 541.6C320.2 546.6 306.5 543.8 297.3 534.7L128 365.3L128 512C128 529.7 113.7 544 96 544C78.3 544 64 529.7 64 512L64 128C64 110.3 78.3 96 96 96C113.7 96 128 110.3 128 128L128 274.7L297.4 105.4C306.6 96.2 320.3 93.5 332.3 98.5C344.3 103.5 352 115.1 352 128L352 274.7L521.4 105.3C530.6 96.1 544.3 93.4 556.3 98.4C568.3 103.4 576 115.1 576 128L576 512C576 524.9 568.2 536.6 556.2 541.6z"/></svg>
             </button>
             <button class="track-player-btn primary" id="track-toggle-btn" type="button" onclick="toggleTrackPlayback()">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+                <svg width="16" height="16" viewBox="0 0 640 640" fill="currentColor"><path d="M187.2 100.9C174.8 94.1 159.8 94.4 147.6 101.6C135.4 108.8 128 121.9 128 136L128 504C128 518.1 135.5 531.2 147.6 538.4C159.7 545.6 174.8 545.9 187.2 539.1L523.2 355.1C536 348.1 544 334.6 544 320C544 305.4 536 291.9 523.2 284.9L187.2 100.9z"/></svg>
             </button>
             <button class="track-player-btn" id="track-next-btn" type="button" onclick="playNextTrack()">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M6 6v12h2V6H6Zm4 6 8 6V6l-8 6Z"/></svg>
+                <svg width="16" height="16" viewBox="0 0 640 640" fill="currentColor"><path d="M491 100.8C478.1 93.8 462.3 94.5 450 102.6L192 272.1L192 128C192 110.3 177.7 96 160 96C142.3 96 128 110.3 128 128L128 512C128 529.7 142.3 544 160 544C177.7 544 192 529.7 192 512L192 367.9L450 537.5C462.3 545.6 478 546.3 491 539.3C504 532.3 512 518.8 512 504.1L512 136.1C512 121.4 503.9 107.9 491 100.9z"/></svg>
             </button>
         </div>
     </div>
@@ -4674,22 +4675,27 @@
     return `${item.name || ''}::${item.url || ''}`;
   }
 
-  function collectAvailableTracks() {
-    const arr = [];
-    const ownLastTrack = Array.isArray(profileData?.favoriteTracks) && profileData.favoriteTracks.length ? profileData.favoriteTracks[profileData.favoriteTracks.length - 1] : (profileData?.favoriteTrackUrl ? { name: normalizeTrackName(profileData.favoriteTrackName || 'Трек'), url: absoluteUrl(profileData.favoriteTrackUrl), coverUrl: '' } : null);
-    if (ownLastTrack?.url) arr.push({ name: normalizeTrackName(ownLastTrack.name || 'Трек'), url: absoluteUrl(ownLastTrack.url), coverUrl: absoluteUrl(ownLastTrack.coverUrl || '') });
-    const viewed = currentViewedProfile?.userData;
-    const viewedLastTrack = Array.isArray(viewed?.favoriteTracks) && viewed.favoriteTracks.length ? viewed.favoriteTracks[viewed.favoriteTracks.length - 1] : (viewed?.favoriteTrackUrl ? { name: viewed.favoriteTrackName, url: viewed.favoriteTrackUrl, coverUrl: '' } : null);
-    if (viewedLastTrack?.url) arr.push({ name: normalizeTrackName(viewedLastTrack.name || 'Трек'), url: absoluteUrl(viewedLastTrack.url), coverUrl: absoluteUrl(viewedLastTrack.coverUrl || '') });
+  function normalizeTrackList(tracks, source = '') {
     const uniq = [];
     const seen = new Set();
-    arr.forEach((t) => {
-      const key = trackKey(t);
-      if (!t.url || seen.has(key)) return;
+    (tracks || []).forEach((t) => {
+      const item = { name: normalizeTrackName(t?.name || 'Трек'), url: absoluteUrl(t?.url || ''), coverUrl: absoluteUrl(t?.coverUrl || ''), source };
+      const key = trackKey(item);
+      if (!item.url || seen.has(key)) return;
       seen.add(key);
-      uniq.push(t);
+      uniq.push(item);
     });
     return uniq;
+  }
+
+  function profileTracksForQueue(source) {
+    if (source === 'viewed') {
+      const viewed = currentViewedProfile?.userData;
+      const tracks = Array.isArray(viewed?.favoriteTracks) && viewed.favoriteTracks.length ? viewed.favoriteTracks : (viewed?.favoriteTrackUrl ? [{ name: viewed.favoriteTrackName || 'Трек', url: viewed.favoriteTrackUrl, coverUrl: '' }] : []);
+      return normalizeTrackList(tracks, 'viewed');
+    }
+    const tracks = Array.isArray(profileData?.favoriteTracks) && profileData.favoriteTracks.length ? profileData.favoriteTracks : (profileData?.favoriteTrackUrl ? [{ name: profileData.favoriteTrackName || 'Трек', url: profileData.favoriteTrackUrl, coverUrl: '' }] : []);
+    return normalizeTrackList(tracks, 'own');
   }
 
   function updatePlayerUi(isPlaying = false) {
@@ -4714,11 +4720,12 @@
     const shouldHideOnMobile = mobile && (hasOpenOverlay || !['home-tab','profile-tab'].includes(activeTab));
     container.classList.toggle('mobile-hidden', shouldHideOnMobile);
     title.textContent = current.name || 'Трек';
-    prevBtn.disabled = false;
+    prevBtn.disabled = trackQueue.length <= 1;
     nextBtn.disabled = trackQueue.length <= 1;
     toggleBtn.innerHTML = isPlaying
-      ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5h3v14H8zm5 0h3v14h-3z"/></svg>'
-      : '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
+      ? '<svg width="16" height="16" viewBox="0 0 640 640" fill="currentColor"><path d="M160 96L480 96C515.3 96 544 124.7 544 160L544 480C544 515.3 515.3 544 480 544L160 544C124.7 544 96 515.3 96 480L96 160C96 124.7 124.7 96 160 96z"/></svg>'
+      : '<svg width="16" height="16" viewBox="0 0 640 640" fill="currentColor"><path d="M187.2 100.9C174.8 94.1 159.8 94.4 147.6 101.6C135.4 108.8 128 121.9 128 136L128 504C128 518.1 135.5 531.2 147.6 538.4C159.7 545.6 174.8 545.9 187.2 539.1L523.2 355.1C536 348.1 544 334.6 544 320C544 305.4 536 291.9 523.2 284.9L187.2 100.9z"/></svg>';
+    updateTrackCountIndicators();
     cover.innerHTML = current.coverUrl
       ? `<img src="${current.coverUrl}" alt="">`
       : '<svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3v10.55a4 4 0 1 0 2 3.45V8h6V3h-8z"/></svg>';
@@ -4761,8 +4768,8 @@
     }
   }
 
-  function initTrackQueue(startTrack) {
-    const available = collectAvailableTracks();
+  function initTrackQueue(startTrack, source) {
+    const available = profileTracksForQueue(source);
     if (!available.length) return false;
     trackQueue = available;
     const idx = available.findIndex((t) => trackKey(t) === trackKey(startTrack));
@@ -4771,20 +4778,18 @@
   }
 
   window.playProfileTrack = function playProfileTrack() {
-    const last = Array.isArray(profileData.favoriteTracks) && profileData.favoriteTracks.length ? profileData.favoriteTracks[profileData.favoriteTracks.length - 1] : null;
-    const track = { name: normalizeTrackName(last?.name || profileData.favoriteTrackName || ''), url: absoluteUrl(last?.url || profileData.favoriteTrackUrl || ''), coverUrl: absoluteUrl(last?.coverUrl || '') };
-    if (!track.url) return;
-    initTrackQueue(track);
+    const tracks = profileTracksForQueue('own');
+    const track = tracks[tracks.length - 1];
+    if (!track?.url) return;
+    initTrackQueue(track, 'own');
     playTrackFromQueue(currentTrackIndex);
   };
 
   window.playViewedProfileTrack = function playViewedProfileTrack() {
-    const viewed = currentViewedProfile?.userData;
-    if (!viewed) return;
-    const viewedLast = Array.isArray(viewed.favoriteTracks) && viewed.favoriteTracks.length ? viewed.favoriteTracks[viewed.favoriteTracks.length - 1] : null;
-    const track = { name: normalizeTrackName(viewedLast?.name || viewed.favoriteTrackName || ''), url: absoluteUrl(viewedLast?.url || viewed.favoriteTrackUrl || ''), coverUrl: absoluteUrl(viewedLast?.coverUrl || '') };
-    if (!track.url) return;
-    initTrackQueue(track);
+    const tracks = profileTracksForQueue('viewed');
+    const track = tracks[tracks.length - 1];
+    if (!track?.url) return;
+    initTrackQueue(track, 'viewed');
     playTrackFromQueue(currentTrackIndex);
   };
 
@@ -4799,9 +4804,9 @@
   };
 
   window.playPrevTrack = function playPrevTrack() {
-    if (currentTrackIndex < 0) return;
-    trackAudio.currentTime = 0;
-    if (trackAudio.paused) trackAudio.play().catch(() => {});
+    if (trackQueue.length <= 1 || currentTrackIndex < 0) return;
+    const prevIndex = (currentTrackIndex - 1 + trackQueue.length) % trackQueue.length;
+    playTrackFromQueue(prevIndex);
   };
 
   window.playNextTrack = function playNextTrack() {
@@ -4836,16 +4841,31 @@
   ['click','touchend'].forEach((evt) => document.addEventListener(evt, () => setTimeout(refreshPlayerVisibility, 0), true));
   window.addEventListener('resize', refreshPlayerVisibility);
 
-  function renderTrackCountIndicator(el, count) {
+  function activeTrackIndexForSource(source) {
+    const current = trackQueue[currentTrackIndex];
+    return current?.source === source ? currentTrackIndex : -1;
+  }
+
+  function renderTrackCountIndicator(el, count, activeIndex = -1) {
     if (!el) return;
     const visibleCount = Math.min(4, Math.max(0, Number(count) || 0));
-    el.innerHTML = visibleCount > 1 ? Array.from({ length: visibleCount }, () => '<span class="music-track-count-segment"></span>').join('') : '';
+    el.style.setProperty('--track-count', String(visibleCount || 1));
+    el.innerHTML = visibleCount > 1 ? Array.from({ length: visibleCount }, (_, i) => `<span class="music-track-count-segment${i === Math.min(activeIndex, visibleCount - 1) ? ' active' : ''}"></span>`).join('') : '';
     el.classList.toggle('visible', visibleCount > 1);
   }
 
-  function renderTrackCountHtml(count) {
+  function renderTrackCountHtml(count, source = '') {
     const visibleCount = Math.min(4, Math.max(0, Number(count) || 0));
-    return visibleCount > 1 ? `<span class="music-track-count visible">${Array.from({ length: visibleCount }, () => '<span class="music-track-count-segment"></span>').join('')}</span>` : '';
+    const activeIndex = activeTrackIndexForSource(source);
+    return visibleCount > 1 ? `<span class="music-track-count visible" data-track-count-source="${source}" style="--track-count:${visibleCount}">${Array.from({ length: visibleCount }, (_, i) => `<span class="music-track-count-segment${i === Math.min(activeIndex, visibleCount - 1) ? ' active' : ''}"></span>`).join('')}</span>` : '';
+  }
+
+  function updateTrackCountIndicators() {
+    document.querySelectorAll('[data-track-count-source]').forEach((el) => {
+      const source = el.getAttribute('data-track-count-source') || '';
+      const count = source === 'viewed' ? profileTracksForQueue('viewed').length : profileTracksForQueue('own').length;
+      renderTrackCountIndicator(el, count, activeTrackIndexForSource(source));
+    });
   }
 
   function renderMusicTrackButtons() {
@@ -4865,11 +4885,12 @@
         profileBtn.classList.add('hidden');
         profileTitle.textContent = '';
       }
-      renderTrackCountIndicator(document.getElementById('profile-music-track-count'), trackCount);
+      renderTrackCountIndicator(document.getElementById('profile-music-track-count'), trackCount, activeTrackIndexForSource('own'));
     }
     const editTitle = document.getElementById('ep-track-btn-title');
     if (editTitle && !isTrackUploading) editTitle.textContent = (ownTrackName && ownTrackUrl) ? ownTrackName : 'Добавить трек';
-    renderTrackCountIndicator(document.getElementById('ep-track-btn-count'), trackCount);
+    renderTrackCountIndicator(document.getElementById('ep-track-btn-count'), trackCount, activeTrackIndexForSource('own'));
+    updateTrackCountIndicators();
   }
 
   async function syncFavoriteTracksOnly() {
