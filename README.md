@@ -12,21 +12,24 @@ node server.js
 - статику фронтенда (`index.html`, публичные изображения, `assets/*`, `uploads/*`),
 - REST API на `http://localhost:3000/api/*`.
 
-## Хранилище и перенос между хостингами
+## Хранилище, Supabase и перенос между хостингами
 
-Данные хранятся в зашифрованном файле `db.json` в формате AES-256-GCM. Сервер автоматически мигрирует старый plaintext `db.json` в encrypted envelope при старте.
+Основной production-вариант — PostgreSQL/Supabase. Если задан `DATABASE_URL`, сервер сам создаёт нормализованные таблицы и хранит пользователей, посты, лайки, комментарии, подписки, просмотры, stories и лимиты VPSC в PostgreSQL. Схема также лежит в `supabase/schema.sql`.
 
 В production обязательно задайте переменные окружения:
 
 ```bash
+DATABASE_URL=postgresql://...
 JWT_SECRET=long-random-token-secret
 DB_ENCRYPTION_KEY=long-random-database-key
-DATA_DIR=/var/data
+VPSC_PEPPER=long-random-vpsc-secret
 ```
 
-- `DATA_DIR` — постоянная директория для `db.json` и `uploads/`, чтобы данные не стирались после перезапуска/сна хоста.
-- Для переноса на другой хостинг скопируйте весь `DATA_DIR` и используйте тот же `DB_ENCRYPTION_KEY` и `JWT_SECRET`.
-- Если нужно указать отдельные пути, доступны `DB_PATH` и `UPLOAD_DIR`.
+- Пароли хранятся через bcrypt. Старые SHA-256 пароли автоматически обновляются до bcrypt после успешного входа.
+- VPSC проверяется по HMAC-SHA-256 с `VPSC_PEPPER`; сам код дополнительно шифруется AES-256-GCM только для сохранения текущей логики показа/копирования VPSC в интерфейсе.
+- При переносе на другой хостинг достаточно перенести env-переменные и подключиться к тому же Supabase `DATABASE_URL`.
+
+Fallback для локальной разработки без `DATABASE_URL`: данные хранятся в зашифрованном файле `db.json` в формате AES-256-GCM. `DATA_DIR` — постоянная директория для `db.json` и `uploads/`; также доступны `DB_PATH` и `UPLOAD_DIR`.
 
 ## Защита исходников
 
