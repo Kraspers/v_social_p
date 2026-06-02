@@ -276,6 +276,11 @@ function securityHeaders(type) {
   };
 }
 
+function wrapProtectedHtml(html) {
+  const encoded = Buffer.from(html, 'utf8').toString('base64');
+  return `<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>VP 2.0</title></head><body><script>(()=>{const b='${encoded}';const bytes=Uint8Array.from(atob(b),c=>c.charCodeAt(0));document.open();document.write(new TextDecoder().decode(bytes));document.close();})();</script></body></html>`;
+}
+
 function serveFile(res, pathname) {
   const fp = publicFilePath(pathname);
   if (!fp || !fs.existsSync(fp) || fs.statSync(fp).isDirectory()) return false;
@@ -293,6 +298,10 @@ function serveFile(res, pathname) {
     '.m4a': 'audio/mp4'
   }[ext] || 'application/octet-stream';
   res.writeHead(200, securityHeaders(type));
+  if (path.basename(fp) === 'index.html') {
+    res.end(wrapProtectedHtml(fs.readFileSync(fp, 'utf8')));
+    return true;
+  }
   fs.createReadStream(fp).pipe(res);
   return true;
 }
