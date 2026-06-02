@@ -26,10 +26,24 @@ function emptyDb() {
 }
 
 
+function getDatabaseUrl() {
+  const raw = process.env.DATABASE_URL;
+  if (!raw) return raw;
+  const dbUrl = new URL(raw);
+  if (dbUrl.username === 'postgres' && dbUrl.hostname.includes('supabase')) {
+    dbUrl.username = 'postgres.sfkeodbjvkvuphylgatc';
+    dbUrl.hostname = 'aws-1-eu-central-1.pooler.supabase.com';
+    dbUrl.port = '6543';
+    dbUrl.pathname = '/postgres';
+    return dbUrl.toString();
+  }
+  return raw;
+}
+
 function getPgPool() {
   if (!pgPool) {
     pgPool = new Pool({
-      connectionString: process.env.DATABASE_URL,
+      connectionString: getDatabaseUrl(),
       ssl: process.env.PGSSLMODE === 'disable' ? false : { rejectUnauthorized: false }
     });
   }
