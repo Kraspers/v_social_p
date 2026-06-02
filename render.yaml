@@ -10,6 +10,8 @@ services:
       mountPath: /var/data
       sizeGB: 1
     envVars:
+      - key: DATABASE_URL
+        value: postgresql://postgres.sfkeodbjvkvuphylgatc:UVOempGPz5X0Msmw@aws-1-eu-central-1.pooler.supabase.com:6543/postgres
       - key: JWT_SECRET
         generateValue: true
       - key: DB_ENCRYPTION_KEY
