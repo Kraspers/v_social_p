@@ -6,5 +6,9 @@
   "scripts": {
     "start": "node server.js",
     "check": "node --check server.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "pg": "^8.13.1"
   }
 }

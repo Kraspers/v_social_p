@@ -3,7 +3,7 @@ services:
     name: v-social-p
     runtime: node
     plan: starter
-    buildCommand: ""
+    buildCommand: npm install
     startCommand: node server.js
     disk:
       name: vp-data

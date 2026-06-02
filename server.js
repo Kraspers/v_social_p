@@ -2,6 +2,8 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const bcrypt = require('bcryptjs');
+const { Pool } = require('pg');
 const { URL } = require('url');
 
 const PORT = process.env.PORT || 3000;
@@ -12,10 +14,190 @@ const DB_PATH = path.resolve(process.env.DB_PATH || path.join(DATA_DIR, 'db.json
 const UPLOAD_DIR = path.resolve(process.env.UPLOAD_DIR || path.join(DATA_DIR, 'uploads'));
 const VPSC_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789!@#$%&*';
 const DB_ENVELOPE_VERSION = 1;
+const USE_POSTGRES = !!process.env.DATABASE_URL;
+const BCRYPT_ROUNDS = Number(process.env.BCRYPT_ROUNDS || 12);
+const VPSC_PEPPER = process.env.VPSC_PEPPER || process.env.DB_ENCRYPTION_KEY || SECRET;
 let dbCache = null;
+let pgPool = null;
+let pgReady = false;
 
 function emptyDb() {
   return { users: [], posts: [], comments: [], likes: [], follows: [], stories: [], postViews: [], commentLikes: [], meta: { postSeq: 1, commentSeq: 1, vpscAttempts: {} } };
+}
+
+
+function getPgPool() {
+  if (!pgPool) {
+    pgPool = new Pool({
+      connectionString: process.env.DATABASE_URL,
+      ssl: process.env.PGSSLMODE === 'disable' ? false : { rejectUnauthorized: false }
+    });
+  }
+  return pgPool;
+}
+
+function toDateValue(value) {
+  if (!value) return nowIso();
+  return value instanceof Date ? value.toISOString() : String(value);
+}
+
+function camelUser(row) {
+  return {
+    id: row.id,
+    username: row.username,
+    displayName: row.display_name,
+    passwordHash: row.password_hash,
+    bio: row.bio || '',
+    avatar: row.avatar || 'U',
+    avatarUrl: row.avatar_url || '',
+    bannerUrl: row.banner_url || '',
+    favoriteTrackName: row.favorite_track_name || '',
+    favoriteTrackUrl: row.favorite_track_url || '',
+    favoriteTracks: Array.isArray(row.favorite_tracks) ? row.favorite_tracks : [],
+    vpscHash: row.vpsc_hash || '',
+    vpsc: row.legacy_vpsc ? decryptSecretValue(row.legacy_vpsc) : '',
+    pinnedPostId: row.pinned_post_id == null ? null : row.pinned_post_id,
+    pinnedRepostId: row.pinned_repost_id == null ? null : row.pinned_repost_id,
+    createdAt: toDateValue(row.created_at)
+  };
+}
+
+function camelPost(row) {
+  return {
+    id: Number(row.id),
+    publicId: row.public_id || '',
+    authorId: row.author_id,
+    text: row.text || '',
+    media: Array.isArray(row.media) ? row.media : [],
+    repostOf: row.repost_of == null ? null : Number(row.repost_of),
+    createdAt: toDateValue(row.created_at)
+  };
+}
+
+function getVpscSecret() {
+  if (!VPSC_PEPPER || VPSC_PEPPER === 'vp_dev_secret_change_me') {
+    console.warn('WARNING: set VPSC_PEPPER in production; VPSC codes are account recovery credentials.');
+  }
+  return String(VPSC_PEPPER || SECRET);
+}
+
+function hashVpsc(code) {
+  return crypto.createHmac('sha256', getVpscSecret()).update(String(code || '').trim().toUpperCase()).digest('hex');
+}
+
+function isBcryptHash(value) {
+  return /^\$2[aby]\$\d{2}\$/.test(String(value || ''));
+}
+
+function isLegacyShaHash(value) {
+  return /^[a-f0-9]{64}$/i.test(String(value || ''));
+}
+
+async function hashPassword(password) {
+  return bcrypt.hash(String(password || ''), BCRYPT_ROUNDS);
+}
+
+async function verifyPassword(password, storedHash) {
+  const stored = String(storedHash || '');
+  if (isBcryptHash(stored)) return bcrypt.compare(String(password || ''), stored);
+  if (isLegacyShaHash(stored)) return sha(password) === stored;
+  return false;
+}
+
+async function ensurePgSchema() {
+  if (pgReady || !USE_POSTGRES) return;
+  const pool = getPgPool();
+  await pool.query(`
+    create table if not exists app_meta (
+      key text primary key,
+      value jsonb not null
+    );
+    create table if not exists users (
+      id text primary key,
+      username text not null unique,
+      display_name text not null,
+      password_hash text not null,
+      bio text not null default '',
+      avatar text not null default 'U',
+      avatar_url text not null default '',
+      banner_url text not null default '',
+      favorite_track_name text not null default '',
+      favorite_track_url text not null default '',
+      favorite_tracks jsonb not null default '[]'::jsonb,
+      vpsc_hash text unique,
+      legacy_vpsc text,
+      pinned_post_id integer,
+      pinned_repost_id integer,
+      created_at timestamptz not null default now()
+    );
+    create table if not exists posts (
+      id integer primary key,
+      public_id text not null unique,
+      author_id text not null references users(id) on delete cascade,
+      text text not null default '',
+      media jsonb not null default '[]'::jsonb,
+      repost_of integer references posts(id) on delete cascade deferrable initially deferred,
+      created_at timestamptz not null default now()
+    );
+    create table if not exists comments (
+      id integer primary key,
+      post_id integer not null references posts(id) on delete cascade,
+      parent_id integer references comments(id) on delete cascade deferrable initially deferred,
+      author_id text not null references users(id) on delete cascade,
+      text text not null,
+      created_at timestamptz not null default now()
+    );
+    create table if not exists likes (
+      id text primary key,
+      post_id integer not null references posts(id) on delete cascade,
+      user_id text not null references users(id) on delete cascade,
+      created_at timestamptz not null default now(),
+      unique(post_id, user_id)
+    );
+    create table if not exists follows (
+      id text primary key,
+      follower_id text not null references users(id) on delete cascade,
+      following_id text not null references users(id) on delete cascade,
+      created_at timestamptz not null default now(),
+      unique(follower_id, following_id)
+    );
+    create table if not exists stories (
+      id text primary key,
+      author_id text not null references users(id) on delete cascade,
+      src text not null,
+      media_type text not null default 'image',
+      caption text not null default '',
+      created_at timestamptz not null default now()
+    );
+    create table if not exists post_views (
+      id text primary key,
+      post_id integer not null references posts(id) on delete cascade,
+      user_id text not null references users(id) on delete cascade,
+      created_at timestamptz not null default now(),
+      unique(post_id, user_id)
+    );
+    create table if not exists comment_likes (
+      id text primary key,
+      comment_id integer not null references comments(id) on delete cascade,
+      user_id text not null references users(id) on delete cascade,
+      created_at timestamptz not null default now(),
+      unique(comment_id, user_id)
+    );
+    create table if not exists vpsc_attempts (
+      ip_hash text primary key,
+      fails integer not null default 0,
+      blocked_until bigint not null default 0,
+      updated_at timestamptz not null default now()
+    );
+    create index if not exists idx_posts_author_created on posts(author_id, created_at desc);
+    create index if not exists idx_posts_created on posts(created_at desc);
+    create index if not exists idx_comments_post_created on comments(post_id, created_at);
+    create index if not exists idx_follows_follower on follows(follower_id);
+    create index if not exists idx_follows_following on follows(following_id);
+    create index if not exists idx_likes_post on likes(post_id);
+    create index if not exists idx_post_views_post on post_views(post_id);
+  `);
+  pgReady = true;
 }
 
 function getDbKey() {
@@ -45,6 +227,25 @@ function decryptDb(raw) {
   return parsed;
 }
 
+
+function encryptSecretValue(value) {
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv('aes-256-gcm', getDbKey(), iv);
+  const data = Buffer.concat([cipher.update(String(value || ''), 'utf8'), cipher.final()]);
+  return JSON.stringify({ alg: 'aes-256-gcm', iv: iv.toString('base64'), tag: cipher.getAuthTag().toString('base64'), data: data.toString('base64') });
+}
+
+function decryptSecretValue(value) {
+  const raw = String(value || '');
+  if (!raw) return '';
+  if (!raw.trim().startsWith('{')) return raw;
+  const parsed = JSON.parse(raw);
+  if (!parsed || parsed.alg !== 'aes-256-gcm') return raw;
+  const decipher = crypto.createDecipheriv('aes-256-gcm', getDbKey(), Buffer.from(parsed.iv, 'base64'));
+  decipher.setAuthTag(Buffer.from(parsed.tag, 'base64'));
+  return Buffer.concat([decipher.update(Buffer.from(parsed.data, 'base64')), decipher.final()]).toString('utf8');
+}
+
 function normalizeDb(db) {
   const next = db && typeof db === 'object' ? db : emptyDb();
   next.users ||= []; next.posts ||= []; next.comments ||= []; next.likes ||= []; next.follows ||= []; next.stories ||= []; next.commentLikes ||= []; next.postViews ||= [];
@@ -69,7 +270,103 @@ function persistDb(db) {
   fs.renameSync(tmp, DB_PATH);
 }
 
-function ensureDb() {
+async function readPgDb() {
+  await ensurePgSchema();
+  const pool = getPgPool();
+  const hasUsers = await pool.query('select exists (select 1 from users limit 1) as has_users');
+  if (!hasUsers.rows[0]?.has_users && fs.existsSync(DB_PATH)) {
+    const migrated = normalizeDb(decryptDb(fs.readFileSync(DB_PATH, 'utf8')));
+    if (migrated.users.length || migrated.posts.length || migrated.comments.length) {
+      await writePgDb(migrated);
+    }
+  }
+  const [users, posts, comments, likes, follows, stories, postViews, commentLikes, meta, attempts] = await Promise.all([
+    pool.query('select * from users order by created_at, id'),
+    pool.query('select * from posts order by id'),
+    pool.query('select * from comments order by id'),
+    pool.query('select * from likes order by created_at, id'),
+    pool.query('select * from follows order by created_at, id'),
+    pool.query('select * from stories order by created_at, id'),
+    pool.query('select * from post_views order by created_at, id'),
+    pool.query('select * from comment_likes order by created_at, id'),
+    pool.query("select value from app_meta where key = 'seq'"),
+    pool.query('select * from vpsc_attempts')
+  ]);
+  const db = {
+    users: users.rows.map(camelUser),
+    posts: posts.rows.map(camelPost),
+    comments: comments.rows.map((r) => ({ id: Number(r.id), postId: Number(r.post_id), parentId: r.parent_id == null ? null : Number(r.parent_id), authorId: r.author_id, text: r.text || '', createdAt: toDateValue(r.created_at) })),
+    likes: likes.rows.map((r) => ({ id: r.id, postId: Number(r.post_id), userId: r.user_id, createdAt: toDateValue(r.created_at) })),
+    follows: follows.rows.map((r) => ({ id: r.id, followerId: r.follower_id, followingId: r.following_id, createdAt: toDateValue(r.created_at) })),
+    stories: stories.rows.map((r) => ({ id: r.id, authorId: r.author_id, src: r.src, mediaType: r.media_type, caption: r.caption || '', createdAt: toDateValue(r.created_at) })),
+    postViews: postViews.rows.map((r) => ({ id: r.id, postId: Number(r.post_id), userId: r.user_id, createdAt: toDateValue(r.created_at) })),
+    commentLikes: commentLikes.rows.map((r) => ({ id: r.id, commentId: Number(r.comment_id), userId: r.user_id, createdAt: toDateValue(r.created_at) })),
+    meta: meta.rows[0]?.value || { postSeq: 1, commentSeq: 1, vpscAttempts: {} }
+  };
+  db.meta.vpscAttempts = {};
+  attempts.rows.forEach((r) => { db.meta.vpscAttempts[r.ip_hash] = { fails: Number(r.fails) || 0, blockedUntil: Number(r.blocked_until) || 0 }; });
+  dbCache = normalizeDb(db);
+  return dbCache;
+}
+
+async function writePgDb(db) {
+  await ensurePgSchema();
+  const next = normalizeDb(db);
+  const client = await getPgPool().connect();
+  try {
+    await client.query('begin');
+    await client.query('set constraints all deferred');
+    await client.query('delete from comment_likes');
+    await client.query('delete from post_views');
+    await client.query('delete from likes');
+    await client.query('delete from follows');
+    await client.query('delete from stories');
+    await client.query('delete from comments');
+    await client.query('delete from posts');
+    await client.query('delete from users');
+    await client.query('delete from vpsc_attempts');
+    for (const user of next.users) {
+      if (!user.vpscHash && user.vpsc) user.vpscHash = hashVpsc(user.vpsc);
+      await client.query(
+        `insert into users (id, username, display_name, password_hash, bio, avatar, avatar_url, banner_url, favorite_track_name, favorite_track_url, favorite_tracks, vpsc_hash, legacy_vpsc, pinned_post_id, pinned_repost_id, created_at)
+         values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb,$12,$13,$14,$15,$16)`,
+        [user.id, user.username, user.displayName || '', user.passwordHash, user.bio || '', user.avatar || 'U', user.avatarUrl || '', user.bannerUrl || '', user.favoriteTrackName || '', user.favoriteTrackUrl || '', JSON.stringify(user.favoriteTracks || []), user.vpscHash || null, user.vpsc ? encryptSecretValue(user.vpsc) : null, user.pinnedPostId || null, user.pinnedRepostId || null, user.createdAt || nowIso()]
+      );
+    }
+    for (const post of next.posts) {
+      await client.query(
+        `insert into posts (id, public_id, author_id, text, media, repost_of, created_at) values ($1,$2,$3,$4,$5::jsonb,$6,$7)`,
+        [post.id, post.publicId || `vp_${post.id.toString(36)}`, post.authorId, post.text || '', JSON.stringify(post.media || []), post.repostOf || null, post.createdAt || nowIso()]
+      );
+    }
+    for (const comment of next.comments) {
+      await client.query(
+        `insert into comments (id, post_id, parent_id, author_id, text, created_at) values ($1,$2,$3,$4,$5,$6)`,
+        [comment.id, comment.postId, comment.parentId || null, comment.authorId, comment.text || '', comment.createdAt || nowIso()]
+      );
+    }
+    for (const like of next.likes) await client.query(`insert into likes (id, post_id, user_id, created_at) values ($1,$2,$3,$4) on conflict (post_id, user_id) do nothing`, [like.id || uid(), like.postId, like.userId, like.createdAt || nowIso()]);
+    for (const follow of next.follows) await client.query(`insert into follows (id, follower_id, following_id, created_at) values ($1,$2,$3,$4) on conflict (follower_id, following_id) do nothing`, [follow.id || uid(), follow.followerId, follow.followingId, follow.createdAt || nowIso()]);
+    for (const story of next.stories) await client.query(`insert into stories (id, author_id, src, media_type, caption, created_at) values ($1,$2,$3,$4,$5,$6)`, [story.id || uid(), story.authorId, story.src, story.mediaType || 'image', story.caption || '', story.createdAt || nowIso()]);
+    for (const view of next.postViews) await client.query(`insert into post_views (id, post_id, user_id, created_at) values ($1,$2,$3,$4) on conflict (post_id, user_id) do nothing`, [view.id || uid(), view.postId, view.userId, view.createdAt || nowIso()]);
+    for (const like of next.commentLikes) await client.query(`insert into comment_likes (id, comment_id, user_id, created_at) values ($1,$2,$3,$4) on conflict (comment_id, user_id) do nothing`, [like.id || uid(), like.commentId, like.userId, like.createdAt || nowIso()]);
+    const attempts = next.meta.vpscAttempts || {};
+    for (const [ipHash, limit] of Object.entries(attempts)) {
+      await client.query(`insert into vpsc_attempts (ip_hash, fails, blocked_until, updated_at) values ($1,$2,$3,now())`, [ipHash, Number(limit.fails) || 0, Number(limit.blockedUntil) || 0]);
+    }
+    await client.query(`insert into app_meta (key, value) values ('seq', $1::jsonb) on conflict (key) do update set value = excluded.value`, [JSON.stringify({ postSeq: next.meta.postSeq || 1, commentSeq: next.meta.commentSeq || 1 })]);
+    await client.query('commit');
+    dbCache = next;
+  } catch (err) {
+    await client.query('rollback');
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
+async function ensureDb() {
+  if (USE_POSTGRES) return readPgDb();
   if (dbCache) return dbCache;
   fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
   if (!fs.existsSync(DB_PATH)) {
@@ -81,8 +378,12 @@ function ensureDb() {
   persistDb(dbCache);
   return dbCache;
 }
-function readDb() { return ensureDb(); }
-function writeDb(db) { dbCache = normalizeDb(db); persistDb(dbCache); }
+async function readDb() { return ensureDb(); }
+async function writeDb(db) {
+  if (USE_POSTGRES) return writePgDb(db);
+  dbCache = normalizeDb(db);
+  persistDb(dbCache);
+}
 const nowIso = () => new Date().toISOString();
 const uid = () => crypto.randomBytes(12).toString('hex');
 const sha = (s) => crypto.createHash('sha256').update(s).digest('hex');
@@ -150,7 +451,7 @@ function authUserFromToken(token, db) {
   return db.users.find((u) => u.id === userId) || null;
 }
 function sanitizeUser(u) {
-  const { passwordHash, ...safe } = u;
+  const { passwordHash, vpscHash, ...safe } = u;
   return safe;
 }
 
@@ -308,8 +609,8 @@ function serveFile(res, pathname) {
 
 const server = http.createServer(async (req, res) => {
   const u = new URL(req.url, `http://${req.headers.host || `localhost:${PORT}`}`);
-  const db = readDb();
-  if (gc(db)) writeDb(db);
+  const db = await readDb();
+  if (gc(db)) await writeDb(db);
 
   if (req.method === 'OPTIONS') return sendJson(res, 200, { ok: true });
   if (u.pathname === '/api/health' && req.method === 'GET') return sendJson(res, 200, { ok: true, ts: nowIso() });
@@ -326,13 +627,13 @@ const server = http.createServer(async (req, res) => {
     if (db.users.some((x) => x.username === username)) return sendJson(res, 409, { error: 'Username already exists' });
 
     let code = makeVpsc();
-    while (db.users.some((x) => x.vpsc === code)) code = makeVpsc();
+    while (db.users.some((x) => x.vpscHash === hashVpsc(code) || x.vpsc === code)) code = makeVpsc();
 
     const user = {
       id: uid(),
       username,
       displayName,
-      passwordHash: sha(password),
+      passwordHash: await hashPassword(password),
       bio: '',
       avatar: (displayName[0] || 'U').toUpperCase(),
       avatarUrl: '',
@@ -340,13 +641,14 @@ const server = http.createServer(async (req, res) => {
       favoriteTrackName: '',
       favoriteTrackUrl: '',
       favoriteTracks: [],
+      vpscHash: hashVpsc(code),
       vpsc: code,
       pinnedPostId: null,
       pinnedRepostId: null,
       createdAt: nowIso()
     };
     db.users.push(user);
-    writeDb(db);
+    await writeDb(db);
     return sendJson(res, 201, { token: signToken(user.id), user: sanitizeUser(user) });
   }
 
@@ -355,19 +657,25 @@ const server = http.createServer(async (req, res) => {
     const username = String(b.username || '').trim().toLowerCase();
     const password = String(b.password || '');
     const user = db.users.find((x) => x.username === username);
-    if (!user || user.passwordHash !== sha(password)) return sendJson(res, 401, { error: 'Invalid credentials' });
+    if (!user || !(await verifyPassword(password, user.passwordHash))) return sendJson(res, 401, { error: 'Invalid credentials' });
+    if (!isBcryptHash(user.passwordHash)) {
+      user.passwordHash = await hashPassword(password);
+      await writeDb(db);
+    }
     return sendJson(res, 200, { token: signToken(user.id), user: sanitizeUser(user) });
   }
 
   if (u.pathname === '/api/auth/vpsc' && req.method === 'POST') {
     const b = await parseBody(req);
     const code = String(b.code || '').trim().toUpperCase();
-    const ipKey = String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown').split(',')[0].trim();
+    const ipRaw = String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown').split(',')[0].trim();
+    const ipKey = crypto.createHmac('sha256', getVpscSecret()).update(`ip:${ipRaw}`).digest('hex');
     const limit = db.meta.vpscAttempts[ipKey] || { fails: 0, blockedUntil: 0 };
     if (limit.blockedUntil && limit.blockedUntil > Date.now()) {
       return sendJson(res, 429, { error: 'Вход по VPSC временно заблокирован на 24 часа' });
     }
-    const user = db.users.find((x) => x.vpsc === code);
+    const codeHash = hashVpsc(code);
+    const user = db.users.find((x) => x.vpscHash === codeHash || x.vpsc === code);
     if (!user) {
       limit.fails = (limit.fails || 0) + 1;
       if (limit.fails >= 10) {
@@ -375,11 +683,12 @@ const server = http.createServer(async (req, res) => {
         limit.blockedUntil = Date.now() + 24 * 60 * 60 * 1000;
       }
       db.meta.vpscAttempts[ipKey] = limit;
-      writeDb(db);
+      await writeDb(db);
       return sendJson(res, 401, { error: 'Неверный VPSC-код' });
     }
+    if (user && !user.vpscHash) user.vpscHash = codeHash;
     db.meta.vpscAttempts[ipKey] = { fails: 0, blockedUntil: 0 };
-    writeDb(db);
+    await writeDb(db);
     return sendJson(res, 200, { token: signToken(user.id), user: sanitizeUser(user) });
   }
 
@@ -467,7 +776,7 @@ const server = http.createServer(async (req, res) => {
     }
     if (Object.prototype.hasOwnProperty.call(b, 'pinnedPostId')) me.pinnedPostId = b.pinnedPostId || null;
     if (Object.prototype.hasOwnProperty.call(b, 'pinnedRepostId')) me.pinnedRepostId = b.pinnedRepostId || null;
-    writeDb(db);
+    await writeDb(db);
     return sendJson(res, 200, { user: sanitizeUser(me) });
   }
 
@@ -476,10 +785,10 @@ const server = http.createServer(async (req, res) => {
     const b = await parseBody(req);
     const oldPassword = String(b.oldPassword || '');
     const newPassword = String(b.newPassword || '');
-    if (sha(oldPassword) !== me.passwordHash) return sendJson(res, 400, { error: 'Неверный старый пароль' });
+    if (!(await verifyPassword(oldPassword, me.passwordHash))) return sendJson(res, 400, { error: 'Неверный старый пароль' });
     if (newPassword.length < 4) return sendJson(res, 400, { error: 'Новый пароль минимум 4 символа' });
-    me.passwordHash = sha(newPassword);
-    writeDb(db);
+    me.passwordHash = await hashPassword(newPassword);
+    await writeDb(db);
     return sendJson(res, 200, { ok: true });
   }
 
@@ -487,7 +796,7 @@ const server = http.createServer(async (req, res) => {
     if (!me) return sendJson(res, 401, { error: 'Unauthorized' });
     const b = await parseBody(req);
     const pw = String(b.password || '');
-    if (sha(pw) !== me.passwordHash) return sendJson(res, 400, { error: 'Неверный пароль' });
+    if (!(await verifyPassword(pw, me.passwordHash))) return sendJson(res, 400, { error: 'Неверный пароль' });
 
     const userPostIds = new Set(db.posts.filter((p) => p.authorId === me.id).map((p) => p.id));
     db.posts = db.posts.filter((p) => p.authorId !== me.id && !userPostIds.has(p.repostOf));
@@ -497,7 +806,7 @@ const server = http.createServer(async (req, res) => {
     db.stories = db.stories.filter((s) => s.authorId !== me.id);
     db.commentLikes = db.commentLikes.filter((l) => l.userId !== me.id && !db.comments.find((c) => c.id === l.commentId && c.authorId === me.id));
     db.users = db.users.filter((u2) => u2.id !== me.id);
-    writeDb(db);
+    await writeDb(db);
     return sendJson(res, 200, { ok: true });
   }
 
@@ -517,7 +826,7 @@ const server = http.createServer(async (req, res) => {
     while (db.posts.some((p) => p.publicId === publicId)) publicId = makePostId();
     const post = { id: db.meta.postSeq++, publicId, authorId: me.id, text, media, repostOf: b.repostOf || null, createdAt: nowIso() };
     db.posts.push(post);
-    writeDb(db);
+    await writeDb(db);
     return sendJson(res, 201, { post: postDto(db, post, me.id) });
   }
 
@@ -530,7 +839,7 @@ const server = http.createServer(async (req, res) => {
     let liked = true;
     if (idx >= 0) { db.likes.splice(idx, 1); liked = false; }
     else db.likes.push({ id: uid(), postId, userId: me.id, createdAt: nowIso() });
-    writeDb(db);
+    await writeDb(db);
     return sendJson(res, 200, { liked, likes: db.likes.filter((l) => l.postId === postId).length });
   }
 
@@ -542,7 +851,7 @@ const server = http.createServer(async (req, res) => {
     const alreadyViewed = db.postViews.some((v) => v.postId === postId && v.userId === me.id);
     if (!alreadyViewed) {
       db.postViews.push({ id: uid(), postId, userId: me.id, createdAt: nowIso() });
-      writeDb(db);
+      await writeDb(db);
     }
     const views = db.postViews.filter((v) => v.postId === postId).length;
     if (!alreadyViewed) broadcastViewUpdate(postId, views);
@@ -569,7 +878,7 @@ const server = http.createServer(async (req, res) => {
       db.posts.push({ id: db.meta.postSeq++, publicId, authorId: me.id, text: '', media: [], repostOf: postId, createdAt: nowIso() });
       reposted = true;
     }
-    writeDb(db);
+    await writeDb(db);
     return sendJson(res, 200, { reposted, reposts: db.posts.filter((p) => p.repostOf === postId).length });
   }
 
@@ -612,7 +921,7 @@ const server = http.createServer(async (req, res) => {
     if (!text) return sendJson(res, 400, { error: 'text required' });
     if (!db.posts.find((p) => p.id === postId)) return sendJson(res, 404, { error: 'Post not found' });
     db.comments.push({ id: db.meta.commentSeq++, postId, parentId: b.parentId || null, authorId: me.id, text: text.slice(0, 2000), createdAt: nowIso() });
-    writeDb(db);
+    await writeDb(db);
     return sendJson(res, 201, { ok: true });
   }
 
@@ -625,7 +934,7 @@ const server = http.createServer(async (req, res) => {
     let liked = true;
     if (idx >= 0) { db.commentLikes.splice(idx, 1); liked = false; }
     else db.commentLikes.push({ id: uid(), commentId, userId: me.id, createdAt: nowIso() });
-    writeDb(db);
+    await writeDb(db);
     return sendJson(res, 200, { liked, likes: db.commentLikes.filter((l) => l.commentId === commentId).length });
   }
 
@@ -640,7 +949,7 @@ const server = http.createServer(async (req, res) => {
     const text = String(b.text || '').trim();
     if (!text) return sendJson(res, 400, { error: 'text required' });
     comment.text = text.slice(0, 2000);
-    writeDb(db);
+    await writeDb(db);
     return sendJson(res, 200, { ok: true });
   }
 
@@ -653,7 +962,7 @@ const server = http.createServer(async (req, res) => {
     if ((Date.now() - new Date(comment.createdAt).getTime()) > 24 * 60 * 60 * 1000) return sendJson(res, 403, { error: 'Срок удаления истёк' });
     db.comments = db.comments.filter((c) => c.id !== commentId && c.parentId !== commentId);
     db.commentLikes = db.commentLikes.filter((l) => l.commentId !== commentId);
-    writeDb(db);
+    await writeDb(db);
     return sendJson(res, 200, { ok: true });
   }
 
@@ -682,7 +991,7 @@ const server = http.createServer(async (req, res) => {
     if (!nextText.trim() && nextMedia.length === 0) return sendJson(res, 400, { error: 'text or media required' });
     post.text = nextText;
     post.media = nextMedia;
-    writeDb(db);
+    await writeDb(db);
     return sendJson(res, 200, { post: postDto(db, post, me.id) });
   }
 
@@ -698,7 +1007,7 @@ const server = http.createServer(async (req, res) => {
     const removedComments = new Set(db.comments.filter((c) => c.postId === id).map((c) => c.id));
     db.comments = db.comments.filter((c) => c.postId !== id);
     db.commentLikes = db.commentLikes.filter((l) => !removedComments.has(l.commentId));
-    writeDb(db);
+    await writeDb(db);
     return sendJson(res, 200, { ok: true });
   }
 
@@ -725,7 +1034,7 @@ const server = http.createServer(async (req, res) => {
     let following = true;
     if (idx >= 0) { db.follows.splice(idx, 1); following = false; }
     else db.follows.push({ id: uid(), followerId: me.id, followingId: user.id, createdAt: nowIso() });
-    writeDb(db);
+    await writeDb(db);
     return sendJson(res, 200, { following });
   }
 
@@ -770,7 +1079,7 @@ const server = http.createServer(async (req, res) => {
     const caption = String(b.caption || '').slice(0, 280);
     if (!src) return sendJson(res, 400, { error: 'src required' });
     db.stories.push({ id: uid(), authorId: me.id, src, mediaType, caption, createdAt: nowIso() });
-    writeDb(db);
+    await writeDb(db);
     return sendJson(res, 201, { ok: true });
   }
 
@@ -845,5 +1154,5 @@ const server = http.createServer(async (req, res) => {
   if (!serveFile(res, u.pathname)) sendJson(res, 404, { error: 'Not found' });
 });
 
-ensureDb();
+ensureDb().catch((err) => { console.error('Database init failed:', err); process.exit(1); });
 server.listen(PORT, () => console.log(`VP backend running on http://0.0.0.0:${PORT}`));
