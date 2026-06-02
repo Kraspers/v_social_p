@@ -453,6 +453,9 @@
         @keyframes trackBtnLoading { to { transform: translateX(120%); } }
         .music-track-circle { width: 34px; height: 34px; border-radius: 50%; background: #fff; color: #000; display: inline-flex; align-items: center; justify-content: center; position: absolute; left: 10px; top: 50%; transform: translateY(-50%); }
         .music-track-title { display:block; width:100%; text-align: center; font-size: 16px; font-weight: 700; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0 40px; }
+        .music-track-count { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); width: 5px; height: 24px; border-radius: 999px; overflow: hidden; display: none; flex-direction: column; gap: 2px; z-index: 1; }
+        .music-track-count-segment { flex: 1; min-height: 3px; border-radius: 999px; background: rgba(255,255,255,0.92); }
+        .music-track-count.visible { display: flex; }
         .music-track-btn.edit { margin-top: 0; }
 
         .track-player { position: fixed; z-index: 18050; right: 16px; top: 16px; width: min(360px, calc(100vw - 32px)); background: rgba(31,31,35,0.58); border: 1px solid rgba(255,255,255,0.14); border-radius: 30px; backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); padding: 12px; display:flex; align-items:center; gap:12px; opacity:0; transform: translateY(-10px) scale(0.98); pointer-events:none; transition: opacity .26s ease, transform .26s ease; }
@@ -1644,6 +1647,7 @@
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3v10.55a4 4 0 1 0 2 3.45V8h6V3h-8z"/></svg>
                     </span>
                     <span class="music-track-title" id="profile-music-track-title"></span>
+                    <span class="music-track-count" id="profile-music-track-count"></span>
                 </button>
                 <div class="profile-action-row">
                     <button class="edit-profile-btn">Редактировать профиль</button>
@@ -1875,6 +1879,7 @@
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3v10.55a4 4 0 1 0 2 3.45V8h6V3h-8z"/></svg>
                     </span>
                     <span class="music-track-title" id="ep-track-btn-title">Добавить трек</span>
+                    <span class="music-track-count" id="ep-track-btn-count"></span>
                 </button>
                 <div>
                     <div style="font-size:13px;font-weight:700;color:#e6e6e9;margin-bottom:6px;">Имя</div>
@@ -4218,7 +4223,7 @@
                     <div style="font-size:15px;"><span style="font-weight:700;" id="upm-followers">${followers}</span> <span style="color:rgba(255,255,255,0.6);">Подписчиков</span></div>
                     <div style="font-size:15px;"><span style="font-weight:700;">${repostsCount}</span> <span style="color:rgba(255,255,255,0.6);">Репостов</span></div>
                 </div>
-                ${u.favoriteTrackName && u.favoriteTrackUrl ? `<button type="button" class="music-track-btn" style="margin-top:16px;" onclick="playViewedProfileTrack()"><span class="music-track-circle"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3v10.55a4 4 0 1 0 2 3.45V8h6V3h-8z"/></svg></span><span class="music-track-title">${u.favoriteTrackName}</span></button>` : ''}
+                ${u.favoriteTrackName && u.favoriteTrackUrl ? `<button type="button" class="music-track-btn" style="margin-top:16px;" onclick="playViewedProfileTrack()"><span class="music-track-circle"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3v10.55a4 4 0 1 0 2 3.45V8h6V3h-8z"/></svg></span><span class="music-track-title">${u.favoriteTrackName}</span>${renderTrackCountHtml(Array.isArray(u.favoriteTracks) ? u.favoriteTracks.length : 1)}</button>` : ''}
                 <div class="profile-action-row">
                     <button id="upm-subscribe-btn" onclick="toggleSubscribe('${uname}')"
                         style="flex:1;min-width:0;padding:14px;background:${isSubscribed ? 'rgba(255,255,255,0.08)' : 'white'};border:none;border-radius:22px;font-size:16px;font-weight:700;cursor:pointer;font-family:inherit;color:${isSubscribed ? '#e6e6e9' : '#000'};transition:all 0.2s;">
@@ -4831,23 +4836,40 @@
   ['click','touchend'].forEach((evt) => document.addEventListener(evt, () => setTimeout(refreshPlayerVisibility, 0), true));
   window.addEventListener('resize', refreshPlayerVisibility);
 
+  function renderTrackCountIndicator(el, count) {
+    if (!el) return;
+    const visibleCount = Math.min(4, Math.max(0, Number(count) || 0));
+    el.innerHTML = visibleCount > 1 ? Array.from({ length: visibleCount }, () => '<span class="music-track-count-segment"></span>').join('') : '';
+    el.classList.toggle('visible', visibleCount > 1);
+  }
+
+  function renderTrackCountHtml(count) {
+    const visibleCount = Math.min(4, Math.max(0, Number(count) || 0));
+    return visibleCount > 1 ? `<span class="music-track-count visible">${Array.from({ length: visibleCount }, () => '<span class="music-track-count-segment"></span>').join('')}</span>` : '';
+  }
+
   function renderMusicTrackButtons() {
-    const lastTrack = Array.isArray(profileData.favoriteTracks) && profileData.favoriteTracks.length ? profileData.favoriteTracks[profileData.favoriteTracks.length - 1] : null;
-    const trackName = normalizeTrackName(lastTrack?.name || profileData.favoriteTrackName || me?.favoriteTrackName || '');
-    const trackUrl = absoluteUrl(lastTrack?.url || profileData.favoriteTrackUrl || me?.favoriteTrackUrl || '');
+    const editOpen = !!document.getElementById('edit-modal-overlay')?.classList.contains('active');
+    const tracks = Array.isArray(profileData.favoriteTracks) ? profileData.favoriteTracks.filter((t) => normalizeTrackName(t?.name || '') && absoluteUrl(t?.url || '')) : [];
+    const lastTrack = tracks.length ? tracks[tracks.length - 1] : null;
+    const ownTrackName = normalizeTrackName(lastTrack?.name || profileData.favoriteTrackName || (!editOpen ? me?.favoriteTrackName : '') || '');
+    const ownTrackUrl = absoluteUrl(lastTrack?.url || profileData.favoriteTrackUrl || (!editOpen ? me?.favoriteTrackUrl : '') || '');
+    const trackCount = tracks.length || ((!editOpen && ownTrackName && ownTrackUrl) ? 1 : 0);
     const profileBtn = document.getElementById('profile-music-track-btn');
     const profileTitle = document.getElementById('profile-music-track-title');
     if (profileBtn && profileTitle) {
-      if (trackName && trackUrl) {
+      if (ownTrackName && ownTrackUrl) {
         profileBtn.classList.remove('hidden');
-        profileTitle.textContent = trackName;
+        profileTitle.textContent = ownTrackName;
       } else {
         profileBtn.classList.add('hidden');
         profileTitle.textContent = '';
       }
+      renderTrackCountIndicator(document.getElementById('profile-music-track-count'), trackCount);
     }
     const editTitle = document.getElementById('ep-track-btn-title');
-    if (editTitle && !isTrackUploading) editTitle.textContent = trackName || 'Добавить трек';
+    if (editTitle && !isTrackUploading) editTitle.textContent = (ownTrackName && ownTrackUrl) ? ownTrackName : 'Добавить трек';
+    renderTrackCountIndicator(document.getElementById('ep-track-btn-count'), trackCount);
   }
 
   async function syncFavoriteTracksOnly() {
@@ -5282,10 +5304,12 @@
       if (!text && composerMedia.length === 0) return;
       const payload = { text, media: composerMedia };
       const prevText = postBtn.textContent || 'Опубликовать';
+      const totalBytes = new TextEncoder().encode(JSON.stringify(payload)).length;
+      const simpleLoading = totalBytes < 1024 * 1024;
       postBtn.dataset.defaultText = prevText;
-      setUploadButton(postBtn, true, uploadLabel(0, JSON.stringify(payload).length));
+      setUploadButton(postBtn, true, simpleLoading ? prevText : uploadLabel(0, totalBytes));
       try {
-        await apiWithUploadProgress('/posts', payload, (loaded, total) => setUploadButton(postBtn, true, uploadLabel(loaded, total)));
+        await apiWithUploadProgress('/posts', payload, (loaded, total) => setUploadButton(postBtn, true, simpleLoading ? prevText : uploadLabel(loaded, total)));
         postInput.value = ''; composerMedia = []; renderComposerPreviews();
         charCounter.textContent = '0/280';
         charCounter.classList.remove('visible','warning','danger');
