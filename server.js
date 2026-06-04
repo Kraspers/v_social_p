@@ -136,15 +136,33 @@ async function ensurePostgresSchema(pool) {
   `);
 }
 
+async function backupUnreadablePostgresState(pool, value, error) {
+  const backupKey = `${DB_STATE_KEY}:unreadable:${Date.now()}`;
+  await pool.query(
+    `insert into app_state (key, value, updated_at)
+     values ($1, $2::jsonb, now())`,
+    [backupKey, JSON.stringify({ backupOf: DB_STATE_KEY, reason: error.message, value })]
+  );
+  console.warn(`WARNING: unreadable encrypted database state was backed up as app_state key ${backupKey}.`);
+}
+
 async function loadPostgresDb() {
   const pool = getPgPool();
   await ensurePostgresSchema(pool);
   const result = await pool.query('select value from app_state where key = $1', [DB_STATE_KEY]);
   if (result.rows.length) {
     const value = result.rows[0].value;
-    const db = normalizeDb(decryptDb(JSON.stringify(value)));
-    await persistPostgresDb(db);
-    return db;
+    try {
+      const db = normalizeDb(decryptDb(JSON.stringify(value)));
+      await persistPostgresDb(db);
+      return db;
+    } catch (err) {
+      console.error('Stored database state cannot be decrypted with the current DB_ENCRYPTION_KEY. Starting with an empty database state.');
+      await backupUnreadablePostgresState(pool, value, err);
+      const db = emptyDb();
+      await persistPostgresDb(db);
+      return db;
+    }
   }
 
   const db = fs.existsSync(DB_PATH) ? loadFileDb() : emptyDb();
