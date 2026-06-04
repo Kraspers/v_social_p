@@ -186,8 +186,11 @@
         .search-input:focus { outline: none; background: rgba(255,255,255,0.03); border-color: #0D7EFF; }
         .trends-section { padding: 16px; }
         .section-title { font-size: 20px; font-weight: 700; margin-bottom: 16px; }
-        .trend-item { padding: 12px 8px; border-bottom: 1px solid rgba(255,255,255,0.04); cursor: pointer; border-radius: 8px; transition: background 0.2s; }
+        .trend-item { position: relative; display: flex; align-items: center; gap: 12px; padding: 12px 8px; border-bottom: 1px solid rgba(255,255,255,0.04); cursor: pointer; border-radius: 8px; transition: background 0.2s; overflow: hidden; }
         .trend-item:hover { background: rgba(255,255,255,0.02); }
+        .trend-icon { width: 44px; height: 44px; border-radius: 50%; background: rgba(255,255,255,0.08); color: #0f0f11; flex: 0 0 auto; position: relative; overflow: hidden; }
+        .trend-icon::before { content: '#'; position: absolute; left: -10px; top: 50%; transform: translateY(-52%); font-size: 54px; line-height: 1; font-weight: 900; color: #0f0f11; opacity: 0.95; }
+        .trend-info { min-width: 0; }
         .trend-category { font-size: 13px; color: rgba(255,255,255,0.6); }
         .trend-hashtag { font-size: 15px; font-weight: 600; margin: 4px 0; }
         .trend-count { font-size: 13px; color: rgba(255,255,255,0.6); }
@@ -1609,10 +1612,10 @@
         <div id="trends-section-wrap">
             <div class="trends-section">
                 <div class="section-title">Актуальное</div>
-                <div class="trend-item"><div class="trend-category">Технологии · В тренде</div><div class="trend-hashtag">#ИИ</div><div class="trend-count">15.2K постов</div></div>
-                <div class="trend-item"><div class="trend-category">Развлечения · В тренде</div><div class="trend-hashtag">#музыка2026</div><div class="trend-count">8.7K постов</div></div>
-                <div class="trend-item"><div class="trend-category">Спорт · В тренде</div><div class="trend-hashtag">#футбол</div><div class="trend-count">23.5K постов</div></div>
-                <div class="trend-item"><div class="trend-category">Мемы · В тренде</div><div class="trend-hashtag">#впизде</div><div class="trend-count">42K постов</div></div>
+                <div class="trend-item"><div class="trend-icon" aria-hidden="true"></div><div class="trend-info"><div class="trend-category">Технологии · В тренде</div><div class="trend-hashtag">ИИ</div><div class="trend-count">15.2K постов</div></div></div>
+                <div class="trend-item"><div class="trend-icon" aria-hidden="true"></div><div class="trend-info"><div class="trend-category">Развлечения · В тренде</div><div class="trend-hashtag">музыка2026</div><div class="trend-count">8.7K постов</div></div></div>
+                <div class="trend-item"><div class="trend-icon" aria-hidden="true"></div><div class="trend-info"><div class="trend-category">Спорт · В тренде</div><div class="trend-hashtag">футбол</div><div class="trend-count">23.5K постов</div></div></div>
+                <div class="trend-item"><div class="trend-icon" aria-hidden="true"></div><div class="trend-info"><div class="trend-category">Мемы · В тренде</div><div class="trend-hashtag">впизде</div><div class="trend-count">42K постов</div></div></div>
             </div>
         </div>
     </div>
@@ -2185,9 +2188,17 @@
     let pinnedPostId = null;
     let pinnedRepostId = null;
     let posts = [];
+    const PINNED_ICON = '<svg width="12" height="12" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" fill="currentColor" aria-hidden="true"><path d="M160 96C160 78.3 174.3 64 192 64L448 64C465.7 64 480 78.3 480 96C480 113.7 465.7 128 448 128L418.5 128L428.8 262.1C465.9 283.3 494.6 318.5 507 361.8L510.8 375.2C513.6 384.9 511.6 395.2 505.6 403.3C499.6 411.4 490 416 480 416L160 416C150 416 140.5 411.3 134.5 403.3C128.5 395.3 126.5 384.9 129.3 375.2L133 361.8C145.4 318.5 174 283.3 211.2 262.1L221.5 128L192 128C174.3 128 160 113.7 160 96zM288 464L352 464L352 576C352 593.7 337.7 608 320 608C302.3 608 288 593.7 288 576L288 464z"/></svg>';
+    const pinnedBadgeHtml = () => `${PINNED_ICON} Закреплено`;
+
+    function escapeHtml(value) {
+        return String(value || '').replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+    }
 
     function formatPostText(text) {
-        return text.replace(/#(\w+)/g, '<span class="hashtag">#$1</span>').replace(/@(\w+)/g, '<span class="mention">@$1</span>');
+        return escapeHtml(text)
+            .replace(/(^|\s)#([^\s#]+)/gu, '$1<span class="hashtag">#$2</span>')
+            .replace(/(^|\s)@([\p{L}\p{N}_.]+)/gu, '$1<span class="mention">@$2</span>');
     }
 
     function formatCompactCount(value) {
@@ -2243,7 +2254,7 @@
 
     function renderPosts() {
         const feed = document.getElementById('feed');
-        feed.innerHTML = '';
+        const frag = document.createDocumentFragment();
         posts.forEach(post => {
             const el = document.createElement('div');
             el.className = 'post';
@@ -2293,8 +2304,9 @@
                 if (e.target.classList.contains('mention')) return;
                 openPostModal(post);
             });
-            feed.appendChild(el);
+            frag.appendChild(el);
         });
+        feed.replaceChildren(frag);
         renderProfileFeeds();
     }
 
@@ -2319,7 +2331,7 @@
                 if (post.id === pinnedPostId) {
                     const badge = document.createElement('div');
                     badge.style.cssText = 'font-size:12px;color:rgba(255,255,255,0.4);display:flex;align-items:center;gap:5px;padding:0 0 8px 0;';
-                    badge.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V17z"/></svg> Закреплено';
+                    badge.innerHTML = pinnedBadgeHtml();
                     el.insertBefore(badge, el.firstChild);
                 }
                 myFeed.appendChild(el);
@@ -3062,11 +3074,23 @@
         showStory(stories);
     }
 
+    function markStoryViewed(story) {
+        if (!story || !story.id) return;
+        story.viewed = true;
+        api(`/stories/${encodeURIComponent(story.id)}/view`, { method: 'POST' }).catch(() => {});
+        if (activeStories.length && activeStories.every((item) => item.viewed)) {
+            document.querySelectorAll('.story-item.remote-story').forEach((el) => {
+                if (el.querySelector('.story-username')?.textContent === story.username) el.classList.add('viewed');
+            });
+        }
+    }
+
     function showStory(stories) {
         if (!stories || !stories.length) { closeStoryViewer(); return; }
         if (currentMediaIndex >= stories.length) { closeStoryViewer(); return; }
         const token = ++storyRenderToken;
         const s = stories[currentMediaIndex];
+        markStoryViewed(s);
         const img = document.getElementById('story-media');
         const vid = document.getElementById('story-video');
         clearInterval(storyInterval);
@@ -4112,7 +4136,7 @@
             if (post.id === pinnedRepostId) {
                 const badge = document.createElement('div');
                 badge.style.cssText = 'font-size:12px;color:rgba(255,255,255,0.4);display:flex;align-items:center;gap:5px;padding:0 0 8px 0;';
-                badge.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V17z"/></svg> Закреплено';
+                badge.innerHTML = pinnedBadgeHtml();
                 el.insertBefore(badge, el.firstChild);
             }
             feed.appendChild(el);
@@ -4268,7 +4292,7 @@
                 if (pinId && post.id === pinId) {
                     const badge = document.createElement('div');
                     badge.style.cssText = 'font-size:12px;color:rgba(255,255,255,0.4);display:flex;align-items:center;gap:5px;padding:0 0 8px 0;';
-                    badge.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V17z"/></svg> Закреплено';
+                    badge.innerHTML = pinnedBadgeHtml();
                     el.insertBefore(badge, el.firstChild);
                 }
                 mount.appendChild(el);
@@ -5039,7 +5063,7 @@
       const r = await api('/trends');
       const list = (r.trends || []).slice(0,8);
       wrap.innerHTML = '<div class="trends-section"><div class="section-title">Актуальные хэштеги</div>' +
-        (list.length ? list.map(t => `<div class="trend-item"><div class="trend-hashtag">${t.tag}</div><div class="trend-count">${t.count} постов</div></div>`).join('') : '<div style="color:rgba(255,255,255,.45)">Пока нет данных</div>') +
+        (list.length ? list.map(t => { const tag = String(t.tag || '').replace(/^#/, ''); return `<div class="trend-item"><div class="trend-icon" aria-hidden="true"></div><div class="trend-info"><div class="trend-hashtag">${tag}</div><div class="trend-count">${t.count} постов</div></div></div>`; }).join('') : '<div style="color:rgba(255,255,255,.45)">Пока нет данных</div>') +
         '</div>';
     } catch {}
   }
@@ -5218,7 +5242,7 @@
         const key = s.username;
         const fixed = { ...s, avatarUrl: absoluteUrl(s.avatarUrl || '') };
         if (!byUser.has(key)) byUser.set(key, { user: fixed, items: [] });
-        byUser.get(key).items.push({ type: s.mediaType, src: s.src, text: s.caption || '', time: s.createdAt, username: s.username, avatar: s.avatar, avatarUrl: fixed.avatarUrl });
+        byUser.get(key).items.push({ id: s.id, type: s.mediaType, src: absoluteUrl(s.src || ''), text: s.caption || '', time: s.createdAt, username: s.username, avatar: s.avatar, avatarUrl: fixed.avatarUrl, viewed: !!s.viewed });
       });
       const list = document.getElementById('stories-list');
       if (!list) return;
@@ -5228,19 +5252,16 @@
         el.className = 'story-item remote-story';
         el.innerHTML = `<div class="story-avatar"><div class="story-avatar-inner">${user.avatarUrl?`<img class="story-avatar-img" src="${user.avatarUrl}">`:`<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:white;background:linear-gradient(135deg,#0078FF 0%,#23D4F9 100%)">${user.avatar}</div>`}</div></div><div class="story-username">${user.username}</div>`;
         el.onclick = () => {
-          const viewed = JSON.parse(localStorage.getItem('vp_story_viewed')||'{}');
-          const idx = Number(viewed[user.username] || 0);
-          const start = Math.min(idx, Math.max(0, items.length - 1));
+          const firstUnviewed = items.findIndex((item) => !item.viewed);
+          const start = firstUnviewed >= 0 ? firstUnviewed : 0;
           document.getElementById('viewer-name').textContent = user.username;
           document.getElementById('viewer-time').textContent = items[start]?.time ? '· ' + formatStoryTime(items[start].time) : '';
           document.getElementById('viewer-avatar').innerHTML = user.avatarUrl ? `<img src="${user.avatarUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">` : user.avatar;
           openStoryViewer(items,start);
-          viewed[user.username] = start + 1;
-          localStorage.setItem('vp_story_viewed', JSON.stringify(viewed));
-          if ((start + 1) >= items.length) el.classList.add('viewed');
+          items[start].viewed = true;
+          if (items.every((item) => item.viewed)) el.classList.add('viewed');
         };
-        const viewed = JSON.parse(localStorage.getItem('vp_story_viewed')||'{}');
-        if (Number(viewed[user.username] || 0) >= items.length) el.classList.add('viewed');
+        if (items.every((item) => item.viewed)) el.classList.add('viewed');
         list.appendChild(el);
       });
     } catch {}
@@ -5376,7 +5397,8 @@
             if (icon) icon.setAttribute('fill', p.liked ? 'currentColor' : 'none');
           }
         }
-        await api(`/posts/${id}/like`, { method: 'POST' });
+        const likeRes = await api(`/posts/${id}/like`, { method: 'POST' });
+        if (Number.isFinite(Number(likeRes?.views))) applyIncomingView(id, Number(likeRes.views));
         await refreshOpenedProfileModal();
       } catch {}
       return;
@@ -5757,7 +5779,7 @@
       if (post.id === pinnedPostId) {
         const badge = document.createElement('div');
         badge.style.cssText = 'font-size:12px;color:rgba(255,255,255,0.4);display:flex;align-items:center;gap:5px;padding:0 0 8px 0;';
-        badge.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V17z"/></svg> Закреплено';
+        badge.innerHTML = pinnedBadgeHtml();
         el.insertBefore(badge, el.firstChild);
       }
       myFeed.appendChild(el);
@@ -5782,7 +5804,7 @@
       if (post.id === pinnedRepostId) {
         const badge = document.createElement('div');
         badge.style.cssText = 'font-size:12px;color:rgba(255,255,255,0.4);display:flex;align-items:center;gap:5px;padding:0 0 8px 0;';
-        badge.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V17z"/></svg> Закреплено';
+        badge.innerHTML = pinnedBadgeHtml();
         el.insertBefore(badge, el.firstChild);
       }
       feed.appendChild(el);
@@ -5875,8 +5897,6 @@
   setInterval(() => { if (token() && currentViewedProfile?.uname) refreshOpenedProfileModal().catch(() => {}); }, 5000);
 
   (async () => {
-    posts = [];
-    renderPosts();
     if (!token()) {
       resetClientUiState();
       applyRoute();
