@@ -162,6 +162,9 @@
         .mention { color: #0D7EFF; cursor: pointer; }
         .text-spoiler { background: rgba(255,255,255,0.22); color: transparent; border-radius: 4px; padding: 0 2px; cursor: pointer; transition: background 0.15s, color 0.15s; }
         .text-spoiler.revealed { background: rgba(255,255,255,0.08); color: inherit; }
+        .composer-rich-input { min-height: 80px; white-space: pre-wrap; overflow-wrap: anywhere; }
+        .composer-rich-input:empty::before { content: attr(data-placeholder); color: rgba(255,255,255,0.35); pointer-events: none; }
+        .composer-rich-input .text-spoiler { color: inherit; background: rgba(255,255,255,0.14); }
         .format-toolbar { position: fixed; display: none; align-items: center; gap: 2px; padding: 6px; background: #1f1f22; border: 1px solid rgba(255,255,255,0.14); border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,0.45); z-index: 99999; }
         .format-toolbar.visible { display: flex; }
         .format-toolbar button { width: 36px; height: 32px; border: none; border-radius: 7px; background: transparent; color: #f2f2f7; display: flex; align-items: center; justify-content: center; cursor: pointer; }
@@ -200,7 +203,7 @@
         .trend-item { position: relative; display: flex; align-items: center; gap: 12px; padding: 12px 8px; border-bottom: 1px solid rgba(255,255,255,0.04); cursor: pointer; border-radius: 8px; transition: background 0.2s; overflow: hidden; }
         .trend-item:hover { background: rgba(255,255,255,0.02); }
         .trend-icon { width: 44px; height: 44px; border-radius: 50%; background: rgba(255,255,255,0.13); color: #0f0f11; flex: 0 0 auto; position: relative; overflow: hidden; }
-        .trend-icon::before { content: ''; position: absolute; left: -10px; top: calc(50% + 4px); transform: translateY(-50%); width: 54px; height: 54px; background: #0f0f11; opacity: 0.95; -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 640'%3E%3Cpath d='M278.7 64.7C296 68.4 307 85.4 303.3 102.7L284.2 192L410.7 192L432.7 89.3C436.4 72 453.4 61 470.7 64.7C488 68.4 499 85.4 495.3 102.7L476.2 192L544 192C561.7 192 576 206.3 576 224C576 241.7 561.7 256 544 256L462.4 256L435 384L502.8 384C520.5 384 534.8 398.3 534.8 416C534.8 433.7 520.5 448 502.8 448L421.2 448L399.2 550.7C395.5 568 378.5 579 361.2 575.3C343.9 571.6 332.9 554.6 336.6 537.3L355.7 448L229.2 448L207.2 550.7C203.5 568 186.5 579 169.2 575.3C151.9 571.6 140.9 554.6 144.6 537.3L163.8 448L96 448C78.3 448 64 433.7 64 416C64 398.3 78.3 384 96 384L177.6 384L205 256L137.2 256C119.5 256 105.2 241.7 105.2 224C105.2 206.3 119.5 192 137.2 192L218.8 192L240.8 89.3C244.4 72 261.4 61 278.7 64.7zM270.4 256L243 384L369.5 384L396.9 256L270.4 256z'/%3E%3C/svg%3E") center/contain no-repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 640'%3E%3Cpath d='M278.7 64.7C296 68.4 307 85.4 303.3 102.7L284.2 192L410.7 192L432.7 89.3C436.4 72 453.4 61 470.7 64.7C488 68.4 499 85.4 495.3 102.7L476.2 192L544 192C561.7 192 576 206.3 576 224C576 241.7 561.7 256 544 256L462.4 256L435 384L502.8 384C520.5 384 534.8 398.3 534.8 416C534.8 433.7 520.5 448 502.8 448L421.2 448L399.2 550.7C395.5 568 378.5 579 361.2 575.3C343.9 571.6 332.9 554.6 336.6 537.3L355.7 448L229.2 448L207.2 550.7C203.5 568 186.5 579 169.2 575.3C151.9 571.6 140.9 554.6 144.6 537.3L163.8 448L96 448C78.3 448 64 433.7 64 416C64 398.3 78.3 384 96 384L177.6 384L205 256L137.2 256C119.5 256 105.2 241.7 105.2 224C105.2 206.3 119.5 192 137.2 192L218.8 192L240.8 89.3C244.4 72 261.4 61 278.7 64.7zM270.4 256L243 384L369.5 384L396.9 256L270.4 256z'/%3E%3C/svg%3E") center/contain no-repeat; }
+        .trend-icon::before { content: ''; position: absolute; left: -12px; top: calc(50% + 5px); transform: translateY(-50%); width: 50px; height: 50px; background: #0f0f11; opacity: 0.95; -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 640'%3E%3Cpath d='M278.7 64.7C296 68.4 307 85.4 303.3 102.7L284.2 192L410.7 192L432.7 89.3C436.4 72 453.4 61 470.7 64.7C488 68.4 499 85.4 495.3 102.7L476.2 192L544 192C561.7 192 576 206.3 576 224C576 241.7 561.7 256 544 256L462.4 256L435 384L502.8 384C520.5 384 534.8 398.3 534.8 416C534.8 433.7 520.5 448 502.8 448L421.2 448L399.2 550.7C395.5 568 378.5 579 361.2 575.3C343.9 571.6 332.9 554.6 336.6 537.3L355.7 448L229.2 448L207.2 550.7C203.5 568 186.5 579 169.2 575.3C151.9 571.6 140.9 554.6 144.6 537.3L163.8 448L96 448C78.3 448 64 433.7 64 416C64 398.3 78.3 384 96 384L177.6 384L205 256L137.2 256C119.5 256 105.2 241.7 105.2 224C105.2 206.3 119.5 192 137.2 192L218.8 192L240.8 89.3C244.4 72 261.4 61 278.7 64.7zM270.4 256L243 384L369.5 384L396.9 256L270.4 256z'/%3E%3C/svg%3E") center/contain no-repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 640'%3E%3Cpath d='M278.7 64.7C296 68.4 307 85.4 303.3 102.7L284.2 192L410.7 192L432.7 89.3C436.4 72 453.4 61 470.7 64.7C488 68.4 499 85.4 495.3 102.7L476.2 192L544 192C561.7 192 576 206.3 576 224C576 241.7 561.7 256 544 256L462.4 256L435 384L502.8 384C520.5 384 534.8 398.3 534.8 416C534.8 433.7 520.5 448 502.8 448L421.2 448L399.2 550.7C395.5 568 378.5 579 361.2 575.3C343.9 571.6 332.9 554.6 336.6 537.3L355.7 448L229.2 448L207.2 550.7C203.5 568 186.5 579 169.2 575.3C151.9 571.6 140.9 554.6 144.6 537.3L163.8 448L96 448C78.3 448 64 433.7 64 416C64 398.3 78.3 384 96 384L177.6 384L205 256L137.2 256C119.5 256 105.2 241.7 105.2 224C105.2 206.3 119.5 192 137.2 192L218.8 192L240.8 89.3C244.4 72 261.4 61 278.7 64.7zM270.4 256L243 384L369.5 384L396.9 256L270.4 256z'/%3E%3C/svg%3E") center/contain no-repeat; }
         .trend-info { min-width: 0; }
         .trend-category { font-size: 13px; color: rgba(255,255,255,0.6); }
         .trend-hashtag { font-size: 15px; font-weight: 600; margin: 4px 0; }
@@ -1598,7 +1601,8 @@
         </div>
         <div class="post-composer">
             <div class="composer-container">
-                <textarea class="composer-input" placeholder="Напиши какую нибудь хуйню..." maxlength="280" id="post-input"></textarea>
+                <textarea class="composer-input" placeholder="Напиши какую нибудь хуйню..." maxlength="280" id="post-input" style="display:none;"></textarea>
+                    <div class="composer-input composer-rich-input" id="post-rich-input" contenteditable="true" data-placeholder="Напиши какую нибудь хуйню..." role="textbox" aria-multiline="true"></div>
                 <div class="composer-media-preview" id="composer-media-preview"></div>
                 <div class="composer-actions">
                     <button class="media-btn" id="composer-media-btn" title="Добавить медиа">
@@ -2482,6 +2486,10 @@
 
     function runOutsideUserProfile(onReady) {
         onReady();
+        const postLayer = document.getElementById('post-modal');
+        const repostLayer = document.getElementById('repost-modal-overlay');
+        if (postLayer?.classList.contains('active')) postLayer.style.zIndex = '14100';
+        if (repostLayer?.classList.contains('active')) repostLayer.style.zIndex = '14200';
     }
 
     function openPostModal(post) {
@@ -2534,6 +2542,8 @@
                 optsBtnSlot.innerHTML = '';
             }
         }
+        const profileModalActive = document.getElementById('user-profile-modal')?.classList.contains('active');
+        postModal.style.zIndex = profileModalActive ? '14100' : '';
         postModal.style.display = 'flex';
         requestAnimationFrame(() => requestAnimationFrame(() => {
             postModal.classList.add('active');
@@ -2562,7 +2572,7 @@
         const profileModal = document.getElementById('user-profile-modal');
         document.body.style.overflow = (profileModal && profileModal.classList.contains('active')) ? 'hidden' : '';
         replyTargetCommentId = null;
-        setTimeout(() => { postModal.style.display = 'none'; }, 400);
+        setTimeout(() => { postModal.style.display = 'none'; postModal.style.zIndex = ''; }, 400);
     }
     document.getElementById('post-modal-close').addEventListener('click', closePostModal);
     postModal.addEventListener('click', e => { if (e.target === postModal) closePostModal(); });
@@ -2788,26 +2798,80 @@
     const postSubmit = document.getElementById('post-submit');
     const composerContainer = document.querySelector('.composer-container');
 
+    const richPostInput = document.getElementById('post-rich-input');
     const formatToolbar = document.getElementById('format-toolbar');
-    const formatTargets = () => Array.from(document.querySelectorAll('#post-input,#comment-input,#repost-comment-input,#edit-post-textarea,#edit-comment-textarea'));
+    const formatTargets = () => Array.from(document.querySelectorAll('#post-rich-input,#comment-input,#repost-comment-input,#edit-post-textarea,#edit-comment-textarea'));
     let activeFormatTarget = null;
     let lastFormatPoint = null;
 
+    function isRichTarget(el) {
+        return el && el.id === 'post-rich-input';
+    }
+
+    function richHtmlToMarkup(root) {
+        const walk = (node) => {
+            if (node.nodeType === Node.TEXT_NODE) return node.nodeValue || '';
+            if (node.nodeType !== Node.ELEMENT_NODE) return '';
+            const tag = node.tagName.toLowerCase();
+            if (tag === 'br') return '\n';
+            const content = Array.from(node.childNodes).map(walk).join('');
+            if (tag === 'strong' || tag === 'b') return `**${content}**`;
+            if (tag === 'u') return `__${content}__`;
+            if (node.classList.contains('text-spoiler')) return `||${content}||`;
+            if (tag === 'div' || tag === 'p') return content ? `${content}\n` : '\n';
+            return content;
+        };
+        return Array.from(root.childNodes).map(walk).join('').replace(/\n$/, '').slice(0, 280);
+    }
+
+    function syncRichPostInput() {
+        if (!richPostInput) return;
+        postInput.value = richHtmlToMarkup(richPostInput);
+        postInput.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+
     function hasTextSelection(el) {
+        if (isRichTarget(el)) {
+            const sel = window.getSelection();
+            return !!sel && sel.rangeCount > 0 && !sel.isCollapsed && el.contains(sel.anchorNode) && el.contains(sel.focusNode);
+        }
         return el && typeof el.selectionStart === 'number' && el.selectionEnd > el.selectionStart;
+    }
+
+    function getTextareaSelectionPoint(el) {
+        const start = el.selectionStart || 0;
+        const mirror = document.createElement('div');
+        const style = getComputedStyle(el);
+        mirror.style.cssText = `position:fixed;left:${el.getBoundingClientRect().left}px;top:${el.getBoundingClientRect().top}px;width:${el.clientWidth}px;height:auto;visibility:hidden;white-space:pre-wrap;overflow-wrap:break-word;font:${style.font};line-height:${style.lineHeight};padding:${style.padding};border:${style.border};box-sizing:border-box;`;
+        mirror.textContent = el.value.slice(0, start);
+        const mark = document.createElement('span');
+        mark.textContent = el.value.slice(start, Math.max(start + 1, el.selectionEnd)) || ' ';
+        mirror.appendChild(mark);
+        document.body.appendChild(mirror);
+        const rect = mark.getBoundingClientRect();
+        mirror.remove();
+        return { clientX: rect.left + rect.width / 2, clientY: rect.top };
     }
 
     function placeFormatToolbar(el, point) {
         if (!formatToolbar || !hasTextSelection(el)) return hideFormatToolbar();
         activeFormatTarget = el;
-        const rect = el.getBoundingClientRect();
+        let x = point?.clientX;
+        let y = point?.clientY;
+        if (isRichTarget(el)) {
+            const range = window.getSelection().getRangeAt(0).cloneRange();
+            const rect = range.getBoundingClientRect();
+            if (rect && rect.width) { x = rect.left + rect.width / 2; y = rect.top; }
+        } else {
+            const pos = getTextareaSelectionPoint(el);
+            x = pos.clientX; y = pos.clientY;
+        }
         formatToolbar.classList.add('visible');
         formatToolbar.setAttribute('aria-hidden', 'false');
         const width = formatToolbar.offsetWidth || 126;
-        const x = point?.clientX ?? (rect.left + rect.width / 2);
-        const y = point?.clientY ?? rect.top;
+        const height = formatToolbar.offsetHeight || 44;
         formatToolbar.style.left = `${Math.min(window.innerWidth - width - 8, Math.max(8, x - width / 2))}px`;
-        formatToolbar.style.top = `${Math.max(8, y - 48)}px`;
+        formatToolbar.style.top = `${Math.max(8, y - height - 8)}px`;
     }
 
     function hideFormatToolbar() {
@@ -2816,7 +2880,24 @@
         formatToolbar.setAttribute('aria-hidden', 'true');
     }
 
+    function wrapRichSelection(kind) {
+        const sel = window.getSelection();
+        if (!sel || !sel.rangeCount || sel.isCollapsed || !richPostInput.contains(sel.anchorNode) || !richPostInput.contains(sel.focusNode)) return;
+        const range = sel.getRangeAt(0);
+        const el = document.createElement(kind === 'bold' ? 'strong' : kind === 'underline' ? 'u' : 'span');
+        if (kind === 'spoiler') el.className = 'text-spoiler revealed';
+        el.appendChild(range.extractContents());
+        range.insertNode(el);
+        sel.removeAllRanges();
+        const next = document.createRange();
+        next.selectNodeContents(el);
+        sel.addRange(next);
+        syncRichPostInput();
+        hideFormatToolbar();
+    }
+
     function wrapSelectedText(el, before, after) {
+        if (isRichTarget(el)) return;
         if (!hasTextSelection(el)) return;
         const start = el.selectionStart;
         const end = el.selectionEnd;
@@ -2834,13 +2915,14 @@
     formatToolbar?.addEventListener('click', (e) => {
         const btn = e.target.closest('button[data-format]');
         if (!btn || !activeFormatTarget) return;
+        if (isRichTarget(activeFormatTarget)) return wrapRichSelection(btn.dataset.format);
         const map = { bold: ['**', '**'], underline: ['__', '__'], spoiler: ['||', '||'] };
         const pair = map[btn.dataset.format];
         if (pair) wrapSelectedText(activeFormatTarget, pair[0], pair[1]);
     });
 
     document.addEventListener('selectionchange', () => {
-        const el = document.activeElement;
+        const el = isRichTarget(document.activeElement) ? richPostInput : document.activeElement;
         if (!formatTargets().includes(el)) return;
         if (!hasTextSelection(el)) return hideFormatToolbar();
         clearTimeout(el._formatToolbarTimer);
@@ -2865,6 +2947,7 @@
         }, { passive: true });
         el.addEventListener('blur', () => setTimeout(() => { if (!formatToolbar?.matches(':hover')) hideFormatToolbar(); }, 120));
     });
+    richPostInput?.addEventListener('input', syncRichPostInput);
 
     document.addEventListener('pointerdown', (e) => {
         if (e.target.closest('#format-toolbar')) return;
@@ -2978,6 +3061,7 @@
         posts.unshift({ id: posts.length+1, author:"Вы", username:"@username", avatar:"Я", text: text || '', media: mediaSnap, time:"Только что", likes:0, reposts:0, comments:0, liked:false, reposted:false });
         renderPosts();
         postInput.value = '';
+        if (richPostInput) richPostInput.innerHTML = '';
         composerMedia = [];
         renderComposerPreviews();
         charCounter.textContent = '0/280';
@@ -4371,6 +4455,8 @@
             ${post.text ? `<div style="padding:0 12px 10px;font-size:15px;color:#e6e6e9;line-height:1.5;overflow-wrap:anywhere;word-break:break-word;">${formatPostText(post.text)}</div>` : ''}
             ${mediaHtml || ''}`;
         const modal = document.getElementById('repost-modal-overlay');
+        const profileModalActive = document.getElementById('user-profile-modal')?.classList.contains('active');
+        modal.style.zIndex = profileModalActive ? '14200' : '14000';
         modal.style.display = 'flex';
         requestAnimationFrame(() => requestAnimationFrame(() => {
             modal.classList.add('active');
@@ -5651,7 +5737,7 @@
       setUploadButton(postBtn, true, simpleLoading ? prevText : uploadLabel(0, totalBytes));
       try {
         await apiWithUploadProgress('/posts', payload, (loaded, total) => setUploadButton(postBtn, true, simpleLoading ? prevText : uploadLabel(loaded, total)));
-        postInput.value = ''; composerMedia = []; renderComposerPreviews();
+        postInput.value = ''; if (richPostInput) richPostInput.innerHTML = ''; composerMedia = []; renderComposerPreviews();
         charCounter.textContent = '0/280';
         charCounter.classList.remove('visible','warning','danger');
         await syncPosts();
