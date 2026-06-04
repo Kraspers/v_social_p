@@ -12,11 +12,30 @@ const DB_PATH = path.resolve(process.env.DB_PATH || path.join(DATA_DIR, 'db.json
 const UPLOAD_DIR = path.resolve(process.env.UPLOAD_DIR || path.join(DATA_DIR, 'uploads'));
 const VPSC_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789!@#$%&*';
 const DB_ENVELOPE_VERSION = 1;
-const DATABASE_URL = process.env.DATABASE_URL || process.env.POSTGRES_URL || '';
+const RAW_DATABASE_URL = process.env.DATABASE_URL || process.env.POSTGRES_URL || '';
+const DATABASE_URL = normalizeDatabaseUrl(RAW_DATABASE_URL);
 const DB_STATE_KEY = process.env.DB_STATE_KEY || 'default';
 let dbCache = null;
 let pgPool = null;
 let pendingDbPersist = Promise.resolve();
+
+function normalizeDatabaseUrl(rawUrl) {
+  if (!rawUrl) return '';
+  try {
+    const parsed = new URL(rawUrl);
+    const isSupabasePooler = parsed.hostname.endsWith('.pooler.supabase.com');
+    const databaseName = decodeURIComponent(parsed.pathname.replace(/^\//, ''));
+    const username = decodeURIComponent(parsed.username || '');
+    if (isSupabasePooler && databaseName && databaseName !== 'postgres' && databaseName === username) {
+      parsed.pathname = '/postgres';
+      console.warn('WARNING: Supabase pooler DATABASE_URL ended with the username instead of /postgres. Using /postgres as the database name.');
+      return parsed.toString();
+    }
+    return rawUrl;
+  } catch (err) {
+    return rawUrl;
+  }
+}
 
 function emptyDb() {
   return { users: [], posts: [], comments: [], likes: [], follows: [], stories: [], postViews: [], commentLikes: [], meta: { postSeq: 1, commentSeq: 1, vpscAttempts: {} } };

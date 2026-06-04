@@ -26,7 +26,7 @@ DB_ENCRYPTION_KEY=long-random-database-key
 DATA_DIR=/var/data
 ```
 
-- `DATABASE_URL` — строка подключения к Supabase Shared Pooler. Пароль храните только в переменных окружения хостинга, не коммитьте его в репозиторий.
+- `DATABASE_URL` — строка подключения к Supabase Shared Pooler. Пароль храните только в переменных окружения хостинга, не коммитьте его в репозиторий. В конце строки должна быть база `/postgres`, а не `/postgres.<project-ref>`.
 - `POSTGRES_SSL=true` — SSL для Supabase включён по умолчанию; `false` нужен только для локального PostgreSQL без SSL.
 - `DB_ENCRYPTION_KEY` — ключ шифрования данных перед записью в файл или PostgreSQL. Используйте стабильное значение, иначе старые данные нельзя будет расшифровать.
 - `DATA_DIR` — постоянная директория для локального `db.json` и `uploads/`. При Supabase база хранится в PostgreSQL, но загруженные файлы пока остаются в `UPLOAD_DIR`.
