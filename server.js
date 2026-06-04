@@ -12,7 +12,30 @@ const DB_PATH = path.resolve(process.env.DB_PATH || path.join(DATA_DIR, 'db.json
 const UPLOAD_DIR = path.resolve(process.env.UPLOAD_DIR || path.join(DATA_DIR, 'uploads'));
 const VPSC_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789!@#$%&*';
 const DB_ENVELOPE_VERSION = 1;
+const RAW_DATABASE_URL = process.env.DATABASE_URL || process.env.POSTGRES_URL || '';
+const DATABASE_URL = normalizeDatabaseUrl(RAW_DATABASE_URL);
+const DB_STATE_KEY = process.env.DB_STATE_KEY || 'default';
 let dbCache = null;
+let pgPool = null;
+let pendingDbPersist = Promise.resolve();
+
+function normalizeDatabaseUrl(rawUrl) {
+  if (!rawUrl) return '';
+  try {
+    const parsed = new URL(rawUrl);
+    const isSupabasePooler = parsed.hostname.endsWith('.pooler.supabase.com');
+    const databaseName = decodeURIComponent(parsed.pathname.replace(/^\//, ''));
+    const username = decodeURIComponent(parsed.username || '');
+    if (isSupabasePooler && databaseName && databaseName !== 'postgres' && databaseName === username) {
+      parsed.pathname = '/postgres';
+      console.warn('WARNING: Supabase pooler DATABASE_URL ended with the username instead of /postgres. Using /postgres as the database name.');
+      return parsed.toString();
+    }
+    return rawUrl;
+  } catch (err) {
+    return rawUrl;
+  }
+}
 
 function emptyDb() {
   return { users: [], posts: [], comments: [], likes: [], follows: [], stories: [], postViews: [], commentLikes: [], meta: { postSeq: 1, commentSeq: 1, vpscAttempts: {} } };
@@ -62,27 +85,120 @@ function normalizeDb(db) {
   return next;
 }
 
-function persistDb(db) {
+function persistFileDb(db) {
   fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
   const tmp = `${DB_PATH}.${process.pid}.${Date.now()}.tmp`;
   fs.writeFileSync(tmp, encryptDb(db));
   fs.renameSync(tmp, DB_PATH);
 }
 
-function ensureDb() {
-  if (dbCache) return dbCache;
+function loadFileDb() {
   fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
   if (!fs.existsSync(DB_PATH)) {
-    dbCache = emptyDb();
-    persistDb(dbCache);
-    return dbCache;
+    const db = emptyDb();
+    persistFileDb(db);
+    return db;
   }
-  dbCache = normalizeDb(decryptDb(fs.readFileSync(DB_PATH, 'utf8')));
-  persistDb(dbCache);
+  const db = normalizeDb(decryptDb(fs.readFileSync(DB_PATH, 'utf8')));
+  persistFileDb(db);
+  return db;
+}
+
+function getPostgresSsl() {
+  if (process.env.POSTGRES_SSL === 'false' || process.env.POSTGRES_SSL === '0') return false;
+  return { rejectUnauthorized: process.env.POSTGRES_REJECT_UNAUTHORIZED === 'true' };
+}
+
+function getPgPool() {
+  if (pgPool) return pgPool;
+  let Pool;
+  try {
+    ({ Pool } = require('pg'));
+  } catch (err) {
+    throw new Error('The pg package is required when DATABASE_URL is set. Run `npm install` before starting the server.');
+  }
+  pgPool = new Pool({
+    connectionString: DATABASE_URL,
+    ssl: getPostgresSsl(),
+    max: Number(process.env.POSTGRES_POOL_SIZE || 5),
+    idleTimeoutMillis: 30000
+  });
+  return pgPool;
+}
+
+async function ensurePostgresSchema(pool) {
+  await pool.query(`
+    create table if not exists app_state (
+      key text primary key,
+      value jsonb not null,
+      updated_at timestamptz not null default now()
+    )
+  `);
+}
+
+async function backupUnreadablePostgresState(pool, value, error) {
+  const backupKey = `${DB_STATE_KEY}:unreadable:${Date.now()}`;
+  await pool.query(
+    `insert into app_state (key, value, updated_at)
+     values ($1, $2::jsonb, now())`,
+    [backupKey, JSON.stringify({ backupOf: DB_STATE_KEY, reason: error.message, value })]
+  );
+  console.warn(`WARNING: unreadable encrypted database state was backed up as app_state key ${backupKey}.`);
+}
+
+async function loadPostgresDb() {
+  const pool = getPgPool();
+  await ensurePostgresSchema(pool);
+  const result = await pool.query('select value from app_state where key = $1', [DB_STATE_KEY]);
+  if (result.rows.length) {
+    const value = result.rows[0].value;
+    try {
+      const db = normalizeDb(decryptDb(JSON.stringify(value)));
+      await persistPostgresDb(db);
+      return db;
+    } catch (err) {
+      console.error('Stored database state cannot be decrypted with the current DB_ENCRYPTION_KEY. Starting with an empty database state.');
+      await backupUnreadablePostgresState(pool, value, err);
+      const db = emptyDb();
+      await persistPostgresDb(db);
+      return db;
+    }
+  }
+
+  const db = fs.existsSync(DB_PATH) ? loadFileDb() : emptyDb();
+  await persistPostgresDb(db);
+  return db;
+}
+
+async function persistPostgresDb(db) {
+  const pool = getPgPool();
+  const encrypted = JSON.parse(encryptDb(db));
+  await pool.query(
+    `insert into app_state (key, value, updated_at)
+     values ($1, $2::jsonb, now())
+     on conflict (key) do update set value = excluded.value, updated_at = now()`,
+    [DB_STATE_KEY, JSON.stringify(encrypted)]
+  );
+}
+
+async function initializeDb() {
+  dbCache = normalizeDb(DATABASE_URL ? await loadPostgresDb() : loadFileDb());
+  console.log(`Database storage: ${DATABASE_URL ? 'PostgreSQL/Supabase' : `encrypted file ${DB_PATH}`}`);
   return dbCache;
 }
-function readDb() { return ensureDb(); }
-function writeDb(db) { dbCache = normalizeDb(db); persistDb(dbCache); }
+
+function readDb() {
+  if (!dbCache) throw new Error('Database has not been initialized');
+  return dbCache;
+}
+function writeDb(db) {
+  dbCache = normalizeDb(db);
+  if (!DATABASE_URL) return persistFileDb(dbCache);
+  pendingDbPersist = pendingDbPersist
+    .catch(() => {})
+    .then(() => persistPostgresDb(dbCache))
+    .catch((err) => console.error('Failed to persist database to PostgreSQL:', err));
+}
 const nowIso = () => new Date().toISOString();
 const uid = () => crypto.randomBytes(12).toString('hex');
 const sha = (s) => crypto.createHash('sha256').update(s).digest('hex');
@@ -845,5 +961,9 @@ const server = http.createServer(async (req, res) => {
   if (!serveFile(res, u.pathname)) sendJson(res, 404, { error: 'Not found' });
 });
 
-ensureDb();
-server.listen(PORT, () => console.log(`VP backend running on http://0.0.0.0:${PORT}`));
+initializeDb()
+  .then(() => server.listen(PORT, () => console.log(`VP backend running on http://0.0.0.0:${PORT}`)))
+  .catch((err) => {
+    console.error('Failed to initialize database:', err);
+    process.exit(1);
+  });
