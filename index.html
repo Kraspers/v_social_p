@@ -162,6 +162,10 @@
         .mention { color: #0D7EFF; cursor: pointer; }
         .text-spoiler { background: rgba(255,255,255,0.22); color: transparent; border-radius: 4px; padding: 0 2px; cursor: pointer; transition: background 0.15s, color 0.15s; }
         .text-spoiler.revealed { background: rgba(255,255,255,0.08); color: inherit; }
+        .format-toolbar { position: fixed; display: none; align-items: center; gap: 2px; padding: 6px; background: #1f1f22; border: 1px solid rgba(255,255,255,0.14); border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,0.45); z-index: 99999; }
+        .format-toolbar.visible { display: flex; }
+        .format-toolbar button { width: 36px; height: 32px; border: none; border-radius: 7px; background: transparent; color: #f2f2f7; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+        .format-toolbar button:active, .format-toolbar button:hover { background: rgba(255,255,255,0.10); }
         .post-actions { display: flex; gap: 4px; margin-top: 10px; padding-top: 2px; margin-left: -8px; }
         .action-btn { display: flex; align-items: center; gap: 6px; background: none; border: none; color: rgba(255,255,255,0.5); cursor: pointer; font-size: 14px; transition: color 0.15s; padding: 6px 8px; border-radius: 8px; }
         .action-btn:hover { color: rgba(255,255,255,0.9); }
@@ -196,7 +200,7 @@
         .trend-item { position: relative; display: flex; align-items: center; gap: 12px; padding: 12px 8px; border-bottom: 1px solid rgba(255,255,255,0.04); cursor: pointer; border-radius: 8px; transition: background 0.2s; overflow: hidden; }
         .trend-item:hover { background: rgba(255,255,255,0.02); }
         .trend-icon { width: 44px; height: 44px; border-radius: 50%; background: rgba(255,255,255,0.13); color: #0f0f11; flex: 0 0 auto; position: relative; overflow: hidden; }
-        .trend-icon::before { content: ''; position: absolute; left: -8px; top: calc(50% + 2px); transform: translateY(-50%); width: 54px; height: 54px; background: #0f0f11; opacity: 0.95; -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 640'%3E%3Cpath d='M278.7 64.7C296 68.4 307 85.4 303.3 102.7L284.2 192L410.7 192L432.7 89.3C436.4 72 453.4 61 470.7 64.7C488 68.4 499 85.4 495.3 102.7L476.2 192L544 192C561.7 192 576 206.3 576 224C576 241.7 561.7 256 544 256L462.4 256L435 384L502.8 384C520.5 384 534.8 398.3 534.8 416C534.8 433.7 520.5 448 502.8 448L421.2 448L399.2 550.7C395.5 568 378.5 579 361.2 575.3C343.9 571.6 332.9 554.6 336.6 537.3L355.7 448L229.2 448L207.2 550.7C203.5 568 186.5 579 169.2 575.3C151.9 571.6 140.9 554.6 144.6 537.3L163.8 448L96 448C78.3 448 64 433.7 64 416C64 398.3 78.3 384 96 384L177.6 384L205 256L137.2 256C119.5 256 105.2 241.7 105.2 224C105.2 206.3 119.5 192 137.2 192L218.8 192L240.8 89.3C244.4 72 261.4 61 278.7 64.7zM270.4 256L243 384L369.5 384L396.9 256L270.4 256z'/%3E%3C/svg%3E") center/contain no-repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 640'%3E%3Cpath d='M278.7 64.7C296 68.4 307 85.4 303.3 102.7L284.2 192L410.7 192L432.7 89.3C436.4 72 453.4 61 470.7 64.7C488 68.4 499 85.4 495.3 102.7L476.2 192L544 192C561.7 192 576 206.3 576 224C576 241.7 561.7 256 544 256L462.4 256L435 384L502.8 384C520.5 384 534.8 398.3 534.8 416C534.8 433.7 520.5 448 502.8 448L421.2 448L399.2 550.7C395.5 568 378.5 579 361.2 575.3C343.9 571.6 332.9 554.6 336.6 537.3L355.7 448L229.2 448L207.2 550.7C203.5 568 186.5 579 169.2 575.3C151.9 571.6 140.9 554.6 144.6 537.3L163.8 448L96 448C78.3 448 64 433.7 64 416C64 398.3 78.3 384 96 384L177.6 384L205 256L137.2 256C119.5 256 105.2 241.7 105.2 224C105.2 206.3 119.5 192 137.2 192L218.8 192L240.8 89.3C244.4 72 261.4 61 278.7 64.7zM270.4 256L243 384L369.5 384L396.9 256L270.4 256z'/%3E%3C/svg%3E") center/contain no-repeat; }
+        .trend-icon::before { content: ''; position: absolute; left: -10px; top: calc(50% + 4px); transform: translateY(-50%); width: 54px; height: 54px; background: #0f0f11; opacity: 0.95; -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 640'%3E%3Cpath d='M278.7 64.7C296 68.4 307 85.4 303.3 102.7L284.2 192L410.7 192L432.7 89.3C436.4 72 453.4 61 470.7 64.7C488 68.4 499 85.4 495.3 102.7L476.2 192L544 192C561.7 192 576 206.3 576 224C576 241.7 561.7 256 544 256L462.4 256L435 384L502.8 384C520.5 384 534.8 398.3 534.8 416C534.8 433.7 520.5 448 502.8 448L421.2 448L399.2 550.7C395.5 568 378.5 579 361.2 575.3C343.9 571.6 332.9 554.6 336.6 537.3L355.7 448L229.2 448L207.2 550.7C203.5 568 186.5 579 169.2 575.3C151.9 571.6 140.9 554.6 144.6 537.3L163.8 448L96 448C78.3 448 64 433.7 64 416C64 398.3 78.3 384 96 384L177.6 384L205 256L137.2 256C119.5 256 105.2 241.7 105.2 224C105.2 206.3 119.5 192 137.2 192L218.8 192L240.8 89.3C244.4 72 261.4 61 278.7 64.7zM270.4 256L243 384L369.5 384L396.9 256L270.4 256z'/%3E%3C/svg%3E") center/contain no-repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 640'%3E%3Cpath d='M278.7 64.7C296 68.4 307 85.4 303.3 102.7L284.2 192L410.7 192L432.7 89.3C436.4 72 453.4 61 470.7 64.7C488 68.4 499 85.4 495.3 102.7L476.2 192L544 192C561.7 192 576 206.3 576 224C576 241.7 561.7 256 544 256L462.4 256L435 384L502.8 384C520.5 384 534.8 398.3 534.8 416C534.8 433.7 520.5 448 502.8 448L421.2 448L399.2 550.7C395.5 568 378.5 579 361.2 575.3C343.9 571.6 332.9 554.6 336.6 537.3L355.7 448L229.2 448L207.2 550.7C203.5 568 186.5 579 169.2 575.3C151.9 571.6 140.9 554.6 144.6 537.3L163.8 448L96 448C78.3 448 64 433.7 64 416C64 398.3 78.3 384 96 384L177.6 384L205 256L137.2 256C119.5 256 105.2 241.7 105.2 224C105.2 206.3 119.5 192 137.2 192L218.8 192L240.8 89.3C244.4 72 261.4 61 278.7 64.7zM270.4 256L243 384L369.5 384L396.9 256L270.4 256z'/%3E%3C/svg%3E") center/contain no-repeat; }
         .trend-info { min-width: 0; }
         .trend-category { font-size: 13px; color: rgba(255,255,255,0.6); }
         .trend-hashtag { font-size: 15px; font-weight: 600; margin: 4px 0; }
@@ -1500,6 +1504,11 @@
 <body>
 
 <div class="copy-toast" id="copy-toast">Скопировано</div>
+<div class="format-toolbar" id="format-toolbar" aria-hidden="true">
+    <button type="button" data-format="bold" aria-label="Жирный"><strong>B</strong></button>
+    <button type="button" data-format="underline" aria-label="Подчёркнутый"><u>U</u></button>
+    <button type="button" data-format="spoiler" aria-label="Скрытый"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.94 10.94 0 0 1 12 20C5 20 1 12 1 12a20.3 20.3 0 0 1 5.06-5.94"/><path d="M9.9 4.24A10.45 10.45 0 0 1 12 4c7 0 11 8 11 8a20.42 20.42 0 0 1-2.22 3.32"/><path d="M14.12 14.12A3 3 0 0 1 9.88 9.88"/><line x1="1" y1="1" x2="23" y2="23"/></svg></button>
+</div>
 
 <div class="splash-screen" id="splash-screen">
     <img src="logo_splash.png" alt="VP 2.0" class="splash-logo">
@@ -2778,6 +2787,90 @@
     const charCounter = document.getElementById('char-counter');
     const postSubmit = document.getElementById('post-submit');
     const composerContainer = document.querySelector('.composer-container');
+
+    const formatToolbar = document.getElementById('format-toolbar');
+    const formatTargets = () => Array.from(document.querySelectorAll('#post-input,#comment-input,#repost-comment-input,#edit-post-textarea,#edit-comment-textarea'));
+    let activeFormatTarget = null;
+    let lastFormatPoint = null;
+
+    function hasTextSelection(el) {
+        return el && typeof el.selectionStart === 'number' && el.selectionEnd > el.selectionStart;
+    }
+
+    function placeFormatToolbar(el, point) {
+        if (!formatToolbar || !hasTextSelection(el)) return hideFormatToolbar();
+        activeFormatTarget = el;
+        const rect = el.getBoundingClientRect();
+        formatToolbar.classList.add('visible');
+        formatToolbar.setAttribute('aria-hidden', 'false');
+        const width = formatToolbar.offsetWidth || 126;
+        const x = point?.clientX ?? (rect.left + rect.width / 2);
+        const y = point?.clientY ?? rect.top;
+        formatToolbar.style.left = `${Math.min(window.innerWidth - width - 8, Math.max(8, x - width / 2))}px`;
+        formatToolbar.style.top = `${Math.max(8, y - 48)}px`;
+    }
+
+    function hideFormatToolbar() {
+        if (!formatToolbar) return;
+        formatToolbar.classList.remove('visible');
+        formatToolbar.setAttribute('aria-hidden', 'true');
+    }
+
+    function wrapSelectedText(el, before, after) {
+        if (!hasTextSelection(el)) return;
+        const start = el.selectionStart;
+        const end = el.selectionEnd;
+        const selected = el.value.slice(start, end);
+        el.value = el.value.slice(0, start) + before + selected + after + el.value.slice(end);
+        const nextStart = start + before.length;
+        const nextEnd = nextStart + selected.length;
+        el.focus();
+        el.setSelectionRange(nextStart, nextEnd);
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+        hideFormatToolbar();
+    }
+
+    formatToolbar?.addEventListener('mousedown', (e) => e.preventDefault());
+    formatToolbar?.addEventListener('click', (e) => {
+        const btn = e.target.closest('button[data-format]');
+        if (!btn || !activeFormatTarget) return;
+        const map = { bold: ['**', '**'], underline: ['__', '__'], spoiler: ['||', '||'] };
+        const pair = map[btn.dataset.format];
+        if (pair) wrapSelectedText(activeFormatTarget, pair[0], pair[1]);
+    });
+
+    document.addEventListener('selectionchange', () => {
+        const el = document.activeElement;
+        if (!formatTargets().includes(el)) return;
+        if (!hasTextSelection(el)) return hideFormatToolbar();
+        clearTimeout(el._formatToolbarTimer);
+        el._formatToolbarTimer = setTimeout(() => placeFormatToolbar(el, lastFormatPoint), 80);
+    });
+
+    formatTargets().forEach((el) => {
+        el.addEventListener('contextmenu', (e) => {
+            if (!hasTextSelection(el)) return;
+            e.preventDefault();
+            lastFormatPoint = { clientX: e.clientX, clientY: e.clientY };
+            placeFormatToolbar(el, lastFormatPoint);
+        });
+        el.addEventListener('mouseup', (e) => {
+            lastFormatPoint = { clientX: e.clientX, clientY: e.clientY };
+            setTimeout(() => placeFormatToolbar(el, lastFormatPoint), 0);
+        });
+        el.addEventListener('touchend', (e) => {
+            const t = e.changedTouches && e.changedTouches[0];
+            lastFormatPoint = t ? { clientX: t.clientX, clientY: t.clientY } : null;
+            setTimeout(() => placeFormatToolbar(el, lastFormatPoint), 120);
+        }, { passive: true });
+        el.addEventListener('blur', () => setTimeout(() => { if (!formatToolbar?.matches(':hover')) hideFormatToolbar(); }, 120));
+    });
+
+    document.addEventListener('pointerdown', (e) => {
+        if (e.target.closest('#format-toolbar')) return;
+        if (formatTargets().includes(e.target)) return;
+        hideFormatToolbar();
+    });
 
     postInput.addEventListener('focus', () => charCounter.classList.add('visible'));
     postInput.addEventListener('blur', () => { if (!postInput.value.length) charCounter.classList.remove('visible'); });
@@ -4519,6 +4612,7 @@
   let pendingUserRouteName = null;
   let pendingHashtagRouteName = null;
   const pendingLikeOverrides = new Map();
+  const pendingLikeOverrideTimers = new Map();
   let muteNavRouteUpdate = false;
   let commentOptsId = null;
   let editingCommentId = null;
@@ -4532,6 +4626,17 @@
     if (routePath() === next) return;
     const method = replace ? 'replaceState' : 'pushState';
     history[method]({}, '', next);
+  }
+
+  function holdLikeOverride(postId, liked, likes, ttl = 1800) {
+    const id = Number(postId);
+    if (!Number.isFinite(id)) return;
+    pendingLikeOverrides.set(id, { liked: !!liked, likes: Math.max(0, Number(likes || 0)) });
+    clearTimeout(pendingLikeOverrideTimers.get(id));
+    pendingLikeOverrideTimers.set(id, setTimeout(() => {
+      pendingLikeOverrides.delete(id);
+      pendingLikeOverrideTimers.delete(id);
+    }, ttl));
   }
 
   function updateLikeButtons(postId, liked, likes, animate = false) {
@@ -5581,11 +5686,11 @@
         if (p) {
           const nextLiked = !p.liked;
           const nextLikes = Math.max(0, Number(p.likes || 0) + (p.liked ? -1 : 1));
-          pendingLikeOverrides.set(id, { liked: nextLiked, likes: nextLikes });
+          holdLikeOverride(id, nextLiked, nextLikes, 3000);
           updateLikeButtons(id, nextLiked, nextLikes, true);
         }
         const likeRes = await api(`/posts/${id}/like`, { method: 'POST' });
-        pendingLikeOverrides.delete(id);
+        holdLikeOverride(id, !!likeRes.liked, Number(likeRes.likes || 0), 1800);
         updateLikeButtons(id, !!likeRes.liked, Number(likeRes.likes || 0), false);
         if (Number.isFinite(Number(likeRes?.views))) applyIncomingView(id, Number(likeRes.views));
       } catch {}
