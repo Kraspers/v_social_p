@@ -38,7 +38,7 @@ function normalizeDatabaseUrl(rawUrl) {
 }
 
 function emptyDb() {
-  return { users: [], posts: [], comments: [], likes: [], follows: [], stories: [], postViews: [], commentLikes: [], meta: { postSeq: 1, commentSeq: 1, vpscAttempts: {} } };
+  return { users: [], posts: [], comments: [], likes: [], follows: [], stories: [], storyViews: [], postViews: [], commentLikes: [], uploads: [], meta: { postSeq: 1, commentSeq: 1, vpscAttempts: {} } };
 }
 
 function getDbKey() {
@@ -70,18 +70,29 @@ function decryptDb(raw) {
 
 function normalizeDb(db) {
   const next = db && typeof db === 'object' ? db : emptyDb();
-  next.users ||= []; next.posts ||= []; next.comments ||= []; next.likes ||= []; next.follows ||= []; next.stories ||= []; next.commentLikes ||= []; next.postViews ||= [];
+  next.users ||= []; next.posts ||= []; next.comments ||= []; next.likes ||= []; next.follows ||= []; next.stories ||= []; next.storyViews ||= []; next.commentLikes ||= []; next.postViews ||= []; next.uploads ||= [];
   next.users.forEach((u) => {
+    if (typeof u.bio !== 'string') u.bio = '';
+    if (typeof u.avatar !== 'string') u.avatar = (String(u.displayName || u.username || 'U')[0] || 'U').toUpperCase();
+    u.avatarUrl = normalizeProfileImageUrl(u.avatarUrl || '');
+    u.bannerUrl = normalizeProfileImageUrl(u.bannerUrl || '');
     if (typeof u.favoriteTrackName !== 'string') u.favoriteTrackName = '';
-    if (typeof u.favoriteTrackUrl !== 'string') u.favoriteTrackUrl = '';
+    u.favoriteTrackUrl = normalizeProfileImageUrl(u.favoriteTrackUrl || '');
     if (!Array.isArray(u.favoriteTracks)) {
       u.favoriteTracks = (u.favoriteTrackUrl && u.favoriteTrackName) ? [{ name: String(u.favoriteTrackName).slice(0, 140), url: String(u.favoriteTrackUrl), coverUrl: '', createdAt: u.createdAt || nowIso() }] : [];
     }
+    u.favoriteTracks = u.favoriteTracks
+      .filter((t) => t && typeof t === 'object')
+      .map((t) => ({ name: String(t.name || '').slice(0, 140), url: normalizeProfileImageUrl(t.url || ''), coverUrl: normalizeProfileImageUrl(t.coverUrl || ''), createdAt: t.createdAt || u.createdAt || nowIso() }))
+      .filter((t) => t.name && t.url)
+      .slice(0, 30);
   });
   if (!next.meta) next.meta = { postSeq: 1, commentSeq: 1, vpscAttempts: {} };
   if (!next.meta.postSeq) next.meta.postSeq = 1;
   if (!next.meta.commentSeq) next.meta.commentSeq = 1;
   if (!next.meta.vpscAttempts) next.meta.vpscAttempts = {};
+  next.uploads = next.uploads.filter((file) => file && typeof file.name === 'string' && typeof file.data === 'string' && typeof file.mime === 'string');
+  next.storyViews = next.storyViews.filter((v) => v && v.storyId && v.userId);
   return next;
 }
 
@@ -219,6 +230,10 @@ function gc(db) {
   const ttl = Date.now() - 24 * 60 * 60 * 1000;
   const before = db.stories.length;
   db.stories = db.stories.filter((s) => new Date(s.createdAt).getTime() >= ttl);
+  if (before !== db.stories.length) {
+    const liveStoryIds = new Set(db.stories.map((s) => s.id));
+    db.storyViews = db.storyViews.filter((v) => liveStoryIds.has(v.storyId));
+  }
   return before !== db.stories.length;
 }
 
@@ -281,9 +296,42 @@ function normalizeProfileImageUrl(value) {
   return raw;
 }
 
-function removeUploadedFileIfLocal(urlValue) {
+function uploadNameFromUrl(urlValue) {
+  const normalized = normalizeProfileImageUrl(urlValue);
+  if (!normalized || !normalized.startsWith('/uploads/')) return '';
+  return path.basename(normalized);
+}
+
+function upsertDbUpload(db, name, mime, raw) {
+  db.uploads ||= [];
+  const safeName = path.basename(String(name || ''));
+  if (!safeName) return;
+  const rec = { name: safeName, mime, data: raw.toString('base64'), size: raw.length, createdAt: nowIso() };
+  const idx = db.uploads.findIndex((f) => f.name === safeName);
+  if (idx >= 0) db.uploads[idx] = rec;
+  else db.uploads.push(rec);
+}
+
+function removeDbUpload(db, urlValue) {
+  const name = uploadNameFromUrl(urlValue);
+  if (!name || !Array.isArray(db.uploads)) return;
+  db.uploads = db.uploads.filter((f) => f.name !== name);
+}
+
+function sendDbUpload(db, res, pathname) {
+  const name = path.basename(String(pathname || '').replace(/^\/uploads\//, ''));
+  const file = Array.isArray(db.uploads) ? db.uploads.find((f) => f.name === name) : null;
+  if (!file) return false;
+  const raw = Buffer.from(file.data || '', 'base64');
+  res.writeHead(200, securityHeaders(file.mime || 'application/octet-stream'));
+  res.end(raw);
+  return true;
+}
+
+function removeUploadedFileIfLocal(db, urlValue) {
   const normalized = normalizeProfileImageUrl(urlValue);
   if (!normalized || !normalized.startsWith('/uploads/')) return;
+  removeDbUpload(db, normalized);
   const relativePath = normalized.slice(1);
   const filePath = path.join(UPLOAD_DIR, path.basename(relativePath));
   if (!filePath.startsWith(UPLOAD_DIR)) return;
@@ -545,13 +593,13 @@ const server = http.createServer(async (req, res) => {
     if (typeof b.avatarUrl === 'string') {
       const nextAvatarUrl = normalizeProfileImageUrl(b.avatarUrl);
       const prevAvatarUrl = normalizeProfileImageUrl(me.avatarUrl);
-      if (prevAvatarUrl && prevAvatarUrl !== nextAvatarUrl) removeUploadedFileIfLocal(prevAvatarUrl);
+      if (prevAvatarUrl && prevAvatarUrl !== nextAvatarUrl) removeUploadedFileIfLocal(db, prevAvatarUrl);
       me.avatarUrl = nextAvatarUrl;
     }
     if (typeof b.bannerUrl === 'string') {
       const nextBannerUrl = normalizeProfileImageUrl(b.bannerUrl);
       const prevBannerUrl = normalizeProfileImageUrl(me.bannerUrl);
-      if (prevBannerUrl && prevBannerUrl !== nextBannerUrl) removeUploadedFileIfLocal(prevBannerUrl);
+      if (prevBannerUrl && prevBannerUrl !== nextBannerUrl) removeUploadedFileIfLocal(db, prevBannerUrl);
       me.bannerUrl = nextBannerUrl;
     }
     if (!Array.isArray(me.favoriteTracks)) me.favoriteTracks = [];
@@ -568,7 +616,7 @@ const server = http.createServer(async (req, res) => {
         .slice(0, 30);
       const prevUrls = new Set(me.favoriteTracks.map((t) => String(t?.url || '')).filter(Boolean));
       const nextUrls = new Set(nextTracks.map((t) => t.url));
-      prevUrls.forEach((u3) => { if (!nextUrls.has(u3) && u3.startsWith('/uploads/')) removeUploadedFileIfLocal(u3); });
+      prevUrls.forEach((u3) => { if (!nextUrls.has(u3) && u3.startsWith('/uploads/')) removeUploadedFileIfLocal(db, u3); });
       me.favoriteTracks = nextTracks;
       const lastTrack = me.favoriteTracks[me.favoriteTracks.length - 1] || null;
       me.favoriteTrackName = lastTrack?.name || '';
@@ -610,7 +658,10 @@ const server = http.createServer(async (req, res) => {
     db.comments = db.comments.filter((c) => c.authorId !== me.id && !userPostIds.has(c.postId));
     db.likes = db.likes.filter((l) => l.userId !== me.id && !userPostIds.has(l.postId));
     db.follows = db.follows.filter((f) => f.followerId !== me.id && f.followingId !== me.id);
+    const removedStoryIds = new Set(db.stories.filter((s) => s.authorId === me.id).map((s) => s.id));
     db.stories = db.stories.filter((s) => s.authorId !== me.id);
+    db.storyViews = db.storyViews.filter((v) => v.userId !== me.id && !removedStoryIds.has(v.storyId));
+    db.postViews = db.postViews.filter((v) => v.userId !== me.id && !userPostIds.has(v.postId));
     db.commentLikes = db.commentLikes.filter((l) => l.userId !== me.id && !db.comments.find((c) => c.id === l.commentId && c.authorId === me.id));
     db.users = db.users.filter((u2) => u2.id !== me.id);
     writeDb(db);
@@ -642,12 +693,16 @@ const server = http.createServer(async (req, res) => {
     if (!me) return sendJson(res, 401, { error: 'Unauthorized' });
     const postId = Number(mLike[1]);
     if (!db.posts.find((p) => p.id === postId)) return sendJson(res, 404, { error: 'Post not found' });
+    const alreadyViewed = db.postViews.some((v) => v.postId === postId && v.userId === me.id);
+    if (!alreadyViewed) db.postViews.push({ id: uid(), postId, userId: me.id, createdAt: nowIso() });
     const idx = db.likes.findIndex((l) => l.postId === postId && l.userId === me.id);
     let liked = true;
     if (idx >= 0) { db.likes.splice(idx, 1); liked = false; }
     else db.likes.push({ id: uid(), postId, userId: me.id, createdAt: nowIso() });
     writeDb(db);
-    return sendJson(res, 200, { liked, likes: db.likes.filter((l) => l.postId === postId).length });
+    const views = db.postViews.filter((v) => v.postId === postId).length;
+    if (!alreadyViewed) broadcastViewUpdate(postId, views);
+    return sendJson(res, 200, { liked, likes: db.likes.filter((l) => l.postId === postId).length, views });
   }
 
   const mView = u.pathname.match(/^\/api\/posts\/(\d+)\/view$/);
@@ -872,7 +927,8 @@ const server = http.createServer(async (req, res) => {
           mediaType: s.mediaType,
           src: s.src,
           caption: s.caption || '',
-          createdAt: s.createdAt
+          createdAt: s.createdAt,
+          viewed: !!db.storyViews.find((v) => v.storyId === s.id && v.userId === me.id)
         };
       });
     return sendJson(res, 200, { stories });
@@ -885,9 +941,23 @@ const server = http.createServer(async (req, res) => {
     const mediaType = b.mediaType === 'video' ? 'video' : 'image';
     const caption = String(b.caption || '').slice(0, 280);
     if (!src) return sendJson(res, 400, { error: 'src required' });
-    db.stories.push({ id: uid(), authorId: me.id, src, mediaType, caption, createdAt: nowIso() });
+    const story = { id: uid(), authorId: me.id, src: normalizeProfileImageUrl(src), mediaType, caption, createdAt: nowIso() };
+    db.stories.push(story);
     writeDb(db);
     return sendJson(res, 201, { ok: true });
+  }
+
+
+  const mStoryView = u.pathname.match(/^\/api\/stories\/([^/]+)\/view$/);
+  if (mStoryView && req.method === 'POST') {
+    if (!me) return sendJson(res, 401, { error: 'Unauthorized' });
+    const storyId = decodeURIComponent(mStoryView[1]);
+    if (!db.stories.find((s) => s.id === storyId)) return sendJson(res, 404, { error: 'Story not found' });
+    if (!db.storyViews.some((v) => v.storyId === storyId && v.userId === me.id)) {
+      db.storyViews.push({ id: uid(), storyId, userId: me.id, createdAt: nowIso() });
+      writeDb(db);
+    }
+    return sendJson(res, 200, { viewed: true });
   }
 
   if (u.pathname === '/api/upload' && req.method === 'POST') {
@@ -906,6 +976,8 @@ const server = http.createServer(async (req, res) => {
     if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
     const filename = `${me.id}_${kind}_${Date.now()}_${uid().slice(0,6)}.${ext}`;
     fs.writeFileSync(path.join(uploadDir, filename), raw);
+    upsertDbUpload(db, filename, m[1].toLowerCase().replace('jpg', 'jpeg'), raw);
+    writeDb(db);
     return sendJson(res, 201, { url: `/uploads/${filename}` });
   }
 
@@ -927,14 +999,16 @@ const server = http.createServer(async (req, res) => {
     if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
     const filename = `${me.id}_track_${Date.now()}_${uid().slice(0,6)}.${ext}`;
     fs.writeFileSync(path.join(uploadDir, filename), raw);
+    upsertDbUpload(db, filename, ext === 'm4a' ? 'audio/mp4' : 'audio/mpeg', raw);
+    writeDb(db);
     return sendJson(res, 201, { url: `/uploads/${filename}` });
   }
 
   if (u.pathname === '/api/trends' && req.method === 'GET') {
     const map = new Map();
     db.posts.forEach((p) => {
-      const tags = String(p.text || '').match(/#[\p{L}\p{N}_]+/gu) || [];
-      tags.forEach((t) => map.set(t.toLowerCase(), (map.get(t.toLowerCase()) || 0) + 1));
+      const tags = String(p.text || '').match(/(^|\s)#[^\s#]+/gu) || [];
+      tags.map((t) => t.trim()).forEach((t) => map.set(t.toLowerCase(), (map.get(t.toLowerCase()) || 0) + 1));
     });
     const trends = [...map.entries()].sort((a, b) => b[1] - a[1]).slice(0, 20).map(([tag, count]) => ({ tag, count }));
     return sendJson(res, 200, { trends });
@@ -958,7 +1032,7 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (u.pathname.startsWith('/api/')) return sendJson(res, 404, { error: 'Not found' });
-  if (!serveFile(res, u.pathname)) sendJson(res, 404, { error: 'Not found' });
+  if (!serveFile(res, u.pathname) && !(u.pathname.startsWith('/uploads/') && sendDbUpload(db, res, u.pathname))) sendJson(res, 404, { error: 'Not found' });
 });
 
 initializeDb()
