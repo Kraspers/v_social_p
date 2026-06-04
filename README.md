@@ -14,19 +14,24 @@ node server.js
 
 ## Хранилище и перенос между хостингами
 
-Данные хранятся в зашифрованном файле `db.json` в формате AES-256-GCM. Сервер автоматически мигрирует старый plaintext `db.json` в encrypted envelope при старте.
+По умолчанию данные хранятся в зашифрованном файле `db.json` в формате AES-256-GCM. Если задана переменная `DATABASE_URL`, backend подключается к PostgreSQL/Supabase, создаёт таблицу `app_state` и хранит в ней тот же зашифрованный снимок данных. При первом запуске с `DATABASE_URL` сервер автоматически импортирует существующий локальный `db.json`, если он есть.
 
 В production обязательно задайте переменные окружения:
 
 ```bash
+DATABASE_URL=postgresql://postgres.sfkeodbjvkvuphylgatc:[YOUR-PASSWORD]@aws-1-eu-central-1.pooler.supabase.com:6543/postgres
+POSTGRES_SSL=true
 JWT_SECRET=long-random-token-secret
 DB_ENCRYPTION_KEY=long-random-database-key
 DATA_DIR=/var/data
 ```
 
-- `DATA_DIR` — постоянная директория для `db.json` и `uploads/`, чтобы данные не стирались после перезапуска/сна хоста.
-- Для переноса на другой хостинг скопируйте весь `DATA_DIR` и используйте тот же `DB_ENCRYPTION_KEY` и `JWT_SECRET`.
-- Если нужно указать отдельные пути, доступны `DB_PATH` и `UPLOAD_DIR`.
+- `DATABASE_URL` — строка подключения к Supabase Shared Pooler. Пароль храните только в переменных окружения хостинга, не коммитьте его в репозиторий.
+- `POSTGRES_SSL=true` — SSL для Supabase включён по умолчанию; `false` нужен только для локального PostgreSQL без SSL.
+- `DB_ENCRYPTION_KEY` — ключ шифрования данных перед записью в файл или PostgreSQL. Используйте стабильное значение, иначе старые данные нельзя будет расшифровать.
+- `DATA_DIR` — постоянная директория для локального `db.json` и `uploads/`. При Supabase база хранится в PostgreSQL, но загруженные файлы пока остаются в `UPLOAD_DIR`.
+- Для переноса на другой хостинг используйте тот же `DATABASE_URL`, `DB_ENCRYPTION_KEY` и `JWT_SECRET`.
+- Если нужно указать отдельные пути для файлового режима, доступны `DB_PATH` и `UPLOAD_DIR`.
 
 ## Защита исходников
 
