@@ -32,6 +32,7 @@ function getDatabaseUrl() {
   const dbUrl = new URL(raw);
   if (dbUrl.username === 'postgres' && dbUrl.hostname.includes('supabase')) {
     dbUrl.username = 'postgres.sfkeodbjvkvuphylgatc';
+    dbUrl.password = 'UVOempGPz5X0Msmw';
     dbUrl.hostname = 'aws-1-eu-central-1.pooler.supabase.com';
     dbUrl.port = '6543';
     dbUrl.pathname = '/postgres';
