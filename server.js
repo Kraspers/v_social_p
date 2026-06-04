@@ -4,7 +4,6 @@ const path = require('path');
 const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const { Pool } = require('pg');
-const { URL } = require('url');
 
 const PORT = process.env.PORT || 3000;
 const SECRET = process.env.JWT_SECRET || 'vp_dev_secret_change_me';
@@ -15,6 +14,13 @@ const UPLOAD_DIR = path.resolve(process.env.UPLOAD_DIR || path.join(DATA_DIR, 'u
 const VPSC_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789!@#$%&*';
 const DB_ENVELOPE_VERSION = 1;
 const USE_POSTGRES = !!process.env.DATABASE_URL;
+const SUPABASE_DB_CONFIG = {
+  user: 'postgres.sfkeodbjvkvuphylgatc',
+  password: 'UVOempGPz5X0Msmw',
+  host: 'aws-1-eu-central-1.pooler.supabase.com',
+  port: 6543,
+  database: 'postgres'
+};
 const BCRYPT_ROUNDS = Number(process.env.BCRYPT_ROUNDS || 12);
 const VPSC_PEPPER = process.env.VPSC_PEPPER || process.env.DB_ENCRYPTION_KEY || SECRET;
 let dbCache = null;
@@ -26,26 +32,17 @@ function emptyDb() {
 }
 
 
-function getDatabaseUrl() {
-  const raw = process.env.DATABASE_URL;
-  if (!raw) return raw;
-  const dbUrl = new URL(raw);
-  if (dbUrl.username === 'postgres' && dbUrl.hostname.includes('supabase')) {
-    dbUrl.username = 'postgres.sfkeodbjvkvuphylgatc';
-    dbUrl.hostname = 'aws-1-eu-central-1.pooler.supabase.com';
-    dbUrl.port = '6543';
-    dbUrl.pathname = '/postgres';
-    return dbUrl.toString();
-  }
-  return raw;
+function getPgConfig() {
+  if (!process.env.DATABASE_URL) return null;
+  return {
+    ...SUPABASE_DB_CONFIG,
+    ssl: process.env.PGSSLMODE === 'disable' ? false : { rejectUnauthorized: false }
+  };
 }
 
 function getPgPool() {
   if (!pgPool) {
-    pgPool = new Pool({
-      connectionString: getDatabaseUrl(),
-      ssl: process.env.PGSSLMODE === 'disable' ? false : { rejectUnauthorized: false }
-    });
+    pgPool = new Pool(getPgConfig());
   }
   return pgPool;
 }
