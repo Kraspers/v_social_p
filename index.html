@@ -164,6 +164,8 @@
         .action-btn { display: flex; align-items: center; gap: 6px; background: none; border: none; color: rgba(255,255,255,0.5); cursor: pointer; font-size: 14px; transition: color 0.15s; padding: 6px 8px; border-radius: 8px; }
         .action-btn:hover { color: rgba(255,255,255,0.9); }
         .action-btn.liked { color: #ff3b30; }
+        .action-btn.like-pop .action-icon { animation: likeHeartPop 0.24s cubic-bezier(0.2, 1.35, 0.4, 1); transform-origin: center; }
+        @keyframes likeHeartPop { 0% { transform: scale(1); } 45% { transform: scale(1.32); } 100% { transform: scale(1); } }
         .action-btn.reposted { color: #34c759; }
         .action-btn.passive { cursor: default; pointer-events: none; }
         .action-icon { width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; }
@@ -180,6 +182,9 @@
         .nav-btn.active .nav-icon-outline { display: none; }
         .tab-content { display: none; }
         .tab-content.active { display: block; }
+        .hashtag-header { padding: 18px 16px 8px; background: #0f0f11; position: sticky; top: 0; z-index: 10; }
+        .hashtag-back { display: inline-flex; align-items: center; gap: 8px; background: none; border: none; color: rgba(255,255,255,0.55); font: inherit; font-size: 16px; font-weight: 600; padding: 0; cursor: pointer; }
+        .hashtag-title { margin-top: 14px; color: #0D7EFF; font-size: 32px; line-height: 1.15; font-weight: 900; }
         .search-bar { padding: 16px; background: transparent; border-bottom: 1px solid rgba(255,255,255,0.04); }
         .search-input { width: 100%; padding: 12px 16px; border: 1px solid rgba(255,255,255,0.04); border-radius: 20px; font-size: 15px; background: rgba(255,255,255,0.02); color: #e6e6e9; }
         .search-input::placeholder { color: rgba(255,255,255,0.5); }
@@ -188,8 +193,8 @@
         .section-title { font-size: 20px; font-weight: 700; margin-bottom: 16px; }
         .trend-item { position: relative; display: flex; align-items: center; gap: 12px; padding: 12px 8px; border-bottom: 1px solid rgba(255,255,255,0.04); cursor: pointer; border-radius: 8px; transition: background 0.2s; overflow: hidden; }
         .trend-item:hover { background: rgba(255,255,255,0.02); }
-        .trend-icon { width: 44px; height: 44px; border-radius: 50%; background: rgba(255,255,255,0.08); color: #0f0f11; flex: 0 0 auto; position: relative; overflow: hidden; }
-        .trend-icon::before { content: '#'; position: absolute; left: -10px; top: 50%; transform: translateY(-52%); font-size: 54px; line-height: 1; font-weight: 900; color: #0f0f11; opacity: 0.95; }
+        .trend-icon { width: 44px; height: 44px; border-radius: 50%; background: rgba(255,255,255,0.13); color: #0f0f11; flex: 0 0 auto; position: relative; overflow: hidden; }
+        .trend-icon::before { content: '#'; position: absolute; left: -8px; top: calc(50% + 2px); transform: translateY(-50%); font-size: 54px; line-height: 1; font-weight: 900; color: #0f0f11; opacity: 0.95; }
         .trend-info { min-width: 0; }
         .trend-category { font-size: 13px; color: rgba(255,255,255,0.6); }
         .trend-hashtag { font-size: 15px; font-weight: 600; margin: 4px 0; }
@@ -1597,6 +1602,17 @@
         <div class="feed" id="feed"></div>
     </div>
 
+    <div id="hashtag-tab" class="tab-content">
+        <div class="hashtag-header">
+            <button class="hashtag-back" type="button" onclick="closeHashtagView()">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+                <span>Назад</span>
+            </button>
+            <div class="hashtag-title" id="hashtag-title">#</div>
+        </div>
+        <div class="feed" id="hashtag-feed"></div>
+    </div>
+
     <!-- Explore Tab -->
     <div id="explore-tab" class="tab-content">
         <div style="padding:12px 16px;background:#0f0f11;position:sticky;top:0;z-index:10;">
@@ -1612,10 +1628,10 @@
         <div id="trends-section-wrap">
             <div class="trends-section">
                 <div class="section-title">Актуальное</div>
-                <div class="trend-item"><div class="trend-icon" aria-hidden="true"></div><div class="trend-info"><div class="trend-category">Технологии · В тренде</div><div class="trend-hashtag">ИИ</div><div class="trend-count">15.2K постов</div></div></div>
-                <div class="trend-item"><div class="trend-icon" aria-hidden="true"></div><div class="trend-info"><div class="trend-category">Развлечения · В тренде</div><div class="trend-hashtag">музыка2026</div><div class="trend-count">8.7K постов</div></div></div>
-                <div class="trend-item"><div class="trend-icon" aria-hidden="true"></div><div class="trend-info"><div class="trend-category">Спорт · В тренде</div><div class="trend-hashtag">футбол</div><div class="trend-count">23.5K постов</div></div></div>
-                <div class="trend-item"><div class="trend-icon" aria-hidden="true"></div><div class="trend-info"><div class="trend-category">Мемы · В тренде</div><div class="trend-hashtag">впизде</div><div class="trend-count">42K постов</div></div></div>
+                <div class="trend-item" data-hashtag="ИИ"><div class="trend-icon" aria-hidden="true"></div><div class="trend-info"><div class="trend-category">Технологии · В тренде</div><div class="trend-hashtag">ИИ</div><div class="trend-count">15.2K постов</div></div></div>
+                <div class="trend-item" data-hashtag="музыка2026"><div class="trend-icon" aria-hidden="true"></div><div class="trend-info"><div class="trend-category">Развлечения · В тренде</div><div class="trend-hashtag">музыка2026</div><div class="trend-count">8.7K постов</div></div></div>
+                <div class="trend-item" data-hashtag="футбол"><div class="trend-icon" aria-hidden="true"></div><div class="trend-info"><div class="trend-category">Спорт · В тренде</div><div class="trend-hashtag">футбол</div><div class="trend-count">23.5K постов</div></div></div>
+                <div class="trend-item" data-hashtag="впизде"><div class="trend-icon" aria-hidden="true"></div><div class="trend-info"><div class="trend-category">Мемы · В тренде</div><div class="trend-hashtag">впизде</div><div class="trend-count">42K постов</div></div></div>
             </div>
         </div>
     </div>
@@ -2092,7 +2108,7 @@
                 Редактировать
             </button>
             <button class="post-opts-item" id="post-opts-pin-btn" onclick="postOptsPin()">
-                <span class="post-opts-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V17z"/></svg></span>
+                <span class="post-opts-icon"><svg width="22" height="22" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" fill="currentColor" aria-hidden="true"><path d="M160 96C160 78.3 174.3 64 192 64L448 64C465.7 64 480 78.3 480 96C480 113.7 465.7 128 448 128L418.5 128L428.8 262.1C465.9 283.3 494.6 318.5 507 361.8L510.8 375.2C513.6 384.9 511.6 395.2 505.6 403.3C499.6 411.4 490 416 480 416L160 416C150 416 140.5 411.3 134.5 403.3C128.5 395.3 126.5 384.9 129.3 375.2L133 361.8C145.4 318.5 174 283.3 211.2 262.1L221.5 128L192 128C174.3 128 160 113.7 160 96zM288 464L352 464L352 576C352 593.7 337.7 608 320 608C302.3 608 288 593.7 288 576L288 464z"/></svg></span>
                 <span id="post-opts-pin-label">Закрепить</span>
             </button>
         </div>
@@ -2197,7 +2213,7 @@
 
     function formatPostText(text) {
         return escapeHtml(text)
-            .replace(/(^|\s)#([^\s#]+)/gu, '$1<span class="hashtag">#$2</span>')
+            .replace(/(^|\s)#([^\s#]+)/gu, '$1<span class="hashtag" data-hashtag="$2">#$2</span>')
             .replace(/(^|\s)@([\p{L}\p{N}_.]+)/gu, '$1<span class="mention">@$2</span>');
     }
 
@@ -2301,7 +2317,7 @@
                 if (e.target.closest('.post-media-item')) return;
                 if (e.target.closest('[data-open-repost-id]')) return;
                 if (e.target.closest('[data-open-profile]')) return;
-                if (e.target.classList.contains('mention')) return;
+                if (e.target.classList.contains('mention') || e.target.classList.contains('hashtag')) return;
                 openPostModal(post);
             });
             frag.appendChild(el);
@@ -2386,7 +2402,7 @@
             if (e.target.closest('.post-media-item')) return;
             if (e.target.closest('[data-open-repost-id]')) return;
             if (e.target.closest('[data-open-profile]')) return;
-            if (e.target.classList.contains('mention')) return;
+            if (e.target.classList.contains('mention') || e.target.classList.contains('hashtag')) return;
             if (upmLocalPosts.has(post.id)) {
                 runOutsideUserProfile(() => openPostModal(post));
                 return;
@@ -4341,7 +4357,7 @@
         Редактировать
     </button>
     <button class="post-opts-dropdown-item" id="global-dd-pin-btn" onclick="postOptsPin();document.getElementById('global-post-dd').style.display='none';">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V17z"/></svg>
+        <svg width="18" height="18" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" fill="currentColor" aria-hidden="true"><path d="M160 96C160 78.3 174.3 64 192 64L448 64C465.7 64 480 78.3 480 96C480 113.7 465.7 128 448 128L418.5 128L428.8 262.1C465.9 283.3 494.6 318.5 507 361.8L510.8 375.2C513.6 384.9 511.6 395.2 505.6 403.3C499.6 411.4 490 416 480 416L160 416C150 416 140.5 411.3 134.5 403.3C128.5 395.3 126.5 384.9 129.3 375.2L133 361.8C145.4 318.5 174 283.3 211.2 262.1L221.5 128L192 128C174.3 128 160 113.7 160 96zM288 464L352 464L352 576C352 593.7 337.7 608 320 608C302.3 608 288 593.7 288 576L288 464z"/></svg>
         <span id="global-dd-pin-label">Закрепить</span>
     </button>
     <button class="post-opts-dropdown-item danger" onclick="postOptsDelete();document.getElementById('global-post-dd').style.display='none';">
@@ -4408,6 +4424,7 @@
   let viewsStreamRetryTimer = null;
   let pendingPostRouteId = null;
   let pendingUserRouteName = null;
+  let pendingHashtagRouteName = null;
   let muteNavRouteUpdate = false;
   let commentOptsId = null;
   let editingCommentId = null;
@@ -4421,6 +4438,26 @@
     if (routePath() === next) return;
     const method = replace ? 'replaceState' : 'pushState';
     history[method]({}, '', next);
+  }
+
+  function updateLikeButtons(postId, liked, likes, animate = false) {
+    const id = Number(postId);
+    const likeCount = Math.max(0, Number(likes || 0));
+    posts = posts.map((post) => (post?.id === id ? { ...post, liked: !!liked, likes: likeCount } : post));
+    if (upmLocalPosts.has(id)) upmLocalPosts.set(id, { ...upmLocalPosts.get(id), liked: !!liked, likes: likeCount });
+    document.querySelectorAll(`.action-btn[data-action="like"][data-id="${id}"]`).forEach((btn) => {
+      btn.classList.toggle('liked', !!liked);
+      const count = btn.querySelector('span');
+      if (count) count.textContent = String(likeCount);
+      const icon = btn.querySelector('svg');
+      if (icon) icon.setAttribute('fill', liked ? 'currentColor' : 'none');
+      if (animate && liked) {
+        btn.classList.remove('like-pop');
+        void btn.offsetWidth;
+        btn.classList.add('like-pop');
+        setTimeout(() => btn.classList.remove('like-pop'), 280);
+      }
+    });
   }
 
   function applyIncomingView(postId, views) {
@@ -5051,10 +5088,59 @@
       repostOf: p.repostOf ? { ...p.repostOf, avatarUrl: absoluteUrl(p.repostOf.avatarUrl || '') } : p.repostOf
     }));
     renderPosts();
+    if (document.getElementById('hashtag-tab')?.classList.contains('active')) renderHashtagFeed();
     const st = document.querySelectorAll('.stat-item .stat-number'); if (st[1]) st[1].textContent = posts.filter(p => p.isRepost).length;
     const feed = document.getElementById('feed');
     if (feed && posts.length === 0) feed.innerHTML = '<div style="text-align:center;color:rgba(255,255,255,0.35);padding:40px 20px;font-size:14px;">Лента пуста</div>';
   }
+
+  let currentHashtag = '';
+
+  function normalizeHashtagTag(value) {
+    return String(value || '').trim().replace(/^#/, '').toLowerCase();
+  }
+
+  function postHasHashtag(post, tag) {
+    const wanted = normalizeHashtagTag(tag);
+    if (!wanted) return false;
+    const texts = [post?.text || '', post?.repostOf?.text || ''];
+    return texts.some((text) => {
+      const matches = String(text || '').match(/(^|\s)#([^\s#]+)/gu) || [];
+      return matches.some((m) => normalizeHashtagTag(m.trim()) === wanted);
+    });
+  }
+
+  function renderHashtagFeed() {
+    const feed = document.getElementById('hashtag-feed');
+    if (!feed) return;
+    feed.innerHTML = '';
+    const tag = currentHashtag;
+    const list = posts.filter((post) => postHasHashtag(post, tag));
+    if (!list.length) {
+      feed.innerHTML = '<div style="text-align:center;color:rgba(255,255,255,0.35);padding:40px 20px;font-size:14px;">Постов с этим хэштегом пока нет</div>';
+      return;
+    }
+    list.forEach((post) => feed.appendChild(createPostElement(post)));
+  }
+
+  window.openHashtagView = function openHashtagView(tag, options = {}) {
+    const normalized = normalizeHashtagTag(tag);
+    if (!normalized) return;
+    currentHashtag = normalized;
+    document.getElementById('hashtag-title').textContent = `#${normalized}`;
+    document.querySelectorAll('.nav-btn').forEach((b) => b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach((t) => t.classList.remove('active'));
+    document.getElementById('hashtag-tab')?.classList.add('active');
+    renderHashtagFeed();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    if (!options.skipRoute) navigateTo(`/hashtag/${encodeURIComponent(normalized)}`);
+  };
+
+  window.closeHashtagView = function closeHashtagView() {
+    const exploreBtn = document.querySelector('.nav-btn[data-tab="explore"]');
+    if (exploreBtn) exploreBtn.click();
+    navigateTo('/tape', true);
+  };
 
   async function syncTrends() {
     const wrap = document.getElementById('trends-section-wrap');
@@ -5063,7 +5149,7 @@
       const r = await api('/trends');
       const list = (r.trends || []).slice(0,8);
       wrap.innerHTML = '<div class="trends-section"><div class="section-title">Актуальные хэштеги</div>' +
-        (list.length ? list.map(t => { const tag = String(t.tag || '').replace(/^#/, ''); return `<div class="trend-item"><div class="trend-icon" aria-hidden="true"></div><div class="trend-info"><div class="trend-hashtag">${tag}</div><div class="trend-count">${t.count} постов</div></div></div>`; }).join('') : '<div style="color:rgba(255,255,255,.45)">Пока нет данных</div>') +
+        (list.length ? list.map(t => { const tag = String(t.tag || '').replace(/^#/, ''); return `<div class="trend-item" data-hashtag="${escapeHtml(tag)}"><div class="trend-icon" aria-hidden="true"></div><div class="trend-info"><div class="trend-hashtag">${escapeHtml(tag)}</div><div class="trend-count">${t.count} постов</div></div></div>`; }).join('') : '<div style="color:rgba(255,255,255,.45)">Пока нет данных</div>') +
         '</div>';
     } catch {}
   }
@@ -5384,22 +5470,10 @@
       try {
         const id = Number(likeBtn.dataset.id);
         const p = posts.find(x => x.id === id) || upmLocalPosts.get(id);
-        if (p) {
-          p.liked = !p.liked;
-          p.likes += p.liked ? 1 : -1;
-          renderPosts();
-          const likeBtnModal = document.querySelector('#modal-post-container .action-btn[data-action="like"]');
-          if (likeBtnModal && Number(likeBtnModal.dataset.id || 0) === id) {
-            likeBtnModal.classList.toggle('liked', !!p.liked);
-            const count = likeBtnModal.querySelector('span');
-            if (count) count.textContent = String(p.likes);
-            const icon = likeBtnModal.querySelector('svg');
-            if (icon) icon.setAttribute('fill', p.liked ? 'currentColor' : 'none');
-          }
-        }
+        if (p) updateLikeButtons(id, !p.liked, Number(p.likes || 0) + (p.liked ? -1 : 1), true);
         const likeRes = await api(`/posts/${id}/like`, { method: 'POST' });
+        updateLikeButtons(id, !!likeRes.liked, Number(likeRes.likes || 0), false);
         if (Number.isFinite(Number(likeRes?.views))) applyIncomingView(id, Number(likeRes.views));
-        await refreshOpenedProfileModal();
       } catch {}
       return;
     }
@@ -5447,9 +5521,10 @@
       requestAnimationFrame(()=>requestAnimationFrame(()=>modal.classList.add('visible')));
     }
     try {
-      const [uRes, pRes] = await Promise.all([api(`/users/${uname}`), api('/posts')]);
+      const uRes = await api(`/users/${uname}`);
       const u = uRes.user;
-      const linked = (pRes.posts || []).filter(p => String(p.username || '').toLowerCase() === `@${u.username}`.toLowerCase());
+      const sourcePosts = posts.length ? posts : ((await api('/posts')).posts || []);
+      const linked = sourcePosts.filter(p => String(p.username || '').toLowerCase() === `@${u.username}`.toLowerCase());
       const absAvatar = absoluteUrl(u.avatarUrl || '');
       const absBanner = absoluteUrl(u.bannerUrl || '');
       const userData = {
@@ -5512,6 +5587,16 @@
       } else {
         openUserProfile(mentioned);
       }
+      return;
+    }
+
+    const hashtag = targetEl.closest('.hashtag, [data-hashtag]');
+    if (hashtag) {
+      const tag = hashtag.getAttribute('data-hashtag') || hashtag.textContent || '';
+      e.stopImmediatePropagation();
+      e.preventDefault();
+      if (typeof closePostModal === 'function') closePostModal();
+      openHashtagView(tag);
       return;
     }
 
@@ -5702,7 +5787,8 @@
   window.submitRepost = async function submitRepost() {
     if (!repostTargetPost) return;
     try {
-      await api(`/posts/${repostTargetPost.id}/repost`, { method: 'POST' });
+      const text = document.getElementById('repost-comment-input')?.value.trim() || '';
+      await api(`/posts/${repostTargetPost.id}/repost`, { method: 'POST', body: JSON.stringify({ text }) });
       closeRepostModal();
       await syncPosts();
       await refreshOpenedProfileModal();
@@ -5832,7 +5918,7 @@
   function applyRoute() {
     const p = routePath();
     if (!token()) {
-      if (/^\/post\/[a-zA-Z0-9_-]+$/.test(p) || /^\/user\/[a-zA-Z0-9_.-]+$/.test(p)) {
+      if (/^\/post\/[a-zA-Z0-9_-]+$/.test(p) || /^\/user\/[a-zA-Z0-9_.-]+$/.test(p) || /^\/hashtag\/[^/]+$/.test(p)) {
         showNoVpidScreen();
         return;
       }
@@ -5865,6 +5951,22 @@
       pendingPostRouteId = postMatch[1];
       return;
     }
+    const hashMatch = p.match(/^\/hashtag\/([^/]+)$/);
+    if (hashMatch) {
+      const exploreBtn = document.querySelector('.nav-btn[data-tab="explore"]');
+      if (exploreBtn) {
+        muteNavRouteUpdate = true;
+        exploreBtn.click();
+        muteNavRouteUpdate = false;
+      }
+      pendingHashtagRouteName = decodeURIComponent(hashMatch[1] || '');
+      if (posts.length) {
+        const toOpenHash = pendingHashtagRouteName;
+        pendingHashtagRouteName = null;
+        openHashtagView(toOpenHash, { skipRoute: true });
+      }
+      return;
+    }
     const userMatch = p.match(/^\/user\/([a-zA-Z0-9_.-]+)$/);
     if (userMatch) {
       const routeUser = String(userMatch[1] || '').toLowerCase();
@@ -5894,13 +5996,12 @@
   setInterval(() => { if (token()) syncPosts().catch(() => {}); }, 4000);
   setInterval(() => { if (token()) syncMe().catch(() => {}); }, 5000);
   setInterval(() => { if (token()) syncTrends().catch(() => {}); }, 5000);
-  setInterval(() => { if (token() && currentViewedProfile?.uname) refreshOpenedProfileModal().catch(() => {}); }, 5000);
 
   (async () => {
     if (!token()) {
       resetClientUiState();
       applyRoute();
-      if (!routePath().startsWith('/post/') && !routePath().startsWith('/user/') && routePath() !== '/login') navigateTo('/login', true);
+      if (!routePath().startsWith('/post/') && !routePath().startsWith('/user/') && !routePath().startsWith('/hashtag/') && routePath() !== '/login') navigateTo('/login', true);
       return;
     }
     try {
@@ -5920,6 +6021,11 @@
         const toOpen = pendingPostRouteId;
         pendingPostRouteId = null;
         await openPostByRoute(toOpen);
+      }
+      if (pendingHashtagRouteName) {
+        const toOpenHash = pendingHashtagRouteName;
+        pendingHashtagRouteName = null;
+        openHashtagView(toOpenHash, { skipRoute: true });
       }
       if (pendingUserRouteName) {
         const toOpenUser = pendingUserRouteName;

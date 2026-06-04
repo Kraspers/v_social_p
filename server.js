@@ -414,7 +414,7 @@ function publicFilePath(pathname) {
   let f = pathname === '/' ? '/index.html' : pathname;
   if (pathname === '/privacy') f = '/privacy.html';
   if (pathname === '/terms') f = '/terms.html';
-  if (pathname === '/login' || pathname === '/tape' || /^\/post\/[a-zA-Z0-9_-]+$/.test(pathname) || /^\/user\/[a-zA-Z0-9_.-]+$/.test(pathname)) f = '/index.html';
+  if (pathname === '/login' || pathname === '/tape' || /^\/post\/[a-zA-Z0-9_-]+$/.test(pathname) || /^\/user\/[a-zA-Z0-9_.-]+$/.test(pathname) || /^\/hashtag\/[^/]+$/.test(pathname)) f = '/index.html';
   const decoded = decodeURIComponent(f).replace(/\\/g, '/');
   if (decoded.includes('\0')) return null;
   if (decoded.startsWith('/uploads/')) {
@@ -724,6 +724,7 @@ const server = http.createServer(async (req, res) => {
   if (mRepost && req.method === 'POST') {
     if (!me) return sendJson(res, 401, { error: 'Unauthorized' });
     const postId = Number(mRepost[1]);
+    const b = await parseBody(req);
     const original = db.posts.find((p) => p.id === postId);
     if (!original) return sendJson(res, 404, { error: 'Post not found' });
     const existingIdx = db.posts.findIndex((p) => p.authorId === me.id && p.repostOf === postId);
@@ -737,7 +738,7 @@ const server = http.createServer(async (req, res) => {
     } else {
       let publicId = makePostId();
       while (db.posts.some((p) => p.publicId === publicId)) publicId = makePostId();
-      db.posts.push({ id: db.meta.postSeq++, publicId, authorId: me.id, text: '', media: [], repostOf: postId, createdAt: nowIso() });
+      db.posts.push({ id: db.meta.postSeq++, publicId, authorId: me.id, text: String(b.text || ''), media: [], repostOf: postId, createdAt: nowIso() });
       reposted = true;
     }
     writeDb(db);
