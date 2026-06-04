@@ -160,6 +160,8 @@
         .post-text { font-size: 15px; line-height: 1.55; margin: 5px 0 10px; word-wrap: break-word; color: #e6e6e9; }
         .hashtag { color: #0D7EFF; cursor: pointer; }
         .mention { color: #0D7EFF; cursor: pointer; }
+        .text-spoiler { background: rgba(255,255,255,0.22); color: transparent; border-radius: 4px; padding: 0 2px; cursor: pointer; transition: background 0.15s, color 0.15s; }
+        .text-spoiler.revealed { background: rgba(255,255,255,0.08); color: inherit; }
         .post-actions { display: flex; gap: 4px; margin-top: 10px; padding-top: 2px; margin-left: -8px; }
         .action-btn { display: flex; align-items: center; gap: 6px; background: none; border: none; color: rgba(255,255,255,0.5); cursor: pointer; font-size: 14px; transition: color 0.15s; padding: 6px 8px; border-radius: 8px; }
         .action-btn:hover { color: rgba(255,255,255,0.9); }
@@ -194,7 +196,7 @@
         .trend-item { position: relative; display: flex; align-items: center; gap: 12px; padding: 12px 8px; border-bottom: 1px solid rgba(255,255,255,0.04); cursor: pointer; border-radius: 8px; transition: background 0.2s; overflow: hidden; }
         .trend-item:hover { background: rgba(255,255,255,0.02); }
         .trend-icon { width: 44px; height: 44px; border-radius: 50%; background: rgba(255,255,255,0.13); color: #0f0f11; flex: 0 0 auto; position: relative; overflow: hidden; }
-        .trend-icon::before { content: '#'; position: absolute; left: -8px; top: calc(50% + 2px); transform: translateY(-50%); font-size: 54px; line-height: 1; font-weight: 900; color: #0f0f11; opacity: 0.95; }
+        .trend-icon::before { content: ''; position: absolute; left: -8px; top: calc(50% + 2px); transform: translateY(-50%); width: 54px; height: 54px; background: #0f0f11; opacity: 0.95; -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 640'%3E%3Cpath d='M278.7 64.7C296 68.4 307 85.4 303.3 102.7L284.2 192L410.7 192L432.7 89.3C436.4 72 453.4 61 470.7 64.7C488 68.4 499 85.4 495.3 102.7L476.2 192L544 192C561.7 192 576 206.3 576 224C576 241.7 561.7 256 544 256L462.4 256L435 384L502.8 384C520.5 384 534.8 398.3 534.8 416C534.8 433.7 520.5 448 502.8 448L421.2 448L399.2 550.7C395.5 568 378.5 579 361.2 575.3C343.9 571.6 332.9 554.6 336.6 537.3L355.7 448L229.2 448L207.2 550.7C203.5 568 186.5 579 169.2 575.3C151.9 571.6 140.9 554.6 144.6 537.3L163.8 448L96 448C78.3 448 64 433.7 64 416C64 398.3 78.3 384 96 384L177.6 384L205 256L137.2 256C119.5 256 105.2 241.7 105.2 224C105.2 206.3 119.5 192 137.2 192L218.8 192L240.8 89.3C244.4 72 261.4 61 278.7 64.7zM270.4 256L243 384L369.5 384L396.9 256L270.4 256z'/%3E%3C/svg%3E") center/contain no-repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 640'%3E%3Cpath d='M278.7 64.7C296 68.4 307 85.4 303.3 102.7L284.2 192L410.7 192L432.7 89.3C436.4 72 453.4 61 470.7 64.7C488 68.4 499 85.4 495.3 102.7L476.2 192L544 192C561.7 192 576 206.3 576 224C576 241.7 561.7 256 544 256L462.4 256L435 384L502.8 384C520.5 384 534.8 398.3 534.8 416C534.8 433.7 520.5 448 502.8 448L421.2 448L399.2 550.7C395.5 568 378.5 579 361.2 575.3C343.9 571.6 332.9 554.6 336.6 537.3L355.7 448L229.2 448L207.2 550.7C203.5 568 186.5 579 169.2 575.3C151.9 571.6 140.9 554.6 144.6 537.3L163.8 448L96 448C78.3 448 64 433.7 64 416C64 398.3 78.3 384 96 384L177.6 384L205 256L137.2 256C119.5 256 105.2 241.7 105.2 224C105.2 206.3 119.5 192 137.2 192L218.8 192L240.8 89.3C244.4 72 261.4 61 278.7 64.7zM270.4 256L243 384L369.5 384L396.9 256L270.4 256z'/%3E%3C/svg%3E") center/contain no-repeat; }
         .trend-info { min-width: 0; }
         .trend-category { font-size: 13px; color: rgba(255,255,255,0.6); }
         .trend-hashtag { font-size: 15px; font-weight: 600; margin: 4px 0; }
@@ -441,6 +443,8 @@
         .profile-username { color: rgba(255,255,255,0.6); font-size: 15px; margin-top: 2px; }
         .profile-bio { margin-top: 12px; font-size: 15px; line-height: 1.4; }
         .profile-stats { display: flex; gap: 24px; margin-top: 16px; }
+        .profile-joined { display: flex; align-items: center; gap: 7px; margin-top: 10px; color: rgba(255,255,255,0.42); font-size: 14px; }
+        .profile-joined svg { width: 15px; height: 15px; flex: 0 0 auto; fill: currentColor; }
         .stat-item { display: flex; gap: 4px; font-size: 15px; cursor: pointer; }
         .stat-number { font-weight: 700; }
         .stat-label { color: rgba(255,255,255,0.6); }
@@ -1662,6 +1666,7 @@
                     <div class="stat-item"><span class="stat-number">256</span><span class="stat-label">Подписчиков</span></div>
                     <div class="stat-item"><span class="stat-number">89</span><span class="stat-label">Репостов</span></div>
                 </div>
+                <div class="profile-joined" id="profile-joined" style="display:none;"></div>
                 <button class="music-track-btn hidden" id="profile-music-track-btn" type="button" aria-label="Любимый трек" onclick="playProfileTrack()">
                     <span class="music-track-circle">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3v10.55a4 4 0 1 0 2 3.45V8h6V3h-8z"/></svg>
@@ -2206,14 +2211,31 @@
     let posts = [];
     const PINNED_ICON = '<svg width="12" height="12" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" fill="currentColor" aria-hidden="true"><path d="M160 96C160 78.3 174.3 64 192 64L448 64C465.7 64 480 78.3 480 96C480 113.7 465.7 128 448 128L418.5 128L428.8 262.1C465.9 283.3 494.6 318.5 507 361.8L510.8 375.2C513.6 384.9 511.6 395.2 505.6 403.3C499.6 411.4 490 416 480 416L160 416C150 416 140.5 411.3 134.5 403.3C128.5 395.3 126.5 384.9 129.3 375.2L133 361.8C145.4 318.5 174 283.3 211.2 262.1L221.5 128L192 128C174.3 128 160 113.7 160 96zM288 464L352 464L352 576C352 593.7 337.7 608 320 608C302.3 608 288 593.7 288 576L288 464z"/></svg>';
     const pinnedBadgeHtml = () => `${PINNED_ICON} Закреплено`;
+    const CALENDAR_ICON = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" aria-hidden="true"><path d="M224 64C206.3 64 192 78.3 192 96L192 128L160 128C124.7 128 96 156.7 96 192L96 240L544 240L544 192C544 156.7 515.3 128 480 128L448 128L448 96C448 78.3 433.7 64 416 64C398.3 64 384 78.3 384 96L384 128L256 128L256 96C256 78.3 241.7 64 224 64zM96 288L96 480C96 515.3 124.7 544 160 544L480 544C515.3 544 544 515.3 544 480L544 288L96 288z"/></svg>';
+    function formatJoinedDate(iso) {
+        const d = new Date(iso || '');
+        if (Number.isNaN(d.getTime())) return '';
+        return new Intl.DateTimeFormat('ru-RU', { month: 'long', year: 'numeric' }).format(d);
+    }
+    const joinedHtml = (iso) => {
+        const formatted = formatJoinedDate(iso);
+        return formatted ? `${CALENDAR_ICON}<span>Регистрация: ${formatted}</span>` : '';
+    };
 
     function escapeHtml(value) {
         return String(value || '').replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
     }
 
+    function applyTextFormatting(value) {
+        return String(value || '')
+            .replace(/\*\*([^\n*](?:[\s\S]*?[^\n*])?)\*\*/g, '<strong>$1</strong>')
+            .replace(/__([^\n_](?:[\s\S]*?[^\n_])?)__/g, '<u>$1</u>')
+            .replace(/\|\|([^\n|](?:[\s\S]*?[^\n|])?)\|\|/g, '<span class="text-spoiler" onclick="event.stopPropagation();this.classList.toggle(\'revealed\')">$1</span>');
+    }
+
     function formatPostText(text) {
-        return escapeHtml(text)
-            .replace(/(^|\s)#([^\s#]+)/gu, '$1<span class="hashtag" data-hashtag="$2">#$2</span>')
+        return applyTextFormatting(escapeHtml(text))
+            .replace(/(^|\s)#([^\s#<]+)/gu, '$1<span class="hashtag" data-hashtag="$2">#$2</span>')
             .replace(/(^|\s)@([\p{L}\p{N}_.]+)/gu, '$1<span class="mention">@$2</span>');
     }
 
@@ -2255,6 +2277,10 @@
                 ${repostOf.media && repostOf.media.length ? renderPostMedia(repostOf.media) : ''}
             </div>
         </div>`;
+    }
+
+    function latestPostState(post) {
+        return posts.find((p) => p.id === post?.id) || upmLocalPosts.get(post?.id) || post;
     }
 
     function renderPostMedia(mediaArr) {
@@ -2318,7 +2344,7 @@
                 if (e.target.closest('[data-open-repost-id]')) return;
                 if (e.target.closest('[data-open-profile]')) return;
                 if (e.target.classList.contains('mention') || e.target.classList.contains('hashtag')) return;
-                openPostModal(post);
+                openPostModal(latestPostState(post));
             });
             frag.appendChild(el);
         });
@@ -2403,11 +2429,12 @@
             if (e.target.closest('[data-open-repost-id]')) return;
             if (e.target.closest('[data-open-profile]')) return;
             if (e.target.classList.contains('mention') || e.target.classList.contains('hashtag')) return;
+            const latest = latestPostState(post);
             if (upmLocalPosts.has(post.id)) {
-                runOutsideUserProfile(() => openPostModal(post));
+                runOutsideUserProfile(() => openPostModal(latest));
                 return;
             }
-            openPostModal(post);
+            openPostModal(latest);
         });
         return el;
     }
@@ -4316,6 +4343,7 @@
         const followers = u.followers !== undefined ? u.followers : 0;
         const repostsCount = Array.isArray(u.posts) ? u.posts.filter((p) => p.isRepost).length : 0;
         const isSubscribed = typeof u.isFollowing === 'boolean' ? u.isFollowing : subscribedUsers.has(uname);
+        const joined = joinedHtml(u.createdAt);
 
         body.innerHTML = `
             <div style="height:150px;${coverStyle}position:relative;"></div>
@@ -4328,6 +4356,7 @@
                     <div style="font-size:15px;"><span style="font-weight:700;" id="upm-followers">${followers}</span> <span style="color:rgba(255,255,255,0.6);">Подписчиков</span></div>
                     <div style="font-size:15px;"><span style="font-weight:700;">${repostsCount}</span> <span style="color:rgba(255,255,255,0.6);">Репостов</span></div>
                 </div>
+                ${joined ? `<div class="profile-joined">${joined}</div>` : ''}
                 ${u.favoriteTrackName && u.favoriteTrackUrl ? `<button type="button" class="music-track-btn" style="margin-top:16px;" onclick="playViewedProfileTrack()"><span class="music-track-circle"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3v10.55a4 4 0 1 0 2 3.45V8h6V3h-8z"/></svg></span><span class="music-track-title">${u.favoriteTrackName}</span>${renderTrackCountHtml(Array.isArray(u.favoriteTracks) ? u.favoriteTracks.length : 1, 'viewed')}</button>` : ''}
                 <div class="profile-action-row">
                     <button id="upm-subscribe-btn" onclick="toggleSubscribe('${uname}')"
@@ -4510,6 +4539,9 @@
     const likeCount = Math.max(0, Number(likes || 0));
     posts = posts.map((post) => (post?.id === id ? { ...post, liked: !!liked, likes: likeCount } : post));
     if (upmLocalPosts.has(id)) upmLocalPosts.set(id, { ...upmLocalPosts.get(id), liked: !!liked, likes: likeCount });
+    if (currentViewedProfile?.userData && Array.isArray(currentViewedProfile.userData.posts)) {
+      currentViewedProfile.userData.posts = currentViewedProfile.userData.posts.map((post) => (post?.id === id ? { ...post, liked: !!liked, likes: likeCount } : post));
+    }
     document.querySelectorAll(`.action-btn[data-action="like"][data-id="${id}"]`).forEach((btn) => {
       btn.classList.toggle('liked', !!liked);
       const count = btn.querySelector('span');
@@ -4737,6 +4769,12 @@
     const nameEl = document.querySelector('.profile-name'); if (nameEl) nameEl.textContent = safeName;
     const uEl = document.querySelector('.profile-username'); if (uEl) uEl.textContent = safeUsername ? `@${safeUsername}` : '@username';
     const bEl = document.querySelector('.profile-bio'); if (bEl) bEl.textContent = safeBio;
+    const joinedEl = document.getElementById('profile-joined');
+    if (joinedEl) {
+      const joined = joinedHtml(me.createdAt);
+      joinedEl.innerHTML = joined;
+      joinedEl.style.display = joined ? 'flex' : 'none';
+    }
     const st = document.querySelectorAll('.stat-item .stat-number');
     if (st[0] && typeof me.followers==='number') st[0].textContent = me.followers;
     if (st[1]) st[1].textContent = posts.filter(p => p.isRepost).length;
@@ -5609,6 +5647,7 @@
         followers: u.followers || 0,
         following: u.following || 0,
         isFollowing: !!u.isFollowing,
+        createdAt: u.createdAt || '',
         avatarUrl: absAvatar,
         bannerUrl: absBanner,
         pinnedPostId: u.pinnedPostId || null,
