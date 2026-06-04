@@ -164,7 +164,7 @@
         .action-btn { display: flex; align-items: center; gap: 6px; background: none; border: none; color: rgba(255,255,255,0.5); cursor: pointer; font-size: 14px; transition: color 0.15s; padding: 6px 8px; border-radius: 8px; }
         .action-btn:hover { color: rgba(255,255,255,0.9); }
         .action-btn.liked { color: #ff3b30; }
-        .action-btn.like-pop .action-icon { animation: likeHeartPop 0.24s cubic-bezier(0.2, 1.35, 0.4, 1); transform-origin: center; }
+        .action-btn.like-pop .action-icon { animation: likeHeartPop 0.34s cubic-bezier(0.2, 1.35, 0.4, 1); transform-origin: center; }
         @keyframes likeHeartPop { 0% { transform: scale(1); } 45% { transform: scale(1.32); } 100% { transform: scale(1); } }
         .action-btn.reposted { color: #34c759; }
         .action-btn.passive { cursor: default; pointer-events: none; }
@@ -1565,7 +1565,7 @@
 
 <div class="container">
     <div class="header">
-        <div class="logo-container">
+        <div class="logo-container" id="main-logo-refresh" role="button" title="Обновить" style="cursor:pointer;">
             <div class="logo"><img src="logo_splash.png" alt="Logo"></div>
         </div>
     </div>
@@ -2980,11 +2980,12 @@
             } else { inner.style.transform = ''; }
         });
     })();
-    document.getElementById('creator-close').addEventListener('click', () => {
+    function closeStoryCreator() {
         const sc = document.getElementById('story-creator');
         sc.classList.remove('visible');
         setTimeout(() => { sc.classList.remove('active'); resetCreator(); document.body.style.overflow = ''; }, 400);
-    });
+    }
+    document.getElementById('creator-close').addEventListener('click', closeStoryCreator);
     document.getElementById('upload-media-btn').addEventListener('click', () => document.getElementById('media-input').click());
     document.getElementById('media-input').addEventListener('change', e => {
         const file = e.target.files[0]; if (!file) return;
@@ -3728,10 +3729,73 @@
         document.addEventListener('mouseup', () => { if (dragging) onEnd(); });
     }
 
+    function makeBottomSheetDraggable(sheetSelector, closeFunc, dragZoneSelector) {
+        const sheet = document.querySelector(sheetSelector);
+        if (!sheet || typeof closeFunc !== 'function') return;
+        let startY = 0, currentY = 0, dragging = false, baseY = 0;
+        const zones = dragZoneSelector || '.post-opts-handle, .post-opts-outer-header, .edit-post-topbar, .post-modal-handle, .post-modal-outer-header, .story-creator-topbar';
+        const getBaseY = () => sheet.classList.contains('edit-post-wrap') ? 18 : 0;
+        const setY = (y) => {
+            const prefix = sheet.classList.contains('post-opts-wrap') || sheet.classList.contains('edit-post-wrap') ? 'translateX(-50%) ' : '';
+            sheet.style.transform = `${prefix}translateY(${y}px)`;
+        };
+        function onStart(y) {
+            startY = y;
+            currentY = y;
+            baseY = getBaseY();
+            dragging = true;
+            sheet.style.transition = 'none';
+        }
+        function onMove(y) {
+            if (!dragging) return;
+            currentY = y;
+            const delta = Math.max(0, y - startY);
+            setY(baseY + delta);
+        }
+        function onEnd() {
+            if (!dragging) return;
+            dragging = false;
+            const delta = currentY - startY;
+            sheet.style.transition = '';
+            if (delta > 100) {
+                closeFunc();
+                setTimeout(() => { sheet.style.transform = ''; }, 420);
+            } else {
+                sheet.style.transform = '';
+            }
+        }
+        sheet.addEventListener('touchstart', (e) => {
+            const t = e.touches && e.touches[0];
+            if (!t || !e.target.closest(zones)) return;
+            onStart(t.clientY);
+        }, { passive: true });
+        sheet.addEventListener('touchmove', (e) => {
+            if (!dragging) return;
+            const t = e.touches && e.touches[0];
+            if (t) onMove(t.clientY);
+        }, { passive: true });
+        sheet.addEventListener('touchend', onEnd);
+        sheet.addEventListener('touchcancel', onEnd);
+        sheet.addEventListener('mousedown', (e) => {
+            if (!e.target.closest(zones)) return;
+            onStart(e.clientY);
+        });
+        document.addEventListener('mousemove', (e) => { if (dragging) onMove(e.clientY); });
+        document.addEventListener('mouseup', () => { if (dragging) onEnd(); });
+    }
+
     // Init drag for all modals
     makeDraggable('edit-modal-overlay', closeEditModal);
     makeDraggable('change-pw-overlay', closeChangePasswordModal);
     makeDraggable('delete-acc-overlay', closeDeleteAccountModal);
+    makeBottomSheetDraggable('#post-opts-wrap', closePostOptions);
+    makeBottomSheetDraggable('#comment-opts-wrap', () => window.closeCommentOptions?.());
+    makeBottomSheetDraggable('#edit-post-wrap', closeEditPostSheet);
+    makeBottomSheetDraggable('#edit-comment-wrap', () => window.closeEditCommentSheet?.());
+    makeBottomSheetDraggable('#post-modal .post-modal-wrap', closePostModal);
+    makeBottomSheetDraggable('#user-profile-modal .post-modal-wrap', closeUserProfile);
+    makeBottomSheetDraggable('#repost-modal-overlay .post-modal-wrap', closeRepostModal);
+    makeBottomSheetDraggable('#story-creator .story-creator-wrap', closeStoryCreator);
 
     // ===== CLICK on repost card in feed opens original post =====
     document.addEventListener('click', e => {
@@ -4425,6 +4489,7 @@
   let pendingPostRouteId = null;
   let pendingUserRouteName = null;
   let pendingHashtagRouteName = null;
+  const pendingLikeOverrides = new Map();
   let muteNavRouteUpdate = false;
   let commentOptsId = null;
   let editingCommentId = null;
@@ -4455,7 +4520,7 @@
         btn.classList.remove('like-pop');
         void btn.offsetWidth;
         btn.classList.add('like-pop');
-        setTimeout(() => btn.classList.remove('like-pop'), 280);
+        setTimeout(() => btn.classList.remove('like-pop'), 380);
       }
     });
   }
@@ -5081,16 +5146,21 @@
   }
 
   async function syncPosts() {
+    const feed = document.getElementById('feed');
+    if (feed && !posts.length && !feed.children.length) feed.innerHTML = '<div style="text-align:center;color:rgba(255,255,255,0.45);padding:40px 20px;font-size:14px;">Загрузка...</div>';
     const r = await api('/posts');
-    posts = (r.posts || []).map((p) => ({
-      ...p,
-      avatarUrl: absoluteUrl(p.avatarUrl || ''),
-      repostOf: p.repostOf ? { ...p.repostOf, avatarUrl: absoluteUrl(p.repostOf.avatarUrl || '') } : p.repostOf
-    }));
+    posts = (r.posts || []).map((p) => {
+      const override = pendingLikeOverrides.get(p.id);
+      const next = {
+        ...p,
+        avatarUrl: absoluteUrl(p.avatarUrl || ''),
+        repostOf: p.repostOf ? { ...p.repostOf, avatarUrl: absoluteUrl(p.repostOf.avatarUrl || '') } : p.repostOf
+      };
+      return override ? { ...next, liked: override.liked, likes: override.likes } : next;
+    });
     renderPosts();
     if (document.getElementById('hashtag-tab')?.classList.contains('active')) renderHashtagFeed();
     const st = document.querySelectorAll('.stat-item .stat-number'); if (st[1]) st[1].textContent = posts.filter(p => p.isRepost).length;
-    const feed = document.getElementById('feed');
     if (feed && posts.length === 0) feed.innerHTML = '<div style="text-align:center;color:rgba(255,255,255,0.35);padding:40px 20px;font-size:14px;">Лента пуста</div>';
   }
 
@@ -5470,8 +5540,14 @@
       try {
         const id = Number(likeBtn.dataset.id);
         const p = posts.find(x => x.id === id) || upmLocalPosts.get(id);
-        if (p) updateLikeButtons(id, !p.liked, Number(p.likes || 0) + (p.liked ? -1 : 1), true);
+        if (p) {
+          const nextLiked = !p.liked;
+          const nextLikes = Math.max(0, Number(p.likes || 0) + (p.liked ? -1 : 1));
+          pendingLikeOverrides.set(id, { liked: nextLiked, likes: nextLikes });
+          updateLikeButtons(id, nextLiked, nextLikes, true);
+        }
         const likeRes = await api(`/posts/${id}/like`, { method: 'POST' });
+        pendingLikeOverrides.delete(id);
         updateLikeButtons(id, !!likeRes.liked, Number(likeRes.likes || 0), false);
         if (Number.isFinite(Number(likeRes?.views))) applyIncomingView(id, Number(likeRes.views));
       } catch {}
@@ -5992,6 +6068,8 @@
     });
   });
 
+
+  document.getElementById('main-logo-refresh')?.addEventListener('click', () => location.reload());
 
   setInterval(() => { if (token()) syncPosts().catch(() => {}); }, 4000);
   setInterval(() => { if (token()) syncMe().catch(() => {}); }, 5000);

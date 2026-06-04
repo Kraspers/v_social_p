@@ -360,14 +360,34 @@ function countAllComments(db, postId) {
   return db.comments.filter((c) => c.postId === postId).length;
 }
 
-function postDto(db, post, viewerId) {
-  const author = db.users.find((u) => u.id === post.authorId);
-  const likes = db.likes.filter((l) => l.postId === post.id).length;
-  const comments = countAllComments(db, post.id);
-  const reposts = db.posts.filter((p) => p.repostOf === post.id).length;
-  const views = db.postViews.filter((v) => v.postId === post.id).length;
-  const source = post.repostOf ? db.posts.find((p) => p.id === post.repostOf) : null;
-  const sourceAuthor = source ? db.users.find((u) => u.id === source.authorId) : null;
+function incrementMap(map, key) {
+  map.set(key, (map.get(key) || 0) + 1);
+}
+
+function buildPostDtoContext(db, viewerId) {
+  const usersById = new Map(db.users.map((u) => [u.id, u]));
+  const postsById = new Map(db.posts.map((p) => [p.id, p]));
+  const likesByPost = new Map();
+  const commentsByPost = new Map();
+  const repostsByPost = new Map();
+  const viewsByPost = new Map();
+  const likedPostIds = new Set();
+  const repostedPostIds = new Set();
+  db.likes.forEach((l) => { incrementMap(likesByPost, l.postId); if (l.userId === viewerId) likedPostIds.add(l.postId); });
+  db.comments.forEach((c) => incrementMap(commentsByPost, c.postId));
+  db.posts.forEach((p) => { if (p.repostOf) { incrementMap(repostsByPost, p.repostOf); if (p.authorId === viewerId) repostedPostIds.add(p.repostOf); } });
+  db.postViews.forEach((v) => incrementMap(viewsByPost, v.postId));
+  return { usersById, postsById, likesByPost, commentsByPost, repostsByPost, viewsByPost, likedPostIds, repostedPostIds };
+}
+
+function postDto(db, post, viewerId, ctx = buildPostDtoContext(db, viewerId)) {
+  const author = ctx.usersById.get(post.authorId);
+  const likes = ctx.likesByPost.get(post.id) || 0;
+  const comments = ctx.commentsByPost.get(post.id) || 0;
+  const reposts = ctx.repostsByPost.get(post.id) || 0;
+  const views = ctx.viewsByPost.get(post.id) || 0;
+  const source = post.repostOf ? ctx.postsById.get(post.repostOf) : null;
+  const sourceAuthor = source ? ctx.usersById.get(source.authorId) : null;
   return {
     id: post.id,
     publicId: post.publicId || `vp_${post.id.toString(36)}`,
@@ -383,8 +403,8 @@ function postDto(db, post, viewerId) {
     comments,
     reposts,
     views,
-    liked: !!db.likes.find((l) => l.postId === post.id && l.userId === viewerId),
-    reposted: !!db.posts.find((p) => p.repostOf === post.id && p.authorId === viewerId),
+    liked: ctx.likedPostIds.has(post.id),
+    reposted: ctx.repostedPostIds.has(post.id),
     isRepost: !!post.repostOf,
     repostOf: post.repostOf ? (source ? {
       id: source.id,
@@ -670,7 +690,8 @@ const server = http.createServer(async (req, res) => {
 
   if (u.pathname === '/api/posts' && req.method === 'GET') {
     if (!me) return sendJson(res, 401, { error: 'Unauthorized' });
-    const posts = db.posts.slice().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).map((p) => postDto(db, p, me.id));
+    const ctx = buildPostDtoContext(db, me.id);
+    const posts = db.posts.slice().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).map((p) => postDto(db, p, me.id, ctx));
     return sendJson(res, 200, { posts });
   }
 
