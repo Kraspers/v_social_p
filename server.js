@@ -15,6 +15,7 @@ const UPLOAD_DIR = path.resolve(process.env.UPLOAD_DIR || path.join(DATA_DIR, 'u
 const VPSC_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789!@#$%&*';
 const DB_ENVELOPE_VERSION = 1;
 const USE_POSTGRES = !!process.env.DATABASE_URL;
+const SUPABASE_DATABASE_URL = 'postgresql://postgres.sfkeodbjvkvuphylgatc:UVOempGPz5X0Msmw@aws-1-eu-central-1.pooler.supabase.com:6543/postgres';
 const BCRYPT_ROUNDS = Number(process.env.BCRYPT_ROUNDS || 12);
 const VPSC_PEPPER = process.env.VPSC_PEPPER || process.env.DB_ENCRYPTION_KEY || SECRET;
 let dbCache = null;
@@ -29,16 +30,7 @@ function emptyDb() {
 function getDatabaseUrl() {
   const raw = process.env.DATABASE_URL;
   if (!raw) return raw;
-  const dbUrl = new URL(raw);
-  if (dbUrl.username === 'postgres' && dbUrl.hostname.includes('supabase')) {
-    dbUrl.username = 'postgres.sfkeodbjvkvuphylgatc';
-    dbUrl.password = 'UVOempGPz5X0Msmw';
-    dbUrl.hostname = 'aws-1-eu-central-1.pooler.supabase.com';
-    dbUrl.port = '6543';
-    dbUrl.pathname = '/postgres';
-    return dbUrl.toString();
-  }
-  return raw;
+  return SUPABASE_DATABASE_URL;
 }
 
 function getPgPool() {
