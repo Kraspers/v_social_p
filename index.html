@@ -160,10 +160,21 @@
         .post-text { font-size: 15px; line-height: 1.55; margin: 5px 0 10px; word-wrap: break-word; color: #e6e6e9; }
         .hashtag { color: #0D7EFF; cursor: pointer; }
         .mention { color: #0D7EFF; cursor: pointer; }
+        .text-spoiler { background: rgba(255,255,255,0.22); color: transparent; border-radius: 4px; padding: 0 2px; cursor: pointer; transition: background 0.15s, color 0.15s; }
+        .text-spoiler.revealed { background: rgba(255,255,255,0.08); color: inherit; }
+        .composer-rich-input { min-height: 80px; white-space: pre-wrap; overflow-wrap: anywhere; }
+        .composer-rich-input:empty::before, .composer-rich-input.is-empty::before { content: attr(data-placeholder); color: rgba(255,255,255,0.35); pointer-events: none; }
+        .composer-rich-input .text-spoiler { color: inherit; background: rgba(255,255,255,0.14); }
+        .format-toolbar { position: fixed; display: none; align-items: center; gap: 2px; padding: 6px; background: #1f1f22; border: 1px solid rgba(255,255,255,0.14); border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,0.45); z-index: 99999; }
+        .format-toolbar.visible { display: flex; }
+        .format-toolbar button { width: 36px; height: 32px; border: none; border-radius: 7px; background: transparent; color: #f2f2f7; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+        .format-toolbar button:active, .format-toolbar button:hover { background: rgba(255,255,255,0.10); }
         .post-actions { display: flex; gap: 4px; margin-top: 10px; padding-top: 2px; margin-left: -8px; }
         .action-btn { display: flex; align-items: center; gap: 6px; background: none; border: none; color: rgba(255,255,255,0.5); cursor: pointer; font-size: 14px; transition: color 0.15s; padding: 6px 8px; border-radius: 8px; }
         .action-btn:hover { color: rgba(255,255,255,0.9); }
         .action-btn.liked { color: #ff3b30; }
+        .action-btn.like-pop .action-icon { animation: likeHeartPop 0.34s cubic-bezier(0.2, 1.35, 0.4, 1); transform-origin: center; }
+        @keyframes likeHeartPop { 0% { transform: scale(1); } 45% { transform: scale(1.32); } 100% { transform: scale(1); } }
         .action-btn.reposted { color: #34c759; }
         .action-btn.passive { cursor: default; pointer-events: none; }
         .action-icon { width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; }
@@ -180,6 +191,9 @@
         .nav-btn.active .nav-icon-outline { display: none; }
         .tab-content { display: none; }
         .tab-content.active { display: block; }
+        .hashtag-header { padding: 18px 16px 8px; background: #0f0f11; position: sticky; top: 0; z-index: 10; }
+        .hashtag-back { display: inline-flex; align-items: center; gap: 8px; background: none; border: none; color: rgba(255,255,255,0.55); font: inherit; font-size: 16px; font-weight: 600; padding: 0; cursor: pointer; }
+        .hashtag-title { margin-top: 14px; color: #0D7EFF; font-size: 32px; line-height: 1.15; font-weight: 900; }
         .search-bar { padding: 16px; background: transparent; border-bottom: 1px solid rgba(255,255,255,0.04); }
         .search-input { width: 100%; padding: 12px 16px; border: 1px solid rgba(255,255,255,0.04); border-radius: 20px; font-size: 15px; background: rgba(255,255,255,0.02); color: #e6e6e9; }
         .search-input::placeholder { color: rgba(255,255,255,0.5); }
@@ -188,8 +202,8 @@
         .section-title { font-size: 20px; font-weight: 700; margin-bottom: 16px; }
         .trend-item { position: relative; display: flex; align-items: center; gap: 12px; padding: 12px 8px; border-bottom: 1px solid rgba(255,255,255,0.04); cursor: pointer; border-radius: 8px; transition: background 0.2s; overflow: hidden; }
         .trend-item:hover { background: rgba(255,255,255,0.02); }
-        .trend-icon { width: 44px; height: 44px; border-radius: 50%; background: rgba(255,255,255,0.08); color: #0f0f11; flex: 0 0 auto; position: relative; overflow: hidden; }
-        .trend-icon::before { content: '#'; position: absolute; left: -10px; top: 50%; transform: translateY(-52%); font-size: 54px; line-height: 1; font-weight: 900; color: #0f0f11; opacity: 0.95; }
+        .trend-icon { width: 44px; height: 44px; border-radius: 50%; background: rgba(255,255,255,0.13); color: #0f0f11; flex: 0 0 auto; position: relative; overflow: hidden; }
+        .trend-icon::before { content: ''; position: absolute; left: -12px; top: calc(50% + 5px); transform: translateY(-50%); width: 50px; height: 50px; background: #0f0f11; opacity: 0.95; -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 640'%3E%3Cpath d='M278.7 64.7C296 68.4 307 85.4 303.3 102.7L284.2 192L410.7 192L432.7 89.3C436.4 72 453.4 61 470.7 64.7C488 68.4 499 85.4 495.3 102.7L476.2 192L544 192C561.7 192 576 206.3 576 224C576 241.7 561.7 256 544 256L462.4 256L435 384L502.8 384C520.5 384 534.8 398.3 534.8 416C534.8 433.7 520.5 448 502.8 448L421.2 448L399.2 550.7C395.5 568 378.5 579 361.2 575.3C343.9 571.6 332.9 554.6 336.6 537.3L355.7 448L229.2 448L207.2 550.7C203.5 568 186.5 579 169.2 575.3C151.9 571.6 140.9 554.6 144.6 537.3L163.8 448L96 448C78.3 448 64 433.7 64 416C64 398.3 78.3 384 96 384L177.6 384L205 256L137.2 256C119.5 256 105.2 241.7 105.2 224C105.2 206.3 119.5 192 137.2 192L218.8 192L240.8 89.3C244.4 72 261.4 61 278.7 64.7zM270.4 256L243 384L369.5 384L396.9 256L270.4 256z'/%3E%3C/svg%3E") center/contain no-repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 640'%3E%3Cpath d='M278.7 64.7C296 68.4 307 85.4 303.3 102.7L284.2 192L410.7 192L432.7 89.3C436.4 72 453.4 61 470.7 64.7C488 68.4 499 85.4 495.3 102.7L476.2 192L544 192C561.7 192 576 206.3 576 224C576 241.7 561.7 256 544 256L462.4 256L435 384L502.8 384C520.5 384 534.8 398.3 534.8 416C534.8 433.7 520.5 448 502.8 448L421.2 448L399.2 550.7C395.5 568 378.5 579 361.2 575.3C343.9 571.6 332.9 554.6 336.6 537.3L355.7 448L229.2 448L207.2 550.7C203.5 568 186.5 579 169.2 575.3C151.9 571.6 140.9 554.6 144.6 537.3L163.8 448L96 448C78.3 448 64 433.7 64 416C64 398.3 78.3 384 96 384L177.6 384L205 256L137.2 256C119.5 256 105.2 241.7 105.2 224C105.2 206.3 119.5 192 137.2 192L218.8 192L240.8 89.3C244.4 72 261.4 61 278.7 64.7zM270.4 256L243 384L369.5 384L396.9 256L270.4 256z'/%3E%3C/svg%3E") center/contain no-repeat; }
         .trend-info { min-width: 0; }
         .trend-category { font-size: 13px; color: rgba(255,255,255,0.6); }
         .trend-hashtag { font-size: 15px; font-weight: 600; margin: 4px 0; }
@@ -436,6 +450,8 @@
         .profile-username { color: rgba(255,255,255,0.6); font-size: 15px; margin-top: 2px; }
         .profile-bio { margin-top: 12px; font-size: 15px; line-height: 1.4; }
         .profile-stats { display: flex; gap: 24px; margin-top: 16px; }
+        .profile-joined { display: flex; align-items: center; gap: 7px; margin-top: 10px; color: rgba(255,255,255,0.42); font-size: 14px; }
+        .profile-joined svg { width: 15px; height: 15px; flex: 0 0 auto; fill: currentColor; }
         .stat-item { display: flex; gap: 4px; font-size: 15px; cursor: pointer; }
         .stat-number { font-weight: 700; }
         .stat-label { color: rgba(255,255,255,0.6); }
@@ -1491,6 +1507,11 @@
 <body>
 
 <div class="copy-toast" id="copy-toast">Скопировано</div>
+<div class="format-toolbar" id="format-toolbar" aria-hidden="true">
+    <button type="button" data-format="bold" aria-label="Жирный"><strong>B</strong></button>
+    <button type="button" data-format="underline" aria-label="Подчёркнутый"><u>U</u></button>
+    <button type="button" data-format="spoiler" aria-label="Скрытый"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.94 10.94 0 0 1 12 20C5 20 1 12 1 12a20.3 20.3 0 0 1 5.06-5.94"/><path d="M9.9 4.24A10.45 10.45 0 0 1 12 4c7 0 11 8 11 8a20.42 20.42 0 0 1-2.22 3.32"/><path d="M14.12 14.12A3 3 0 0 1 9.88 9.88"/><line x1="1" y1="1" x2="23" y2="23"/></svg></button>
+</div>
 
 <div class="splash-screen" id="splash-screen">
     <img src="logo_splash.png" alt="VP 2.0" class="splash-logo">
@@ -1560,7 +1581,7 @@
 
 <div class="container">
     <div class="header">
-        <div class="logo-container">
+        <div class="logo-container" id="main-logo-refresh" role="button" title="Обновить" style="cursor:pointer;">
             <div class="logo"><img src="logo_splash.png" alt="Logo"></div>
         </div>
     </div>
@@ -1580,7 +1601,8 @@
         </div>
         <div class="post-composer">
             <div class="composer-container">
-                <textarea class="composer-input" placeholder="Напиши какую нибудь хуйню..." maxlength="280" id="post-input"></textarea>
+                <textarea class="composer-input" placeholder="Напиши какую нибудь хуйню..." maxlength="280" id="post-input" style="display:none;"></textarea>
+                    <div class="composer-input composer-rich-input is-empty" id="post-rich-input" contenteditable="true" data-placeholder="Напиши какую нибудь хуйню..." role="textbox" aria-multiline="true"></div>
                 <div class="composer-media-preview" id="composer-media-preview"></div>
                 <div class="composer-actions">
                     <button class="media-btn" id="composer-media-btn" title="Добавить медиа">
@@ -1595,6 +1617,17 @@
         </div>
         <input type="file" id="composer-file-input" accept="image/*,video/*" multiple style="display:none">
         <div class="feed" id="feed"></div>
+    </div>
+
+    <div id="hashtag-tab" class="tab-content">
+        <div class="hashtag-header">
+            <button class="hashtag-back" type="button" onclick="closeHashtagView()">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+                <span>Назад</span>
+            </button>
+            <div class="hashtag-title" id="hashtag-title">#</div>
+        </div>
+        <div class="feed" id="hashtag-feed"></div>
     </div>
 
     <!-- Explore Tab -->
@@ -1612,10 +1645,10 @@
         <div id="trends-section-wrap">
             <div class="trends-section">
                 <div class="section-title">Актуальное</div>
-                <div class="trend-item"><div class="trend-icon" aria-hidden="true"></div><div class="trend-info"><div class="trend-category">Технологии · В тренде</div><div class="trend-hashtag">ИИ</div><div class="trend-count">15.2K постов</div></div></div>
-                <div class="trend-item"><div class="trend-icon" aria-hidden="true"></div><div class="trend-info"><div class="trend-category">Развлечения · В тренде</div><div class="trend-hashtag">музыка2026</div><div class="trend-count">8.7K постов</div></div></div>
-                <div class="trend-item"><div class="trend-icon" aria-hidden="true"></div><div class="trend-info"><div class="trend-category">Спорт · В тренде</div><div class="trend-hashtag">футбол</div><div class="trend-count">23.5K постов</div></div></div>
-                <div class="trend-item"><div class="trend-icon" aria-hidden="true"></div><div class="trend-info"><div class="trend-category">Мемы · В тренде</div><div class="trend-hashtag">впизде</div><div class="trend-count">42K постов</div></div></div>
+                <div class="trend-item" data-hashtag="ИИ"><div class="trend-icon" aria-hidden="true"></div><div class="trend-info"><div class="trend-category">Технологии · В тренде</div><div class="trend-hashtag">ИИ</div><div class="trend-count">15.2K постов</div></div></div>
+                <div class="trend-item" data-hashtag="музыка2026"><div class="trend-icon" aria-hidden="true"></div><div class="trend-info"><div class="trend-category">Развлечения · В тренде</div><div class="trend-hashtag">музыка2026</div><div class="trend-count">8.7K постов</div></div></div>
+                <div class="trend-item" data-hashtag="футбол"><div class="trend-icon" aria-hidden="true"></div><div class="trend-info"><div class="trend-category">Спорт · В тренде</div><div class="trend-hashtag">футбол</div><div class="trend-count">23.5K постов</div></div></div>
+                <div class="trend-item" data-hashtag="впизде"><div class="trend-icon" aria-hidden="true"></div><div class="trend-info"><div class="trend-category">Мемы · В тренде</div><div class="trend-hashtag">впизде</div><div class="trend-count">42K постов</div></div></div>
             </div>
         </div>
     </div>
@@ -1646,6 +1679,7 @@
                     <div class="stat-item"><span class="stat-number">256</span><span class="stat-label">Подписчиков</span></div>
                     <div class="stat-item"><span class="stat-number">89</span><span class="stat-label">Репостов</span></div>
                 </div>
+                <div class="profile-joined" id="profile-joined" style="display:none;"></div>
                 <button class="music-track-btn hidden" id="profile-music-track-btn" type="button" aria-label="Любимый трек" onclick="playProfileTrack()">
                     <span class="music-track-circle">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3v10.55a4 4 0 1 0 2 3.45V8h6V3h-8z"/></svg>
@@ -2092,7 +2126,7 @@
                 Редактировать
             </button>
             <button class="post-opts-item" id="post-opts-pin-btn" onclick="postOptsPin()">
-                <span class="post-opts-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V17z"/></svg></span>
+                <span class="post-opts-icon"><svg width="22" height="22" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" fill="currentColor" aria-hidden="true"><path d="M160 96C160 78.3 174.3 64 192 64L448 64C465.7 64 480 78.3 480 96C480 113.7 465.7 128 448 128L418.5 128L428.8 262.1C465.9 283.3 494.6 318.5 507 361.8L510.8 375.2C513.6 384.9 511.6 395.2 505.6 403.3C499.6 411.4 490 416 480 416L160 416C150 416 140.5 411.3 134.5 403.3C128.5 395.3 126.5 384.9 129.3 375.2L133 361.8C145.4 318.5 174 283.3 211.2 262.1L221.5 128L192 128C174.3 128 160 113.7 160 96zM288 464L352 464L352 576C352 593.7 337.7 608 320 608C302.3 608 288 593.7 288 576L288 464z"/></svg></span>
                 <span id="post-opts-pin-label">Закрепить</span>
             </button>
         </div>
@@ -2188,16 +2222,44 @@
     let pinnedPostId = null;
     let pinnedRepostId = null;
     let posts = [];
+    const revealedSpoilers = new Set();
     const PINNED_ICON = '<svg width="12" height="12" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" fill="currentColor" aria-hidden="true"><path d="M160 96C160 78.3 174.3 64 192 64L448 64C465.7 64 480 78.3 480 96C480 113.7 465.7 128 448 128L418.5 128L428.8 262.1C465.9 283.3 494.6 318.5 507 361.8L510.8 375.2C513.6 384.9 511.6 395.2 505.6 403.3C499.6 411.4 490 416 480 416L160 416C150 416 140.5 411.3 134.5 403.3C128.5 395.3 126.5 384.9 129.3 375.2L133 361.8C145.4 318.5 174 283.3 211.2 262.1L221.5 128L192 128C174.3 128 160 113.7 160 96zM288 464L352 464L352 576C352 593.7 337.7 608 320 608C302.3 608 288 593.7 288 576L288 464z"/></svg>';
     const pinnedBadgeHtml = () => `${PINNED_ICON} Закреплено`;
+    const CALENDAR_ICON = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" aria-hidden="true"><path d="M224 64C206.3 64 192 78.3 192 96L192 128L160 128C124.7 128 96 156.7 96 192L96 240L544 240L544 192C544 156.7 515.3 128 480 128L448 128L448 96C448 78.3 433.7 64 416 64C398.3 64 384 78.3 384 96L384 128L256 128L256 96C256 78.3 241.7 64 224 64zM96 288L96 480C96 515.3 124.7 544 160 544L480 544C515.3 544 544 515.3 544 480L544 288L96 288z"/></svg>';
+    function formatJoinedDate(iso) {
+        const d = new Date(iso || '');
+        if (Number.isNaN(d.getTime())) return '';
+        return new Intl.DateTimeFormat('ru-RU', { month: 'long', year: 'numeric' }).format(d);
+    }
+    const joinedHtml = (iso) => {
+        const formatted = formatJoinedDate(iso);
+        return formatted ? `${CALENDAR_ICON}<span>Регистрация: ${formatted}</span>` : '';
+    };
 
     function escapeHtml(value) {
         return String(value || '').replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
     }
 
+    function applyTextFormatting(value) {
+        return String(value || '')
+            .replace(/\*\*([^\n*](?:[\s\S]*?[^\n*])?)\*\*/g, '<strong>$1</strong>')
+            .replace(/__([^\n_](?:[\s\S]*?[^\n_])?)__/g, '<u>$1</u>')
+            .replace(/\|\|([^\n|](?:[\s\S]*?[^\n|])?)\|\|/g, (_m, inner) => `<span class="text-spoiler${revealedSpoilers.has(inner) ? ' revealed' : ''}" onclick="toggleSpoiler(event,this)">${inner}</span>`);
+    }
+
+    function toggleSpoiler(event, el) {
+        event.stopPropagation();
+        const key = el.textContent || '';
+        const revealed = !el.classList.contains('revealed');
+        el.classList.toggle('revealed', revealed);
+        if (revealed) revealedSpoilers.add(key);
+        else revealedSpoilers.delete(key);
+    }
+    window.toggleSpoiler = toggleSpoiler;
+
     function formatPostText(text) {
-        return escapeHtml(text)
-            .replace(/(^|\s)#([^\s#]+)/gu, '$1<span class="hashtag">#$2</span>')
+        return applyTextFormatting(escapeHtml(text))
+            .replace(/(^|\s)#([^\s#<]+)/gu, '$1<span class="hashtag" data-hashtag="$2">#$2</span>')
             .replace(/(^|\s)@([\p{L}\p{N}_.]+)/gu, '$1<span class="mention">@$2</span>');
     }
 
@@ -2239,6 +2301,10 @@
                 ${repostOf.media && repostOf.media.length ? renderPostMedia(repostOf.media) : ''}
             </div>
         </div>`;
+    }
+
+    function latestPostState(post) {
+        return posts.find((p) => p.id === post?.id) || upmLocalPosts.get(post?.id) || post;
     }
 
     function renderPostMedia(mediaArr) {
@@ -2301,8 +2367,8 @@
                 if (e.target.closest('.post-media-item')) return;
                 if (e.target.closest('[data-open-repost-id]')) return;
                 if (e.target.closest('[data-open-profile]')) return;
-                if (e.target.classList.contains('mention')) return;
-                openPostModal(post);
+                if (e.target.classList.contains('mention') || e.target.classList.contains('hashtag')) return;
+                openPostModal(latestPostState(post));
             });
             frag.appendChild(el);
         });
@@ -2386,12 +2452,13 @@
             if (e.target.closest('.post-media-item')) return;
             if (e.target.closest('[data-open-repost-id]')) return;
             if (e.target.closest('[data-open-profile]')) return;
-            if (e.target.classList.contains('mention')) return;
+            if (e.target.classList.contains('mention') || e.target.classList.contains('hashtag')) return;
+            const latest = latestPostState(post);
             if (upmLocalPosts.has(post.id)) {
-                runOutsideUserProfile(() => openPostModal(post));
+                runOutsideUserProfile(() => openPostModal(latest));
                 return;
             }
-            openPostModal(post);
+            openPostModal(latest);
         });
         return el;
     }
@@ -2430,6 +2497,10 @@
 
     function runOutsideUserProfile(onReady) {
         onReady();
+        const postLayer = document.getElementById('post-modal');
+        const repostLayer = document.getElementById('repost-modal-overlay');
+        if (postLayer?.classList.contains('active')) postLayer.style.zIndex = '14100';
+        if (repostLayer?.classList.contains('active')) repostLayer.style.zIndex = '14200';
     }
 
     function openPostModal(post) {
@@ -2482,6 +2553,8 @@
                 optsBtnSlot.innerHTML = '';
             }
         }
+        const profileModalActive = document.getElementById('user-profile-modal')?.classList.contains('active');
+        postModal.style.zIndex = profileModalActive ? '14100' : '';
         postModal.style.display = 'flex';
         requestAnimationFrame(() => requestAnimationFrame(() => {
             postModal.classList.add('active');
@@ -2510,7 +2583,7 @@
         const profileModal = document.getElementById('user-profile-modal');
         document.body.style.overflow = (profileModal && profileModal.classList.contains('active')) ? 'hidden' : '';
         replyTargetCommentId = null;
-        setTimeout(() => { postModal.style.display = 'none'; }, 400);
+        setTimeout(() => { postModal.style.display = 'none'; postModal.style.zIndex = ''; }, 400);
     }
     document.getElementById('post-modal-close').addEventListener('click', closePostModal);
     postModal.addEventListener('click', e => { if (e.target === postModal) closePostModal(); });
@@ -2736,6 +2809,178 @@
     const postSubmit = document.getElementById('post-submit');
     const composerContainer = document.querySelector('.composer-container');
 
+    const richPostInput = document.getElementById('post-rich-input');
+    const formatToolbar = document.getElementById('format-toolbar');
+    const formatTargets = () => Array.from(document.querySelectorAll('#post-rich-input,#comment-input,#repost-comment-input,#edit-post-textarea,#edit-comment-textarea'));
+    let activeFormatTarget = null;
+    let lastFormatPoint = null;
+
+    function isRichTarget(el) {
+        return el && el.id === 'post-rich-input';
+    }
+
+    function richHtmlToMarkup(root) {
+        const walk = (node) => {
+            if (node.nodeType === Node.TEXT_NODE) return node.nodeValue || '';
+            if (node.nodeType !== Node.ELEMENT_NODE) return '';
+            const tag = node.tagName.toLowerCase();
+            if (tag === 'br') return '\n';
+            const content = Array.from(node.childNodes).map(walk).join('');
+            if (tag === 'strong' || tag === 'b') return `**${content}**`;
+            if (tag === 'u') return `__${content}__`;
+            if (node.classList.contains('text-spoiler')) return `||${content}||`;
+            if (tag === 'div' || tag === 'p') return content ? `${content}\n` : '\n';
+            return content;
+        };
+        return Array.from(root.childNodes).map(walk).join('').replace(/\n$/, '').slice(0, 280);
+    }
+
+    function updateRichEmptyState() {
+        if (!richPostInput) return;
+        const empty = !richPostInput.textContent.trim() && !richPostInput.querySelector('img,video,strong,u,.text-spoiler');
+        richPostInput.classList.toggle('is-empty', empty);
+    }
+
+    function clearRichPostInput() {
+        if (!richPostInput) return;
+        richPostInput.innerHTML = '';
+        updateRichEmptyState();
+    }
+
+    function syncRichPostInput() {
+        if (!richPostInput) return;
+        postInput.value = richHtmlToMarkup(richPostInput);
+        updateRichEmptyState();
+        postInput.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+
+    function hasTextSelection(el) {
+        if (isRichTarget(el)) {
+            const sel = window.getSelection();
+            return !!sel && sel.rangeCount > 0 && !sel.isCollapsed && el.contains(sel.anchorNode) && el.contains(sel.focusNode);
+        }
+        return el && typeof el.selectionStart === 'number' && el.selectionEnd > el.selectionStart;
+    }
+
+    function getTextareaSelectionPoint(el) {
+        const start = el.selectionStart || 0;
+        const mirror = document.createElement('div');
+        const style = getComputedStyle(el);
+        mirror.style.cssText = `position:fixed;left:${el.getBoundingClientRect().left}px;top:${el.getBoundingClientRect().top}px;width:${el.clientWidth}px;height:auto;visibility:hidden;white-space:pre-wrap;overflow-wrap:break-word;font:${style.font};line-height:${style.lineHeight};padding:${style.padding};border:${style.border};box-sizing:border-box;`;
+        mirror.textContent = el.value.slice(0, start);
+        const mark = document.createElement('span');
+        mark.textContent = el.value.slice(start, Math.max(start + 1, el.selectionEnd)) || ' ';
+        mirror.appendChild(mark);
+        document.body.appendChild(mirror);
+        const rect = mark.getBoundingClientRect();
+        mirror.remove();
+        return { clientX: rect.left + rect.width / 2, clientY: rect.top };
+    }
+
+    function placeFormatToolbar(el, point) {
+        if (!formatToolbar || !hasTextSelection(el)) return hideFormatToolbar();
+        activeFormatTarget = el;
+        let x = point?.clientX;
+        let y = point?.clientY;
+        if (isRichTarget(el)) {
+            const range = window.getSelection().getRangeAt(0).cloneRange();
+            const rect = range.getBoundingClientRect();
+            if (rect && rect.width) { x = rect.left + rect.width / 2; y = rect.top; }
+        } else {
+            const pos = getTextareaSelectionPoint(el);
+            x = pos.clientX; y = pos.clientY;
+        }
+        formatToolbar.classList.add('visible');
+        formatToolbar.setAttribute('aria-hidden', 'false');
+        const width = formatToolbar.offsetWidth || 126;
+        const height = formatToolbar.offsetHeight || 44;
+        formatToolbar.style.left = `${Math.min(window.innerWidth - width - 8, Math.max(8, x - width / 2))}px`;
+        const gap = window.matchMedia('(max-width: 700px)').matches ? 4 : 8;
+        formatToolbar.style.top = `${Math.max(8, y - height - gap)}px`;
+    }
+
+    function hideFormatToolbar() {
+        if (!formatToolbar) return;
+        formatToolbar.classList.remove('visible');
+        formatToolbar.setAttribute('aria-hidden', 'true');
+    }
+
+    function wrapRichSelection(kind) {
+        const sel = window.getSelection();
+        if (!sel || !sel.rangeCount || sel.isCollapsed || !richPostInput.contains(sel.anchorNode) || !richPostInput.contains(sel.focusNode)) return;
+        const range = sel.getRangeAt(0);
+        const el = document.createElement(kind === 'bold' ? 'strong' : kind === 'underline' ? 'u' : 'span');
+        if (kind === 'spoiler') el.className = 'text-spoiler revealed';
+        el.appendChild(range.extractContents());
+        range.insertNode(el);
+        sel.removeAllRanges();
+        const next = document.createRange();
+        next.selectNodeContents(el);
+        sel.addRange(next);
+        syncRichPostInput();
+        hideFormatToolbar();
+    }
+
+    function wrapSelectedText(el, before, after) {
+        if (isRichTarget(el)) return;
+        if (!hasTextSelection(el)) return;
+        const start = el.selectionStart;
+        const end = el.selectionEnd;
+        const selected = el.value.slice(start, end);
+        el.value = el.value.slice(0, start) + before + selected + after + el.value.slice(end);
+        const nextStart = start + before.length;
+        const nextEnd = nextStart + selected.length;
+        el.focus();
+        el.setSelectionRange(nextStart, nextEnd);
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+        hideFormatToolbar();
+    }
+
+    formatToolbar?.addEventListener('mousedown', (e) => e.preventDefault());
+    formatToolbar?.addEventListener('click', (e) => {
+        const btn = e.target.closest('button[data-format]');
+        if (!btn || !activeFormatTarget) return;
+        if (isRichTarget(activeFormatTarget)) return wrapRichSelection(btn.dataset.format);
+        const map = { bold: ['**', '**'], underline: ['__', '__'], spoiler: ['||', '||'] };
+        const pair = map[btn.dataset.format];
+        if (pair) wrapSelectedText(activeFormatTarget, pair[0], pair[1]);
+    });
+
+    document.addEventListener('selectionchange', () => {
+        const el = isRichTarget(document.activeElement) ? richPostInput : document.activeElement;
+        if (!formatTargets().includes(el)) return;
+        if (!hasTextSelection(el)) return hideFormatToolbar();
+        clearTimeout(el._formatToolbarTimer);
+        el._formatToolbarTimer = setTimeout(() => placeFormatToolbar(el, lastFormatPoint), 80);
+    });
+
+    formatTargets().forEach((el) => {
+        el.addEventListener('contextmenu', (e) => {
+            if (!hasTextSelection(el)) return;
+            e.preventDefault();
+            lastFormatPoint = { clientX: e.clientX, clientY: e.clientY };
+            placeFormatToolbar(el, lastFormatPoint);
+        });
+        el.addEventListener('mouseup', (e) => {
+            lastFormatPoint = { clientX: e.clientX, clientY: e.clientY };
+            setTimeout(() => placeFormatToolbar(el, lastFormatPoint), 0);
+        });
+        el.addEventListener('touchend', (e) => {
+            const t = e.changedTouches && e.changedTouches[0];
+            lastFormatPoint = t ? { clientX: t.clientX, clientY: t.clientY } : null;
+            setTimeout(() => placeFormatToolbar(el, lastFormatPoint), 120);
+        }, { passive: true });
+        el.addEventListener('blur', () => setTimeout(() => { if (!formatToolbar?.matches(':hover')) hideFormatToolbar(); }, 120));
+    });
+    richPostInput?.addEventListener('input', syncRichPostInput);
+    updateRichEmptyState();
+
+    document.addEventListener('pointerdown', (e) => {
+        if (e.target.closest('#format-toolbar')) return;
+        if (formatTargets().includes(e.target)) return;
+        hideFormatToolbar();
+    });
+
     postInput.addEventListener('focus', () => charCounter.classList.add('visible'));
     postInput.addEventListener('blur', () => { if (!postInput.value.length) charCounter.classList.remove('visible'); });
     postInput.addEventListener('input', () => {
@@ -2842,6 +3087,7 @@
         posts.unshift({ id: posts.length+1, author:"Вы", username:"@username", avatar:"Я", text: text || '', media: mediaSnap, time:"Только что", likes:0, reposts:0, comments:0, liked:false, reposted:false });
         renderPosts();
         postInput.value = '';
+        clearRichPostInput();
         composerMedia = [];
         renderComposerPreviews();
         charCounter.textContent = '0/280';
@@ -2964,11 +3210,12 @@
             } else { inner.style.transform = ''; }
         });
     })();
-    document.getElementById('creator-close').addEventListener('click', () => {
+    function closeStoryCreator() {
         const sc = document.getElementById('story-creator');
         sc.classList.remove('visible');
         setTimeout(() => { sc.classList.remove('active'); resetCreator(); document.body.style.overflow = ''; }, 400);
-    });
+    }
+    document.getElementById('creator-close').addEventListener('click', closeStoryCreator);
     document.getElementById('upload-media-btn').addEventListener('click', () => document.getElementById('media-input').click());
     document.getElementById('media-input').addEventListener('change', e => {
         const file = e.target.files[0]; if (!file) return;
@@ -3712,10 +3959,73 @@
         document.addEventListener('mouseup', () => { if (dragging) onEnd(); });
     }
 
+    function makeBottomSheetDraggable(sheetSelector, closeFunc, dragZoneSelector) {
+        const sheet = document.querySelector(sheetSelector);
+        if (!sheet || typeof closeFunc !== 'function') return;
+        let startY = 0, currentY = 0, dragging = false, baseY = 0;
+        const zones = dragZoneSelector || '.post-opts-handle, .post-opts-outer-header, .edit-post-topbar, .post-modal-handle, .post-modal-outer-header, .story-creator-topbar';
+        const getBaseY = () => sheet.classList.contains('edit-post-wrap') ? 18 : 0;
+        const setY = (y) => {
+            const prefix = sheet.classList.contains('post-opts-wrap') || sheet.classList.contains('edit-post-wrap') ? 'translateX(-50%) ' : '';
+            sheet.style.transform = `${prefix}translateY(${y}px)`;
+        };
+        function onStart(y) {
+            startY = y;
+            currentY = y;
+            baseY = getBaseY();
+            dragging = true;
+            sheet.style.transition = 'none';
+        }
+        function onMove(y) {
+            if (!dragging) return;
+            currentY = y;
+            const delta = Math.max(0, y - startY);
+            setY(baseY + delta);
+        }
+        function onEnd() {
+            if (!dragging) return;
+            dragging = false;
+            const delta = currentY - startY;
+            sheet.style.transition = '';
+            if (delta > 100) {
+                closeFunc();
+                setTimeout(() => { sheet.style.transform = ''; }, 420);
+            } else {
+                sheet.style.transform = '';
+            }
+        }
+        sheet.addEventListener('touchstart', (e) => {
+            const t = e.touches && e.touches[0];
+            if (!t || !e.target.closest(zones)) return;
+            onStart(t.clientY);
+        }, { passive: true });
+        sheet.addEventListener('touchmove', (e) => {
+            if (!dragging) return;
+            const t = e.touches && e.touches[0];
+            if (t) onMove(t.clientY);
+        }, { passive: true });
+        sheet.addEventListener('touchend', onEnd);
+        sheet.addEventListener('touchcancel', onEnd);
+        sheet.addEventListener('mousedown', (e) => {
+            if (!e.target.closest(zones)) return;
+            onStart(e.clientY);
+        });
+        document.addEventListener('mousemove', (e) => { if (dragging) onMove(e.clientY); });
+        document.addEventListener('mouseup', () => { if (dragging) onEnd(); });
+    }
+
     // Init drag for all modals
     makeDraggable('edit-modal-overlay', closeEditModal);
     makeDraggable('change-pw-overlay', closeChangePasswordModal);
     makeDraggable('delete-acc-overlay', closeDeleteAccountModal);
+    makeBottomSheetDraggable('#post-opts-wrap', closePostOptions);
+    makeBottomSheetDraggable('#comment-opts-wrap', () => window.closeCommentOptions?.());
+    makeBottomSheetDraggable('#edit-post-wrap', closeEditPostSheet);
+    makeBottomSheetDraggable('#edit-comment-wrap', () => window.closeEditCommentSheet?.());
+    makeBottomSheetDraggable('#post-modal .post-modal-wrap', closePostModal);
+    makeBottomSheetDraggable('#user-profile-modal .post-modal-wrap', closeUserProfile);
+    makeBottomSheetDraggable('#repost-modal-overlay .post-modal-wrap', closeRepostModal);
+    makeBottomSheetDraggable('#story-creator .story-creator-wrap', closeStoryCreator);
 
     // ===== CLICK on repost card in feed opens original post =====
     document.addEventListener('click', e => {
@@ -4171,6 +4481,8 @@
             ${post.text ? `<div style="padding:0 12px 10px;font-size:15px;color:#e6e6e9;line-height:1.5;overflow-wrap:anywhere;word-break:break-word;">${formatPostText(post.text)}</div>` : ''}
             ${mediaHtml || ''}`;
         const modal = document.getElementById('repost-modal-overlay');
+        const profileModalActive = document.getElementById('user-profile-modal')?.classList.contains('active');
+        modal.style.zIndex = profileModalActive ? '14200' : '14000';
         modal.style.display = 'flex';
         requestAnimationFrame(() => requestAnimationFrame(() => {
             modal.classList.add('active');
@@ -4236,6 +4548,7 @@
         const followers = u.followers !== undefined ? u.followers : 0;
         const repostsCount = Array.isArray(u.posts) ? u.posts.filter((p) => p.isRepost).length : 0;
         const isSubscribed = typeof u.isFollowing === 'boolean' ? u.isFollowing : subscribedUsers.has(uname);
+        const joined = joinedHtml(u.createdAt);
 
         body.innerHTML = `
             <div style="height:150px;${coverStyle}position:relative;"></div>
@@ -4248,6 +4561,7 @@
                     <div style="font-size:15px;"><span style="font-weight:700;" id="upm-followers">${followers}</span> <span style="color:rgba(255,255,255,0.6);">Подписчиков</span></div>
                     <div style="font-size:15px;"><span style="font-weight:700;">${repostsCount}</span> <span style="color:rgba(255,255,255,0.6);">Репостов</span></div>
                 </div>
+                ${joined ? `<div class="profile-joined">${joined}</div>` : ''}
                 ${u.favoriteTrackName && u.favoriteTrackUrl ? `<button type="button" class="music-track-btn" style="margin-top:16px;" onclick="playViewedProfileTrack()"><span class="music-track-circle"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3v10.55a4 4 0 1 0 2 3.45V8h6V3h-8z"/></svg></span><span class="music-track-title">${u.favoriteTrackName}</span>${renderTrackCountHtml(Array.isArray(u.favoriteTracks) ? u.favoriteTracks.length : 1, 'viewed')}</button>` : ''}
                 <div class="profile-action-row">
                     <button id="upm-subscribe-btn" onclick="toggleSubscribe('${uname}')"
@@ -4341,7 +4655,7 @@
         Редактировать
     </button>
     <button class="post-opts-dropdown-item" id="global-dd-pin-btn" onclick="postOptsPin();document.getElementById('global-post-dd').style.display='none';">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V17z"/></svg>
+        <svg width="18" height="18" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" fill="currentColor" aria-hidden="true"><path d="M160 96C160 78.3 174.3 64 192 64L448 64C465.7 64 480 78.3 480 96C480 113.7 465.7 128 448 128L418.5 128L428.8 262.1C465.9 283.3 494.6 318.5 507 361.8L510.8 375.2C513.6 384.9 511.6 395.2 505.6 403.3C499.6 411.4 490 416 480 416L160 416C150 416 140.5 411.3 134.5 403.3C128.5 395.3 126.5 384.9 129.3 375.2L133 361.8C145.4 318.5 174 283.3 211.2 262.1L221.5 128L192 128C174.3 128 160 113.7 160 96zM288 464L352 464L352 576C352 593.7 337.7 608 320 608C302.3 608 288 593.7 288 576L288 464z"/></svg>
         <span id="global-dd-pin-label">Закрепить</span>
     </button>
     <button class="post-opts-dropdown-item danger" onclick="postOptsDelete();document.getElementById('global-post-dd').style.display='none';">
@@ -4408,6 +4722,9 @@
   let viewsStreamRetryTimer = null;
   let pendingPostRouteId = null;
   let pendingUserRouteName = null;
+  let pendingHashtagRouteName = null;
+  const pendingLikeOverrides = new Map();
+  const pendingLikeOverrideTimers = new Map();
   let muteNavRouteUpdate = false;
   let commentOptsId = null;
   let editingCommentId = null;
@@ -4421,6 +4738,40 @@
     if (routePath() === next) return;
     const method = replace ? 'replaceState' : 'pushState';
     history[method]({}, '', next);
+  }
+
+  function holdLikeOverride(postId, liked, likes, ttl = 1800) {
+    const id = Number(postId);
+    if (!Number.isFinite(id)) return;
+    pendingLikeOverrides.set(id, { liked: !!liked, likes: Math.max(0, Number(likes || 0)) });
+    clearTimeout(pendingLikeOverrideTimers.get(id));
+    pendingLikeOverrideTimers.set(id, setTimeout(() => {
+      pendingLikeOverrides.delete(id);
+      pendingLikeOverrideTimers.delete(id);
+    }, ttl));
+  }
+
+  function updateLikeButtons(postId, liked, likes, animate = false) {
+    const id = Number(postId);
+    const likeCount = Math.max(0, Number(likes || 0));
+    posts = posts.map((post) => (post?.id === id ? { ...post, liked: !!liked, likes: likeCount } : post));
+    if (upmLocalPosts.has(id)) upmLocalPosts.set(id, { ...upmLocalPosts.get(id), liked: !!liked, likes: likeCount });
+    if (currentViewedProfile?.userData && Array.isArray(currentViewedProfile.userData.posts)) {
+      currentViewedProfile.userData.posts = currentViewedProfile.userData.posts.map((post) => (post?.id === id ? { ...post, liked: !!liked, likes: likeCount } : post));
+    }
+    document.querySelectorAll(`.action-btn[data-action="like"][data-id="${id}"]`).forEach((btn) => {
+      btn.classList.toggle('liked', !!liked);
+      const count = btn.querySelector('span');
+      if (count) count.textContent = String(likeCount);
+      const icon = btn.querySelector('svg');
+      if (icon) icon.setAttribute('fill', liked ? 'currentColor' : 'none');
+      if (animate && liked) {
+        btn.classList.remove('like-pop');
+        void btn.offsetWidth;
+        btn.classList.add('like-pop');
+        setTimeout(() => btn.classList.remove('like-pop'), 380);
+      }
+    });
   }
 
   function applyIncomingView(postId, views) {
@@ -4635,6 +4986,12 @@
     const nameEl = document.querySelector('.profile-name'); if (nameEl) nameEl.textContent = safeName;
     const uEl = document.querySelector('.profile-username'); if (uEl) uEl.textContent = safeUsername ? `@${safeUsername}` : '@username';
     const bEl = document.querySelector('.profile-bio'); if (bEl) bEl.textContent = safeBio;
+    const joinedEl = document.getElementById('profile-joined');
+    if (joinedEl) {
+      const joined = joinedHtml(me.createdAt);
+      joinedEl.innerHTML = joined;
+      joinedEl.style.display = joined ? 'flex' : 'none';
+    }
     const st = document.querySelectorAll('.stat-item .stat-number');
     if (st[0] && typeof me.followers==='number') st[0].textContent = me.followers;
     if (st[1]) st[1].textContent = posts.filter(p => p.isRepost).length;
@@ -5044,17 +5401,71 @@
   }
 
   async function syncPosts() {
-    const r = await api('/posts');
-    posts = (r.posts || []).map((p) => ({
-      ...p,
-      avatarUrl: absoluteUrl(p.avatarUrl || ''),
-      repostOf: p.repostOf ? { ...p.repostOf, avatarUrl: absoluteUrl(p.repostOf.avatarUrl || '') } : p.repostOf
-    }));
-    renderPosts();
-    const st = document.querySelectorAll('.stat-item .stat-number'); if (st[1]) st[1].textContent = posts.filter(p => p.isRepost).length;
     const feed = document.getElementById('feed');
+    if (feed && !posts.length && !feed.children.length) feed.innerHTML = '<div style="text-align:center;color:rgba(255,255,255,0.45);padding:40px 20px;font-size:14px;">Загрузка...</div>';
+    const r = await api('/posts');
+    posts = (r.posts || []).map((p) => {
+      const override = pendingLikeOverrides.get(p.id);
+      const next = {
+        ...p,
+        avatarUrl: absoluteUrl(p.avatarUrl || ''),
+        repostOf: p.repostOf ? { ...p.repostOf, avatarUrl: absoluteUrl(p.repostOf.avatarUrl || '') } : p.repostOf
+      };
+      return override ? { ...next, liked: override.liked, likes: override.likes } : next;
+    });
+    renderPosts();
+    if (document.getElementById('hashtag-tab')?.classList.contains('active')) renderHashtagFeed();
+    const st = document.querySelectorAll('.stat-item .stat-number'); if (st[1]) st[1].textContent = posts.filter(p => p.isRepost).length;
     if (feed && posts.length === 0) feed.innerHTML = '<div style="text-align:center;color:rgba(255,255,255,0.35);padding:40px 20px;font-size:14px;">Лента пуста</div>';
   }
+
+  let currentHashtag = '';
+
+  function normalizeHashtagTag(value) {
+    return String(value || '').trim().replace(/^#/, '').toLowerCase();
+  }
+
+  function postHasHashtag(post, tag) {
+    const wanted = normalizeHashtagTag(tag);
+    if (!wanted) return false;
+    const texts = [post?.text || '', post?.repostOf?.text || ''];
+    return texts.some((text) => {
+      const matches = String(text || '').match(/(^|\s)#([^\s#]+)/gu) || [];
+      return matches.some((m) => normalizeHashtagTag(m.trim()) === wanted);
+    });
+  }
+
+  function renderHashtagFeed() {
+    const feed = document.getElementById('hashtag-feed');
+    if (!feed) return;
+    feed.innerHTML = '';
+    const tag = currentHashtag;
+    const list = posts.filter((post) => postHasHashtag(post, tag));
+    if (!list.length) {
+      feed.innerHTML = '<div style="text-align:center;color:rgba(255,255,255,0.35);padding:40px 20px;font-size:14px;">Постов с этим хэштегом пока нет</div>';
+      return;
+    }
+    list.forEach((post) => feed.appendChild(createPostElement(post)));
+  }
+
+  window.openHashtagView = function openHashtagView(tag, options = {}) {
+    const normalized = normalizeHashtagTag(tag);
+    if (!normalized) return;
+    currentHashtag = normalized;
+    document.getElementById('hashtag-title').textContent = `#${normalized}`;
+    document.querySelectorAll('.nav-btn').forEach((b) => b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach((t) => t.classList.remove('active'));
+    document.getElementById('hashtag-tab')?.classList.add('active');
+    renderHashtagFeed();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    if (!options.skipRoute) navigateTo(`/hashtag/${encodeURIComponent(normalized)}`);
+  };
+
+  window.closeHashtagView = function closeHashtagView() {
+    const exploreBtn = document.querySelector('.nav-btn[data-tab="explore"]');
+    if (exploreBtn) exploreBtn.click();
+    navigateTo('/tape', true);
+  };
 
   async function syncTrends() {
     const wrap = document.getElementById('trends-section-wrap');
@@ -5063,7 +5474,7 @@
       const r = await api('/trends');
       const list = (r.trends || []).slice(0,8);
       wrap.innerHTML = '<div class="trends-section"><div class="section-title">Актуальные хэштеги</div>' +
-        (list.length ? list.map(t => { const tag = String(t.tag || '').replace(/^#/, ''); return `<div class="trend-item"><div class="trend-icon" aria-hidden="true"></div><div class="trend-info"><div class="trend-hashtag">${tag}</div><div class="trend-count">${t.count} постов</div></div></div>`; }).join('') : '<div style="color:rgba(255,255,255,.45)">Пока нет данных</div>') +
+        (list.length ? list.map(t => { const tag = String(t.tag || '').replace(/^#/, ''); return `<div class="trend-item" data-hashtag="${escapeHtml(tag)}"><div class="trend-icon" aria-hidden="true"></div><div class="trend-info"><div class="trend-hashtag">${escapeHtml(tag)}</div><div class="trend-count">${t.count} постов</div></div></div>`; }).join('') : '<div style="color:rgba(255,255,255,.45)">Пока нет данных</div>') +
         '</div>';
     } catch {}
   }
@@ -5352,7 +5763,7 @@
       setUploadButton(postBtn, true, simpleLoading ? prevText : uploadLabel(0, totalBytes));
       try {
         await apiWithUploadProgress('/posts', payload, (loaded, total) => setUploadButton(postBtn, true, simpleLoading ? prevText : uploadLabel(loaded, total)));
-        postInput.value = ''; composerMedia = []; renderComposerPreviews();
+        postInput.value = ''; clearRichPostInput(); composerMedia = []; renderComposerPreviews();
         charCounter.textContent = '0/280';
         charCounter.classList.remove('visible','warning','danger');
         await syncPosts();
@@ -5385,21 +5796,15 @@
         const id = Number(likeBtn.dataset.id);
         const p = posts.find(x => x.id === id) || upmLocalPosts.get(id);
         if (p) {
-          p.liked = !p.liked;
-          p.likes += p.liked ? 1 : -1;
-          renderPosts();
-          const likeBtnModal = document.querySelector('#modal-post-container .action-btn[data-action="like"]');
-          if (likeBtnModal && Number(likeBtnModal.dataset.id || 0) === id) {
-            likeBtnModal.classList.toggle('liked', !!p.liked);
-            const count = likeBtnModal.querySelector('span');
-            if (count) count.textContent = String(p.likes);
-            const icon = likeBtnModal.querySelector('svg');
-            if (icon) icon.setAttribute('fill', p.liked ? 'currentColor' : 'none');
-          }
+          const nextLiked = !p.liked;
+          const nextLikes = Math.max(0, Number(p.likes || 0) + (p.liked ? -1 : 1));
+          holdLikeOverride(id, nextLiked, nextLikes, 3000);
+          updateLikeButtons(id, nextLiked, nextLikes, true);
         }
         const likeRes = await api(`/posts/${id}/like`, { method: 'POST' });
+        holdLikeOverride(id, !!likeRes.liked, Number(likeRes.likes || 0), 1800);
+        updateLikeButtons(id, !!likeRes.liked, Number(likeRes.likes || 0), false);
         if (Number.isFinite(Number(likeRes?.views))) applyIncomingView(id, Number(likeRes.views));
-        await refreshOpenedProfileModal();
       } catch {}
       return;
     }
@@ -5447,9 +5852,10 @@
       requestAnimationFrame(()=>requestAnimationFrame(()=>modal.classList.add('visible')));
     }
     try {
-      const [uRes, pRes] = await Promise.all([api(`/users/${uname}`), api('/posts')]);
+      const uRes = await api(`/users/${uname}`);
       const u = uRes.user;
-      const linked = (pRes.posts || []).filter(p => String(p.username || '').toLowerCase() === `@${u.username}`.toLowerCase());
+      const sourcePosts = posts.length ? posts : ((await api('/posts')).posts || []);
+      const linked = sourcePosts.filter(p => String(p.username || '').toLowerCase() === `@${u.username}`.toLowerCase());
       const absAvatar = absoluteUrl(u.avatarUrl || '');
       const absBanner = absoluteUrl(u.bannerUrl || '');
       const userData = {
@@ -5458,6 +5864,7 @@
         followers: u.followers || 0,
         following: u.following || 0,
         isFollowing: !!u.isFollowing,
+        createdAt: u.createdAt || '',
         avatarUrl: absAvatar,
         bannerUrl: absBanner,
         pinnedPostId: u.pinnedPostId || null,
@@ -5512,6 +5919,16 @@
       } else {
         openUserProfile(mentioned);
       }
+      return;
+    }
+
+    const hashtag = targetEl.closest('.hashtag, [data-hashtag]');
+    if (hashtag) {
+      const tag = hashtag.getAttribute('data-hashtag') || hashtag.textContent || '';
+      e.stopImmediatePropagation();
+      e.preventDefault();
+      if (typeof closePostModal === 'function') closePostModal();
+      openHashtagView(tag);
       return;
     }
 
@@ -5702,7 +6119,8 @@
   window.submitRepost = async function submitRepost() {
     if (!repostTargetPost) return;
     try {
-      await api(`/posts/${repostTargetPost.id}/repost`, { method: 'POST' });
+      const text = document.getElementById('repost-comment-input')?.value.trim() || '';
+      await api(`/posts/${repostTargetPost.id}/repost`, { method: 'POST', body: JSON.stringify({ text }) });
       closeRepostModal();
       await syncPosts();
       await refreshOpenedProfileModal();
@@ -5832,7 +6250,7 @@
   function applyRoute() {
     const p = routePath();
     if (!token()) {
-      if (/^\/post\/[a-zA-Z0-9_-]+$/.test(p) || /^\/user\/[a-zA-Z0-9_.-]+$/.test(p)) {
+      if (/^\/post\/[a-zA-Z0-9_-]+$/.test(p) || /^\/user\/[a-zA-Z0-9_.-]+$/.test(p) || /^\/hashtag\/[^/]+$/.test(p)) {
         showNoVpidScreen();
         return;
       }
@@ -5865,6 +6283,22 @@
       pendingPostRouteId = postMatch[1];
       return;
     }
+    const hashMatch = p.match(/^\/hashtag\/([^/]+)$/);
+    if (hashMatch) {
+      const exploreBtn = document.querySelector('.nav-btn[data-tab="explore"]');
+      if (exploreBtn) {
+        muteNavRouteUpdate = true;
+        exploreBtn.click();
+        muteNavRouteUpdate = false;
+      }
+      pendingHashtagRouteName = decodeURIComponent(hashMatch[1] || '');
+      if (posts.length) {
+        const toOpenHash = pendingHashtagRouteName;
+        pendingHashtagRouteName = null;
+        openHashtagView(toOpenHash, { skipRoute: true });
+      }
+      return;
+    }
     const userMatch = p.match(/^\/user\/([a-zA-Z0-9_.-]+)$/);
     if (userMatch) {
       const routeUser = String(userMatch[1] || '').toLowerCase();
@@ -5891,16 +6325,17 @@
   });
 
 
+  document.getElementById('main-logo-refresh')?.addEventListener('click', () => location.reload());
+
   setInterval(() => { if (token()) syncPosts().catch(() => {}); }, 4000);
   setInterval(() => { if (token()) syncMe().catch(() => {}); }, 5000);
   setInterval(() => { if (token()) syncTrends().catch(() => {}); }, 5000);
-  setInterval(() => { if (token() && currentViewedProfile?.uname) refreshOpenedProfileModal().catch(() => {}); }, 5000);
 
   (async () => {
     if (!token()) {
       resetClientUiState();
       applyRoute();
-      if (!routePath().startsWith('/post/') && !routePath().startsWith('/user/') && routePath() !== '/login') navigateTo('/login', true);
+      if (!routePath().startsWith('/post/') && !routePath().startsWith('/user/') && !routePath().startsWith('/hashtag/') && routePath() !== '/login') navigateTo('/login', true);
       return;
     }
     try {
@@ -5920,6 +6355,11 @@
         const toOpen = pendingPostRouteId;
         pendingPostRouteId = null;
         await openPostByRoute(toOpen);
+      }
+      if (pendingHashtagRouteName) {
+        const toOpenHash = pendingHashtagRouteName;
+        pendingHashtagRouteName = null;
+        openHashtagView(toOpenHash, { skipRoute: true });
       }
       if (pendingUserRouteName) {
         const toOpenUser = pendingUserRouteName;
