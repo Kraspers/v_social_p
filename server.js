@@ -254,13 +254,21 @@ function verifyToken(token) {
 }
 
 function sendJson(res, code, data) {
-  res.writeHead(code, {
+  const raw = Buffer.from(JSON.stringify(data));
+  const headers = {
     'Content-Type': 'application/json; charset=utf-8',
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     'Access-Control-Allow-Methods': 'GET,POST,PATCH,DELETE,OPTIONS'
-  });
-  res.end(JSON.stringify(data));
+  };
+  if (res._acceptsGzip && raw.length > 1024) {
+    const gzipped = zlib.gzipSync(raw);
+    res.writeHead(code, { ...headers, 'Content-Encoding': 'gzip', 'Vary': 'Accept-Encoding', 'Content-Length': gzipped.length });
+    res.end(gzipped);
+    return;
+  }
+  res.writeHead(code, { ...headers, 'Content-Length': raw.length });
+  res.end(raw);
 }
 function parseBody(req) {
   return new Promise((resolve) => {
@@ -512,6 +520,7 @@ function serveFile(req, res, pathname) {
 }
 
 const server = http.createServer(async (req, res) => {
+  res._acceptsGzip = /(?:^|,|\s)gzip(?:,|;|\s|$)/i.test(req.headers['accept-encoding'] || '');
   const u = new URL(req.url, `http://${req.headers.host || `localhost:${PORT}`}`);
   const db = readDb();
   if (gc(db)) writeDb(db);
@@ -711,8 +720,10 @@ const server = http.createServer(async (req, res) => {
 
   if (u.pathname === '/api/posts' && req.method === 'GET') {
     if (!me) return sendJson(res, 401, { error: 'Unauthorized' });
+    const rawLimit = Number(u.searchParams.get('limit') || 0);
+    const limit = rawLimit > 0 ? Math.min(200, Math.max(1, rawLimit)) : db.posts.length;
     const ctx = buildPostDtoContext(db, me.id);
-    const posts = db.posts.slice().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).map((p) => postDto(db, p, me.id, ctx));
+    const posts = db.posts.slice().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, limit).map((p) => postDto(db, p, me.id, ctx));
     return sendJson(res, 200, { posts });
   }
 
@@ -1075,7 +1086,8 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (u.pathname.startsWith('/api/')) return sendJson(res, 404, { error: 'Not found' });
-  if (!serveFile(req, res, u.pathname) && !(u.pathname.startsWith('/uploads/') && sendDbUpload(db, res, u.pathname))) sendJson(res, 404, { error: 'Not found' });
+  if (u.pathname.startsWith('/uploads/') && sendDbUpload(db, res, u.pathname)) return;
+  if (!serveFile(req, res, u.pathname)) sendJson(res, 404, { error: 'Not found' });
 });
 
 initializeDb()

@@ -13,7 +13,7 @@
         input, textarea { -webkit-user-select: text; user-select: text; }
         /* Disable image drag */
         img { -webkit-user-drag: none; user-drag: none; pointer-events: auto; }
-        body { font-family: sans-serif; background: #0b0b0d; color: #e6e6e9; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif; background: #0b0b0d; color: #e6e6e9; }
         .container { max-width: 600px; margin: 0 auto; background: #0f0f11; min-height: 100vh; border: 1px solid rgba(255,255,255,0.04); position: relative; }
         .header { display: flex; align-items: center; padding: 12px 16px; background: rgba(10,10,10,0.55); backdrop-filter: blur(12px) saturate(180%); -webkit-backdrop-filter: blur(12px) saturate(180%); border-bottom: 1px solid rgba(255,255,255,0.04); position: sticky; top: 0; z-index: 100; }
         .logo-container { display: flex; align-items: center; justify-content: center; width: 100%; }
@@ -5406,7 +5406,7 @@
   async function syncPosts() {
     const feed = document.getElementById('feed');
     if (feed && !posts.length && !feed.children.length) feed.innerHTML = '<div style="text-align:center;color:rgba(255,255,255,0.45);padding:40px 20px;font-size:14px;">Загрузка...</div>';
-    const r = await api('/posts');
+    const r = await api('/posts?limit=80');
     posts = (r.posts || []).map((p) => {
       const override = pendingLikeOverrides.get(p.id);
       const next = {
@@ -5555,8 +5555,10 @@
     const url = /^https?:\/\//i.test(raw) ? raw : (raw.startsWith('//') ? `${location.protocol}${raw}` : (raw.startsWith('/') ? `${location.origin}${raw}` : `${location.origin}/${raw.replace(/^\/+/, '')}`));
     try {
       const parsed = new URL(url, location.origin);
-      if (parsed.origin === location.origin && parsed.pathname.startsWith('/uploads/') && !parsed.searchParams.has('v')) {
-        parsed.searchParams.set('v', parsed.pathname.split('/').pop() || '1');
+      if (parsed.pathname.startsWith('/uploads/')) {
+        const local = new URL(parsed.pathname, location.origin);
+        if (!local.searchParams.has('v')) local.searchParams.set('v', parsed.pathname.split('/').pop() || '1');
+        return local.href;
       }
       return parsed.href;
     } catch {
