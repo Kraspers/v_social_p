@@ -289,7 +289,13 @@ function normalizeProfileImageUrl(value) {
   const raw = String(value || '').trim();
   if (!raw) return '';
   if (/^data:image\/(png|jpeg|jpg|webp);base64,/i.test(raw)) return raw;
-  if (/^https?:\/\//i.test(raw)) return raw;
+  if (/^https?:\/\//i.test(raw)) {
+    try {
+      const parsed = new URL(raw);
+      if (parsed.pathname.startsWith('/uploads/')) return parsed.pathname;
+    } catch {}
+    return raw;
+  }
   const cleaned = raw.replace(/\\/g, '/').replace(/^\.?\//, '');
   if (cleaned.startsWith('uploads/')) return `/${cleaned}`;
   if (cleaned.startsWith('/uploads/')) return cleaned;
@@ -297,7 +303,7 @@ function normalizeProfileImageUrl(value) {
 }
 
 function uploadNameFromUrl(urlValue) {
-  const normalized = normalizeProfileImageUrl(urlValue);
+  const normalized = normalizeProfileImageUrl(urlValue).split('?')[0];
   if (!normalized || !normalized.startsWith('/uploads/')) return '';
   return path.basename(normalized);
 }
@@ -319,11 +325,14 @@ function removeDbUpload(db, urlValue) {
 }
 
 function sendDbUpload(db, res, pathname) {
-  const name = path.basename(String(pathname || '').replace(/^\/uploads\//, ''));
+  const name = path.basename(String(pathname || '').replace(/^\/uploads\//, '').split('?')[0]);
   const file = Array.isArray(db.uploads) ? db.uploads.find((f) => f.name === name) : null;
   if (!file) return false;
   const raw = Buffer.from(file.data || '', 'base64');
-  res.writeHead(200, securityHeaders(file.mime || 'application/octet-stream'));
+  const headers = securityHeaders(file.mime || 'application/octet-stream');
+  headers['Content-Length'] = raw.length;
+  headers['Accept-Ranges'] = 'bytes';
+  res.writeHead(200, headers);
   res.end(raw);
   return true;
 }
@@ -926,7 +935,8 @@ const server = http.createServer(async (req, res) => {
     if (!me) return sendJson(res, 401, { error: 'Unauthorized' });
     const followedIds = db.follows.filter((f) => f.followerId === me.id).map((f) => f.followingId);
     const allowed = new Set([me.id, ...followedIds]);
-    const posts = db.posts.filter((p) => allowed.has(p.authorId)).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).map((p) => postDto(db, p, me.id));
+    const ctx = buildPostDtoContext(db, me.id);
+    const posts = db.posts.filter((p) => allowed.has(p.authorId)).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).map((p) => postDto(db, p, me.id, ctx));
     return sendJson(res, 200, { posts });
   }
 
@@ -1054,7 +1064,11 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (u.pathname.startsWith('/api/')) return sendJson(res, 404, { error: 'Not found' });
-  if (!serveFile(res, u.pathname) && !(u.pathname.startsWith('/uploads/') && sendDbUpload(db, res, u.pathname))) sendJson(res, 404, { error: 'Not found' });
+  if (u.pathname.startsWith('/uploads/')) {
+    if (sendDbUpload(db, res, u.pathname) || serveFile(res, u.pathname)) return;
+    return sendJson(res, 404, { error: 'Not found' });
+  }
+  if (!serveFile(res, u.pathname)) sendJson(res, 404, { error: 'Not found' });
 });
 
 initializeDb()
