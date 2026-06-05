@@ -13,7 +13,7 @@
         input, textarea { -webkit-user-select: text; user-select: text; }
         /* Disable image drag */
         img { -webkit-user-drag: none; user-drag: none; pointer-events: auto; }
-        body { font-family: sans-serif; background: #0b0b0d; color: #e6e6e9; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', sans-serif; background: #0b0b0d; color: #e6e6e9; }
         .container { max-width: 600px; margin: 0 auto; background: #0f0f11; min-height: 100vh; border: 1px solid rgba(255,255,255,0.04); position: relative; }
         .header { display: flex; align-items: center; padding: 12px 16px; background: rgba(10,10,10,0.55); backdrop-filter: blur(12px) saturate(180%); -webkit-backdrop-filter: blur(12px) saturate(180%); border-bottom: 1px solid rgba(255,255,255,0.04); position: sticky; top: 0; z-index: 100; }
         .logo-container { display: flex; align-items: center; justify-content: center; width: 100%; }
@@ -147,6 +147,10 @@
         .post-btn.loading, .post-btn.loading:disabled { background: #0078FF; color: white; opacity: 1; cursor: wait; position: relative; overflow: hidden; min-width: 112px; }
         .post-btn.loading::after { content: ''; position: absolute; inset: 0; transform: translateX(-120%); background: linear-gradient(105deg, transparent 10%, rgba(255,255,255,0.08) 35%, rgba(255,255,255,0.75) 50%, rgba(255,255,255,0.08) 65%, transparent 90%); animation: trackBtnLoading 1.15s cubic-bezier(0.22, 0.61, 0.36, 1) infinite; pointer-events: none; }
         .post-btn.loading span { position: relative; z-index: 1; }
+        .repost-submit-btn { pointer-events:auto; background:#0D7EFF; border:none; border-radius:28px; color:white; font-size:16px; font-weight:700; padding:14px 32px; cursor:pointer; font-family:inherit; position:relative; overflow:hidden; }
+        .repost-submit-btn:disabled { cursor:wait; opacity:1; }
+        .repost-submit-btn.is-loading::after { content:''; position:absolute; inset:0; transform:translateX(-120%); background:linear-gradient(105deg, transparent 10%, rgba(255,255,255,0.08) 35%, rgba(255,255,255,0.75) 50%, rgba(255,255,255,0.08) 65%, transparent 90%); animation:trackBtnLoading 1.15s cubic-bezier(0.22, 0.61, 0.36, 1) infinite; pointer-events:none; }
+        .repost-submit-btn span { position:relative; z-index:1; }
         .feed { padding: 12px 16px; padding-bottom: 110px; display: flex; flex-direction: column; gap: 10px; }
         .post { padding: 16px; background: rgba(255,255,255,0.03); border-radius: 18px; border: none; transition: background 0.15s; overflow: hidden; }
         .post:hover { background: rgba(255,255,255,0.045); }
@@ -2093,7 +2097,7 @@
         </div>
         <!-- Publish button bottom-right -->
         <div style="position:sticky;bottom:0;padding:12px 16px 32px;background:transparent;display:flex;justify-content:flex-end;pointer-events:none;">
-            <button onclick="submitRepost()" style="pointer-events:auto;background:#0D7EFF;border:none;border-radius:28px;color:white;font-size:16px;font-weight:700;padding:14px 32px;cursor:pointer;font-family:inherit;">Опубликовать</button>
+            <button class="repost-submit-btn" id="repost-submit-btn" onclick="submitRepost()"><span>Опубликовать</span></button>
         </div>
     </div>
     </div><!-- end post-modal-wrap -->
@@ -3511,9 +3515,10 @@
 
     // ===== SPLASH =====
     window.addEventListener('load', () => {
-        const toLoad = ['logo.png','logo1.png','profile.png','stories.png','logo_splash.png','assets/vpj.png','assets/anon.png','assets/mini.png'];
+        const toLoad = ['logo.png','stories.png','logo_splash.png','assets/vpj.png','assets/anon.png','assets/mini.png'];
         let loaded = 0;
-        toLoad.forEach(src => { const i = new Image(); i.onload = i.onerror = () => { loaded++; if(loaded===toLoad.length) setTimeout(hideSplash, 800); }; i.src = src; });
+        const done = () => { loaded++; if (loaded === toLoad.length) setTimeout(hideSplash, 100); };
+        toLoad.forEach(src => { const i = new Image(); i.onload = i.onerror = done; i.src = src; });
     });
     function hideSplash() { document.getElementById('splash-screen').classList.add('hidden'); }
 
@@ -6118,7 +6123,9 @@
 
   window.submitRepost = async function submitRepost() {
     if (!repostTargetPost) return;
+    const repostBtn = document.getElementById('repost-submit-btn');
     try {
+      setUploadButton(repostBtn, true, 'Публикуем...');
       const text = document.getElementById('repost-comment-input')?.value.trim() || '';
       await api(`/posts/${repostTargetPost.id}/repost`, { method: 'POST', body: JSON.stringify({ text }) });
       closeRepostModal();
@@ -6127,6 +6134,8 @@
       showToast('Репост опубликован');
     } catch (e) {
       showToast(e.message);
+    } finally {
+      setUploadButton(repostBtn, false, 'Опубликовать');
     }
   };
 
@@ -6327,9 +6336,9 @@
 
   document.getElementById('main-logo-refresh')?.addEventListener('click', () => location.reload());
 
-  setInterval(() => { if (token()) syncPosts().catch(() => {}); }, 4000);
-  setInterval(() => { if (token()) syncMe().catch(() => {}); }, 5000);
-  setInterval(() => { if (token()) syncTrends().catch(() => {}); }, 5000);
+  setInterval(() => { if (token()) syncPosts().catch(() => {}); }, 15000);
+  setInterval(() => { if (token()) syncMe().catch(() => {}); }, 20000);
+  setInterval(() => { if (token()) syncTrends().catch(() => {}); }, 30000);
 
   (async () => {
     if (!token()) {

@@ -289,7 +289,14 @@ function normalizeProfileImageUrl(value) {
   const raw = String(value || '').trim();
   if (!raw) return '';
   if (/^data:image\/(png|jpeg|jpg|webp);base64,/i.test(raw)) return raw;
-  if (/^https?:\/\//i.test(raw)) return raw;
+  if (/^https?:\/\//i.test(raw)) {
+    try {
+      const parsed = new URL(raw);
+      const uploadPath = decodeURIComponent(parsed.pathname || '').replace(/\\/g, '/');
+      if (uploadPath.startsWith('/uploads/')) return uploadPath;
+    } catch {}
+    return raw;
+  }
   const cleaned = raw.replace(/\\/g, '/').replace(/^\.?\//, '');
   if (cleaned.startsWith('uploads/')) return `/${cleaned}`;
   if (cleaned.startsWith('/uploads/')) return cleaned;
@@ -926,7 +933,8 @@ const server = http.createServer(async (req, res) => {
     if (!me) return sendJson(res, 401, { error: 'Unauthorized' });
     const followedIds = db.follows.filter((f) => f.followerId === me.id).map((f) => f.followingId);
     const allowed = new Set([me.id, ...followedIds]);
-    const posts = db.posts.filter((p) => allowed.has(p.authorId)).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).map((p) => postDto(db, p, me.id));
+    const ctx = buildPostDtoContext(db, me.id);
+    const posts = db.posts.filter((p) => allowed.has(p.authorId)).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).map((p) => postDto(db, p, me.id, ctx));
     return sendJson(res, 200, { posts });
   }
 
