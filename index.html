@@ -147,6 +147,11 @@
         .post-btn.loading, .post-btn.loading:disabled { background: #0078FF; color: white; opacity: 1; cursor: wait; position: relative; overflow: hidden; min-width: 112px; }
         .post-btn.loading::after { content: ''; position: absolute; inset: 0; transform: translateX(-120%); background: linear-gradient(105deg, transparent 10%, rgba(255,255,255,0.08) 35%, rgba(255,255,255,0.75) 50%, rgba(255,255,255,0.08) 65%, transparent 90%); animation: trackBtnLoading 1.15s cubic-bezier(0.22, 0.61, 0.36, 1) infinite; pointer-events: none; }
         .post-btn.loading span { position: relative; z-index: 1; }
+        .repost-publish-btn { pointer-events:auto; background:#0D7EFF; border:none; border-radius:28px; color:white; font-size:16px; font-weight:700; padding:14px 32px; cursor:pointer; font-family:inherit; position:relative; overflow:hidden; }
+        .repost-publish-btn:hover:not(:disabled) { background:#006ee8; }
+        .repost-publish-btn:disabled { cursor:wait; opacity:0.95; }
+        .repost-publish-btn.is-loading::after { content:''; position:absolute; inset:0; transform:translateX(-120%); background:linear-gradient(105deg, transparent 10%, rgba(255,255,255,0.08) 35%, rgba(255,255,255,0.75) 50%, rgba(255,255,255,0.08) 65%, transparent 90%); animation:trackBtnLoading 1.15s cubic-bezier(0.22,0.61,0.36,1) infinite; pointer-events:none; }
+        .repost-publish-btn span { position:relative; z-index:1; }
         .feed { padding: 12px 16px; padding-bottom: 110px; display: flex; flex-direction: column; gap: 10px; }
         .post { padding: 16px; background: rgba(255,255,255,0.03); border-radius: 18px; border: none; transition: background 0.15s; overflow: hidden; }
         .post:hover { background: rgba(255,255,255,0.045); }
@@ -2093,7 +2098,7 @@
         </div>
         <!-- Publish button bottom-right -->
         <div style="position:sticky;bottom:0;padding:12px 16px 32px;background:transparent;display:flex;justify-content:flex-end;pointer-events:none;">
-            <button onclick="submitRepost()" style="pointer-events:auto;background:#0D7EFF;border:none;border-radius:28px;color:white;font-size:16px;font-weight:700;padding:14px 32px;cursor:pointer;font-family:inherit;">Опубликовать</button>
+            <button class="repost-publish-btn" id="repost-submit-btn" onclick="submitRepost()"><span>Опубликовать</span></button>
         </div>
     </div>
     </div><!-- end post-modal-wrap -->
@@ -3511,10 +3516,12 @@
 
     // ===== SPLASH =====
     window.addEventListener('load', () => {
-        const toLoad = ['logo.png','logo1.png','profile.png','stories.png','logo_splash.png','assets/vpj.png','assets/anon.png','assets/mini.png'];
+        const toLoad = ['logo.png','stories.png','logo_splash.png','assets/vpj.png','assets/anon.png','assets/mini.png'];
         let loaded = 0;
-        toLoad.forEach(src => { const i = new Image(); i.onload = i.onerror = () => { loaded++; if(loaded===toLoad.length) setTimeout(hideSplash, 800); }; i.src = src; });
+        const done = () => { loaded++; if (loaded === toLoad.length) setTimeout(hideSplash, 180); };
+        toLoad.forEach(src => { const i = new Image(); i.onload = i.onerror = done; i.src = src; });
     });
+    setTimeout(hideSplash, 1400);
     function hideSplash() { document.getElementById('splash-screen').classList.add('hidden'); }
 
     renderPosts();
@@ -4950,7 +4957,7 @@
       resultsList.style.display = '';
       if (trendsWrap) trendsWrap.style.display = 'none';
       resultsList.innerHTML = users.length
-        ? users.map((u) => `<div onclick="openSearchUserFromResults('${String(u.username || '').replace('@','')}')" style="display:flex;align-items:center;gap:14px;padding:12px 14px;background:#1c1c1e;border-radius:20px;margin-bottom:8px;cursor:pointer;"><div style="width:42px;height:42px;border-radius:50%;overflow:hidden;background:linear-gradient(135deg,#0078FF 0%,#23D4F9 100%);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;">${u.avatarUrl ? `<img src='${absoluteUrl(u.avatarUrl)}' style='width:100%;height:100%;object-fit:cover;'>` : (u.avatar || 'U')}</div><div style="display:flex;flex-direction:column;"><div style="font-weight:700;color:#fff;">${u.displayname || ''}</div><div style="font-size:13px;color:rgba(255,255,255,0.65);">${u.username}</div></div></div>`).join('')
+        ? users.map((u) => `<div onclick="openSearchUserFromResults('${String(u.username || '').replace('@','')}')" style="display:flex;align-items:center;gap:14px;padding:12px 14px;background:#1c1c1e;border-radius:20px;margin-bottom:8px;cursor:pointer;"><div style="width:42px;height:42px;border-radius:50%;overflow:hidden;background:linear-gradient(135deg,#0078FF 0%,#23D4F9 100%);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;">${u.avatarUrl ? `<img src='${resilientMediaUrl(u.avatarUrl)}' data-fallback='${escapeHtml(u.avatar || '')}' style='width:100%;height:100%;object-fit:cover;'>` : (u.avatar || 'U')}</div><div style="display:flex;flex-direction:column;"><div style="font-weight:700;color:#fff;">${u.displayname || ''}</div><div style="font-size:13px;color:rgba(255,255,255,0.65);">${u.username}</div></div></div>`).join('')
         : '<div style="padding:20px;text-align:center;color:rgba(255,255,255,.45)">Ничего не найдено</div>';
     } catch (_) {}
   };
@@ -4980,8 +4987,8 @@
     profileData.name = safeName;
     profileData.username = safeUsername ? `@${safeUsername}` : '@username';
     profileData.bio = safeBio;
-    profileData.avatarUrl = absoluteUrl(me.avatarUrl || '') || null;
-    profileData.bannerUrl = absoluteUrl(me.bannerUrl || '') || null;
+    profileData.avatarUrl = resilientMediaUrl(me.avatarUrl || '') || null;
+    profileData.bannerUrl = resilientMediaUrl(me.bannerUrl || '') || null;
     profileData.vpsc = me.vpsc || profileData.vpsc;
     const nameEl = document.querySelector('.profile-name'); if (nameEl) nameEl.textContent = safeName;
     const uEl = document.querySelector('.profile-username'); if (uEl) uEl.textContent = safeUsername ? `@${safeUsername}` : '@username';
@@ -5007,8 +5014,8 @@
     const epu = document.getElementById('ep-username'); if (epu && !editOpen) epu.value = safeUsername;
     const epbio = document.getElementById('ep-bio'); if (epbio && !editOpen) epbio.value = safeBio;
     const nav = document.getElementById('nav-profile-avatar');
-    const avatarUrl = absoluteUrl(me.avatarUrl || '');
-    const bannerUrl = absoluteUrl(me.bannerUrl || '');
+    const avatarUrl = resilientMediaUrl(me.avatarUrl || '');
+    const bannerUrl = resilientMediaUrl(me.bannerUrl || '');
     if (safeUsername) {
       const mine = `@${safeUsername}`.toLowerCase();
       posts.forEach((p) => {
@@ -5408,8 +5415,8 @@
       const override = pendingLikeOverrides.get(p.id);
       const next = {
         ...p,
-        avatarUrl: absoluteUrl(p.avatarUrl || ''),
-        repostOf: p.repostOf ? { ...p.repostOf, avatarUrl: absoluteUrl(p.repostOf.avatarUrl || '') } : p.repostOf
+        avatarUrl: resilientMediaUrl(p.avatarUrl || ''),
+        repostOf: p.repostOf ? { ...p.repostOf, avatarUrl: resilientMediaUrl(p.repostOf.avatarUrl || '') } : p.repostOf
       };
       return override ? { ...next, liked: override.liked, likes: override.likes } : next;
     });
@@ -5548,11 +5555,48 @@
   function absoluteUrl(u) {
     const raw = String(u || '').trim();
     if (!raw) return '';
-    if (/^https?:\/\//i.test(raw) || raw.startsWith('data:')) return raw;
-    if (raw.startsWith('//')) return `${location.protocol}${raw}`;
+    if (raw.startsWith('data:')) return raw;
+    if (/^https?:\/\//i.test(raw) || raw.startsWith('//')) {
+      try {
+        const parsed = new URL(raw, location.protocol);
+        if (parsed.pathname.startsWith('/uploads/')) return `${location.origin}${parsed.pathname}${parsed.search || ''}`;
+        return parsed.href;
+      } catch { return raw; }
+    }
     if (raw.startsWith('/')) return `${location.origin}${raw}`;
     return `${location.origin}/${raw.replace(/^\/+/, '')}`;
   }
+
+  function resilientMediaUrl(url) {
+    const src = absoluteUrl(url);
+    if (!src) return '';
+    try {
+      const parsed = new URL(src);
+      if (parsed.pathname.startsWith('/uploads/')) return `${location.origin}${parsed.pathname}${parsed.search || ''}`;
+    } catch {}
+    return src;
+  }
+
+  document.addEventListener('error', (event) => {
+    const img = event.target;
+    if (!(img instanceof HTMLImageElement)) return;
+    const src = String(img.currentSrc || img.src || '');
+    let parsed;
+    try { parsed = new URL(src, location.origin); } catch { return; }
+    if (!parsed.pathname.startsWith('/uploads/')) return;
+    if (!img.dataset.uploadRetry) {
+      img.dataset.uploadRetry = '1';
+      parsed.searchParams.set('_', Date.now().toString(36));
+      img.src = `${location.origin}${parsed.pathname}?${parsed.searchParams.toString()}`;
+      return;
+    }
+    img.style.display = 'none';
+    const fallback = img.dataset.fallback || img.alt || '';
+    if (fallback && img.parentElement && !img.parentElement.dataset.fallbackShown) {
+      img.parentElement.dataset.fallbackShown = '1';
+      img.parentElement.append(document.createTextNode(fallback.slice(0, 2).toUpperCase()));
+    }
+  }, true);
 
   async function uploadImageIfNeeded(value, kind) {
     const src = String(value || '');
@@ -5592,8 +5636,8 @@
       payload.bannerUrl = await uploadImageIfNeeded(payload.bannerUrl, 'banner');
       const r = await api('/me', { method: 'PATCH', body: JSON.stringify(payload) });
       me = r.user;
-      profileData.avatarUrl = absoluteUrl(me.avatarUrl || '');
-      profileData.bannerUrl = absoluteUrl(me.bannerUrl || '');
+      profileData.avatarUrl = resilientMediaUrl(me.avatarUrl || '');
+      profileData.bannerUrl = resilientMediaUrl(me.bannerUrl || '');
       profileData.favoriteTrackName = normalizeTrackName(me.favoriteTrackName || '');
       profileData.favoriteTrackUrl = absoluteUrl(me.favoriteTrackUrl || '');
       profileData.favoriteTracks = Array.isArray(me.favoriteTracks) ? me.favoriteTracks.map((t) => ({ name: normalizeTrackName(t?.name || ''), url: absoluteUrl(t?.url || ''), coverUrl: absoluteUrl(t?.coverUrl || ''), createdAt: t?.createdAt || '' })).filter((t) => t.name && t.url).slice(0, 30) : [];
@@ -5651,9 +5695,9 @@
       const orderedStories = (r.stories || []).slice().sort((a,b)=>new Date(a.createdAt)-new Date(b.createdAt));
       orderedStories.forEach(s => {
         const key = s.username;
-        const fixed = { ...s, avatarUrl: absoluteUrl(s.avatarUrl || '') };
+        const fixed = { ...s, avatarUrl: resilientMediaUrl(s.avatarUrl || '') };
         if (!byUser.has(key)) byUser.set(key, { user: fixed, items: [] });
-        byUser.get(key).items.push({ id: s.id, type: s.mediaType, src: absoluteUrl(s.src || ''), text: s.caption || '', time: s.createdAt, username: s.username, avatar: s.avatar, avatarUrl: fixed.avatarUrl, viewed: !!s.viewed });
+        byUser.get(key).items.push({ id: s.id, type: s.mediaType, src: resilientMediaUrl(s.src || ''), text: s.caption || '', time: s.createdAt, username: s.username, avatar: s.avatar, avatarUrl: fixed.avatarUrl, viewed: !!s.viewed });
       });
       const list = document.getElementById('stories-list');
       if (!list) return;
@@ -5705,7 +5749,7 @@
 
   function buildCommentTree(flat) {
     const byId = new Map();
-    flat.forEach(c => byId.set(c.id, { ...c, avatarUrl: absoluteUrl(c.avatarUrl || ''), replies: [] }));
+    flat.forEach(c => byId.set(c.id, { ...c, avatarUrl: resilientMediaUrl(c.avatarUrl || ''), replies: [] }));
     const roots = [];
     flat.forEach(c => {
       const node = byId.get(c.id);
@@ -5856,8 +5900,8 @@
       const u = uRes.user;
       const sourcePosts = posts.length ? posts : ((await api('/posts')).posts || []);
       const linked = sourcePosts.filter(p => String(p.username || '').toLowerCase() === `@${u.username}`.toLowerCase());
-      const absAvatar = absoluteUrl(u.avatarUrl || '');
-      const absBanner = absoluteUrl(u.bannerUrl || '');
+      const absAvatar = resilientMediaUrl(u.avatarUrl || '');
+      const absBanner = resilientMediaUrl(u.bannerUrl || '');
       const userData = {
         displayname: u.displayName,
         bio: u.bio || '',
@@ -6118,7 +6162,9 @@
 
   window.submitRepost = async function submitRepost() {
     if (!repostTargetPost) return;
+    const btn = document.getElementById('repost-submit-btn');
     try {
+      if (btn) { btn.disabled = true; btn.classList.add('is-loading'); buttonLabel(btn, 'Публикуем...'); }
       const text = document.getElementById('repost-comment-input')?.value.trim() || '';
       await api(`/posts/${repostTargetPost.id}/repost`, { method: 'POST', body: JSON.stringify({ text }) });
       closeRepostModal();
@@ -6127,6 +6173,8 @@
       showToast('Репост опубликован');
     } catch (e) {
       showToast(e.message);
+    } finally {
+      if (btn) { btn.disabled = false; btn.classList.remove('is-loading'); buttonLabel(btn, 'Опубликовать'); }
     }
   };
 
@@ -6327,9 +6375,12 @@
 
   document.getElementById('main-logo-refresh')?.addEventListener('click', () => location.reload());
 
-  setInterval(() => { if (token()) syncPosts().catch(() => {}); }, 4000);
-  setInterval(() => { if (token()) syncMe().catch(() => {}); }, 5000);
-  setInterval(() => { if (token()) syncTrends().catch(() => {}); }, 5000);
+  let syncPostsInFlight = false;
+  let syncMeInFlight = false;
+  let syncTrendsInFlight = false;
+  setInterval(async () => { if (!token() || syncPostsInFlight) return; syncPostsInFlight = true; try { await syncPosts(); } catch {} finally { syncPostsInFlight = false; } }, 15000);
+  setInterval(async () => { if (!token() || syncMeInFlight) return; syncMeInFlight = true; try { await syncMe(); } catch {} finally { syncMeInFlight = false; } }, 20000);
+  setInterval(async () => { if (!token() || syncTrendsInFlight) return; syncTrendsInFlight = true; try { await syncTrends(); } catch {} finally { syncTrendsInFlight = false; } }, 30000);
 
   (async () => {
     if (!token()) {
