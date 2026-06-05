@@ -289,7 +289,13 @@ function normalizeProfileImageUrl(value) {
   const raw = String(value || '').trim();
   if (!raw) return '';
   if (/^data:image\/(png|jpeg|jpg|webp);base64,/i.test(raw)) return raw;
-  if (/^https?:\/\//i.test(raw)) return raw;
+  if (/^https?:\/\//i.test(raw)) {
+    try {
+      const parsed = new URL(raw);
+      if (parsed.pathname.startsWith('/uploads/')) return `/uploads/${path.basename(decodeURIComponent(parsed.pathname))}`;
+    } catch {}
+    return raw;
+  }
   const cleaned = raw.replace(/\\/g, '/').replace(/^\.?\//, '');
   if (cleaned.startsWith('uploads/')) return `/${cleaned}`;
   if (cleaned.startsWith('/uploads/')) return cleaned;
