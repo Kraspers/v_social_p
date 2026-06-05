@@ -2,6 +2,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const zlib = require('zlib');
 const { URL } = require('url');
 
 const PORT = process.env.PORT || 3000;
@@ -329,7 +330,7 @@ function sendDbUpload(db, res, pathname) {
   const file = Array.isArray(db.uploads) ? db.uploads.find((f) => f.name === name) : null;
   if (!file) return false;
   const raw = Buffer.from(file.data || '', 'base64');
-  res.writeHead(200, securityHeaders(file.mime || 'application/octet-stream'));
+  res.writeHead(200, securityHeaders(file.mime || 'application/octet-stream', 'no-cache, max-age=0, must-revalidate'));
   res.end(raw);
   return true;
 }
@@ -456,14 +457,27 @@ function publicFilePath(pathname) {
   return fp;
 }
 
-function securityHeaders(type) {
+function securityHeaders(type, cacheControl) {
   return {
     'Content-Type': type,
     'X-Content-Type-Options': 'nosniff',
     'Referrer-Policy': 'no-referrer',
     'X-Frame-Options': 'DENY',
-    'Cache-Control': type.startsWith('text/html') ? 'no-store' : 'public, max-age=31536000, immutable'
+    'Cache-Control': cacheControl || (type.startsWith('text/html') ? 'no-store' : 'public, max-age=31536000, immutable')
   };
+}
+
+function sendMaybeCompressed(req, res, code, headers, body) {
+  const raw = Buffer.isBuffer(body) ? body : Buffer.from(String(body), 'utf8');
+  const acceptsGzip = /(?:^|,|\s)gzip(?:,|;|\s|$)/i.test(req.headers['accept-encoding'] || '');
+  if (acceptsGzip && raw.length > 1024) {
+    const gzipped = zlib.gzipSync(raw);
+    res.writeHead(code, { ...headers, 'Content-Encoding': 'gzip', 'Vary': 'Accept-Encoding', 'Content-Length': gzipped.length });
+    res.end(gzipped);
+    return;
+  }
+  res.writeHead(code, { ...headers, 'Content-Length': raw.length });
+  res.end(raw);
 }
 
 function wrapProtectedHtml(html) {
@@ -471,7 +485,7 @@ function wrapProtectedHtml(html) {
   return `<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>VP 2.0</title></head><body><script>(()=>{const b='${encoded}';const bytes=Uint8Array.from(atob(b),c=>c.charCodeAt(0));document.open();document.write(new TextDecoder().decode(bytes));document.close();})();</script></body></html>`;
 }
 
-function serveFile(res, pathname) {
+function serveFile(req, res, pathname) {
   const fp = publicFilePath(pathname);
   if (!fp || !fs.existsSync(fp) || fs.statSync(fp).isDirectory()) return false;
   const ext = path.extname(fp).toLowerCase();
@@ -487,11 +501,12 @@ function serveFile(res, pathname) {
     '.mp3': 'audio/mpeg',
     '.m4a': 'audio/mp4'
   }[ext] || 'application/octet-stream';
-  res.writeHead(200, securityHeaders(type));
+  const headers = securityHeaders(type, pathname.startsWith('/uploads/') ? 'no-cache, max-age=0, must-revalidate' : undefined);
   if (path.basename(fp) === 'index.html') {
-    res.end(wrapProtectedHtml(fs.readFileSync(fp, 'utf8')));
+    sendMaybeCompressed(req, res, 200, headers, wrapProtectedHtml(fs.readFileSync(fp, 'utf8')));
     return true;
   }
+  res.writeHead(200, headers);
   fs.createReadStream(fp).pipe(res);
   return true;
 }
@@ -1060,7 +1075,7 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (u.pathname.startsWith('/api/')) return sendJson(res, 404, { error: 'Not found' });
-  if (!serveFile(res, u.pathname) && !(u.pathname.startsWith('/uploads/') && sendDbUpload(db, res, u.pathname))) sendJson(res, 404, { error: 'Not found' });
+  if (!serveFile(req, res, u.pathname) && !(u.pathname.startsWith('/uploads/') && sendDbUpload(db, res, u.pathname))) sendJson(res, 404, { error: 'Not found' });
 });
 
 initializeDb()

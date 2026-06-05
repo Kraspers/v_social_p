@@ -117,6 +117,9 @@
         .creator-done.is-loading { opacity: 1; cursor: wait; position: relative; overflow: hidden; background: #0D7EFF; color: white; }
         .creator-done.is-loading::after { content: ''; position: absolute; inset: 0; transform: translateX(-120%); background: linear-gradient(105deg, transparent 10%, rgba(255,255,255,0.08) 35%, rgba(255,255,255,0.75) 50%, rgba(255,255,255,0.08) 65%, transparent 90%); animation: trackBtnLoading 1.15s cubic-bezier(0.22, 0.61, 0.36, 1) infinite; pointer-events: none; }
         .creator-done.is-loading span { position: relative; z-index: 1; }
+        .repost-publish-btn { pointer-events:auto;background:#0D7EFF;border:none;border-radius:28px;color:white;font-size:16px;font-weight:700;padding:14px 32px;cursor:pointer;font-family:inherit;position:relative;overflow:hidden; }
+        .repost-publish-btn::after { content:''; position:absolute; inset:0; transform:translateX(-120%); background:linear-gradient(105deg, transparent 10%, rgba(255,255,255,0.08) 35%, rgba(255,255,255,0.75) 50%, rgba(255,255,255,0.08) 65%, transparent 90%); animation:trackBtnLoading 1.8s cubic-bezier(0.22,0.61,0.36,1) infinite; pointer-events:none; }
+        .repost-publish-btn span { position:relative; z-index:1; }
         .creator-content { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px; padding: 20px; }
         .creator-preview { max-width: 100%; max-height: 60vh; object-fit: contain; display: none; }
         .creator-preview.active { display: block; }
@@ -2093,7 +2096,7 @@
         </div>
         <!-- Publish button bottom-right -->
         <div style="position:sticky;bottom:0;padding:12px 16px 32px;background:transparent;display:flex;justify-content:flex-end;pointer-events:none;">
-            <button onclick="submitRepost()" style="pointer-events:auto;background:#0D7EFF;border:none;border-radius:28px;color:white;font-size:16px;font-weight:700;padding:14px 32px;cursor:pointer;font-family:inherit;">Опубликовать</button>
+            <button class="repost-publish-btn" id="repost-submit-btn" onclick="submitRepost()"><span>Опубликовать</span></button>
         </div>
     </div>
     </div><!-- end post-modal-wrap -->
@@ -5548,11 +5551,30 @@
   function absoluteUrl(u) {
     const raw = String(u || '').trim();
     if (!raw) return '';
-    if (/^https?:\/\//i.test(raw) || raw.startsWith('data:')) return raw;
-    if (raw.startsWith('//')) return `${location.protocol}${raw}`;
-    if (raw.startsWith('/')) return `${location.origin}${raw}`;
-    return `${location.origin}/${raw.replace(/^\/+/, '')}`;
+    if (raw.startsWith('data:')) return raw;
+    const url = /^https?:\/\//i.test(raw) ? raw : (raw.startsWith('//') ? `${location.protocol}${raw}` : (raw.startsWith('/') ? `${location.origin}${raw}` : `${location.origin}/${raw.replace(/^\/+/, '')}`));
+    try {
+      const parsed = new URL(url, location.origin);
+      if (parsed.origin === location.origin && parsed.pathname.startsWith('/uploads/') && !parsed.searchParams.has('v')) {
+        parsed.searchParams.set('v', parsed.pathname.split('/').pop() || '1');
+      }
+      return parsed.href;
+    } catch {
+      return url;
+    }
   }
+
+  document.addEventListener('error', (event) => {
+    const img = event.target;
+    if (!(img instanceof HTMLImageElement) || img.dataset.uploadRetry === '1') return;
+    try {
+      const parsed = new URL(img.currentSrc || img.src || '', location.origin);
+      if (parsed.origin !== location.origin || !parsed.pathname.startsWith('/uploads/')) return;
+      img.dataset.uploadRetry = '1';
+      parsed.searchParams.set('retry', Date.now().toString(36));
+      img.src = parsed.href;
+    } catch {}
+  }, true);
 
   async function uploadImageIfNeeded(value, kind) {
     const src = String(value || '');
@@ -6327,9 +6349,9 @@
 
   document.getElementById('main-logo-refresh')?.addEventListener('click', () => location.reload());
 
-  setInterval(() => { if (token()) syncPosts().catch(() => {}); }, 4000);
-  setInterval(() => { if (token()) syncMe().catch(() => {}); }, 5000);
-  setInterval(() => { if (token()) syncTrends().catch(() => {}); }, 5000);
+  setInterval(() => { if (token() && !document.hidden) syncPosts().catch(() => {}); }, 15000);
+  setInterval(() => { if (token() && !document.hidden) syncMe().catch(() => {}); }, 30000);
+  setInterval(() => { if (token() && !document.hidden) syncTrends().catch(() => {}); }, 30000);
 
   (async () => {
     if (!token()) {
