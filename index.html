@@ -4713,6 +4713,8 @@
 (() => {
   const API_BASE = `${location.origin}/api`;
   const TOKEN_KEY = 'vp_token';
+  const FEED_POST_LIMIT = 300;
+  const POSTS_CACHE_KEY = 'vp_posts_cache';
   let me = null;
 
   const token = () => localStorage.getItem(TOKEN_KEY);
@@ -4725,6 +4727,7 @@
   let pendingHashtagRouteName = null;
   const pendingLikeOverrides = new Map();
   const pendingLikeOverrideTimers = new Map();
+  let emptyFeedTimer = null;
   let muteNavRouteUpdate = false;
   let commentOptsId = null;
   let editingCommentId = null;
@@ -4845,12 +4848,33 @@
   async function api(path, opts = {}) {
     const headers = { 'Content-Type': 'application/json', ...(opts.headers || {}) };
     if (token()) headers.Authorization = `Bearer ${token()}`;
-    const res = await fetch(`${API_BASE}${path}`, { ...opts, headers });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.error || 'API error');
-    return data;
+    const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    const timer = controller ? setTimeout(() => controller.abort(), opts.timeout || 25000) : null;
+    try {
+      const res = await fetch(`${API_BASE}${path}`, { ...opts, headers, signal: controller ? controller.signal : opts.signal });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'API error');
+      return data;
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
   }
   window.api = api;
+
+  function readCachedPosts() {
+    try {
+      const cached = JSON.parse(localStorage.getItem(POSTS_CACHE_KEY) || '[]');
+      return Array.isArray(cached) ? cached : [];
+    } catch {
+      return [];
+    }
+  }
+
+  function cachePostsSnapshot(list) {
+    try {
+      if (Array.isArray(list) && list.length) localStorage.setItem(POSTS_CACHE_KEY, JSON.stringify(list.slice(0, FEED_POST_LIMIT)));
+    } catch {}
+  }
 
 
 
@@ -5402,9 +5426,23 @@
 
   async function syncPosts() {
     const feed = document.getElementById('feed');
-    if (feed && !posts.length && !feed.children.length) feed.innerHTML = '<div style="text-align:center;color:rgba(255,255,255,0.45);padding:40px 20px;font-size:14px;">Загрузка...</div>';
-    const r = await api('/posts');
-    posts = (r.posts || []).map((p) => {
+    if (!posts.length) {
+      const cachedPosts = readCachedPosts();
+      if (cachedPosts.length) {
+        posts = cachedPosts;
+        renderPosts();
+      } else if (feed && !feed.children.length) {
+        feed.innerHTML = '<div style="text-align:center;color:rgba(255,255,255,0.45);padding:40px 20px;font-size:14px;">Загрузка...</div>';
+      }
+    }
+    let r;
+    try {
+      r = await api(`/posts?limit=${FEED_POST_LIMIT}`, { timeout: 45000 });
+    } catch (err) {
+      setTimeout(() => { if (token()) syncPosts().catch(() => {}); }, 1200);
+      return;
+    }
+    const nextPosts = (r.posts || []).map((p) => {
       const override = pendingLikeOverrides.get(p.id);
       const next = {
         ...p,
@@ -5413,10 +5451,14 @@
       };
       return override ? { ...next, liked: override.liked, likes: override.likes } : next;
     });
+    if (!nextPosts.length && posts.length) return;
+    clearTimeout(emptyFeedTimer);
+    posts = nextPosts;
+    if (posts.length) cachePostsSnapshot(posts);
     renderPosts();
     if (document.getElementById('hashtag-tab')?.classList.contains('active')) renderHashtagFeed();
     const st = document.querySelectorAll('.stat-item .stat-number'); if (st[1]) st[1].textContent = posts.filter(p => p.isRepost).length;
-    if (feed && posts.length === 0) feed.innerHTML = '<div style="text-align:center;color:rgba(255,255,255,0.35);padding:40px 20px;font-size:14px;">Лента пуста</div>';
+    if (feed && posts.length === 0) emptyFeedTimer = setTimeout(() => { if (!posts.length) feed.innerHTML = '<div style="text-align:center;color:rgba(255,255,255,0.35);padding:40px 20px;font-size:14px;">Лента пуста</div>'; }, 6000);
   }
 
   let currentHashtag = '';
@@ -5501,7 +5543,9 @@
       hideLoginScreen();
       navigateTo('/tape', true);
       const homeBtn = document.querySelector('.nav-btn[data-tab="home"]'); if (homeBtn) homeBtn.click();
-      await Promise.all([syncPosts(), syncTrends(), syncStories()]);
+      await syncPosts();
+      syncTrends().catch(() => {});
+      syncStories().catch(() => {});
     } catch (e) { err.textContent = e.message; }
   };
 
@@ -5519,7 +5563,9 @@
       hideLoginScreen();
       navigateTo('/tape', true);
       const homeBtn = document.querySelector('.nav-btn[data-tab="home"]'); if (homeBtn) homeBtn.click();
-      await Promise.all([syncPosts(), syncTrends(), syncStories()]);
+      await syncPosts();
+      syncTrends().catch(() => {});
+      syncStories().catch(() => {});
     } catch (e) { err.textContent = e.message; }
   };
 
@@ -5541,7 +5587,9 @@
       hideLoginScreen();
       navigateTo('/tape', true);
       const homeBtn = document.querySelector('.nav-btn[data-tab="home"]'); if (homeBtn) homeBtn.click();
-      await Promise.all([syncPosts(), syncTrends(), syncStories()]);
+      await syncPosts();
+      syncTrends().catch(() => {});
+      syncStories().catch(() => {});
     } catch (e) { err.textContent = e.message; }
   };
 
@@ -5852,9 +5900,12 @@
       requestAnimationFrame(()=>requestAnimationFrame(()=>modal.classList.add('visible')));
     }
     try {
-      const uRes = await api(`/users/${uname}`);
+      const [uRes, pRes] = await Promise.all([
+        api(`/users/${uname}`),
+        api(`/posts?user=${encodeURIComponent(uname)}&limit=${FEED_POST_LIMIT}`)
+      ]);
       const u = uRes.user;
-      const sourcePosts = posts.length ? posts : ((await api('/posts')).posts || []);
+      const sourcePosts = pRes.posts || [];
       const linked = sourcePosts.filter(p => String(p.username || '').toLowerCase() === `@${u.username}`.toLowerCase());
       const absAvatar = absoluteUrl(u.avatarUrl || '');
       const absBanner = absoluteUrl(u.bannerUrl || '');
@@ -6327,9 +6378,9 @@
 
   document.getElementById('main-logo-refresh')?.addEventListener('click', () => location.reload());
 
-  setInterval(() => { if (token()) syncPosts().catch(() => {}); }, 4000);
-  setInterval(() => { if (token()) syncMe().catch(() => {}); }, 5000);
-  setInterval(() => { if (token()) syncTrends().catch(() => {}); }, 5000);
+  setInterval(() => { if (token()) syncPosts().catch(() => {}); }, 20000);
+  setInterval(() => { if (token()) syncMe().catch(() => {}); }, 30000);
+  setInterval(() => { if (token()) syncTrends().catch(() => {}); }, 30000);
 
   (async () => {
     if (!token()) {
@@ -6349,7 +6400,9 @@
         homeBtn.click();
         muteNavRouteUpdate = false;
       }
-      await Promise.all([syncPosts(), syncTrends(), syncStories()]);
+      await syncPosts();
+      syncTrends().catch(() => {});
+      syncStories().catch(() => {});
       applyRoute();
       if (pendingPostRouteId) {
         const toOpen = pendingPostRouteId;
