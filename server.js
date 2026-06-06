@@ -207,11 +207,15 @@ function readDb() {
 }
 function writeDb(db) {
   dbCache = normalizeDb(db);
-  if (!DATABASE_URL) return persistFileDb(dbCache);
+  if (!DATABASE_URL) {
+    persistFileDb(dbCache);
+    return Promise.resolve();
+  }
   pendingDbPersist = pendingDbPersist
     .catch(() => {})
     .then(() => persistPostgresDb(dbCache))
     .catch((err) => console.error('Failed to persist database to PostgreSQL:', err));
+  return pendingDbPersist;
 }
 const nowIso = () => new Date().toISOString();
 const uid = () => crypto.randomBytes(12).toString('hex');
@@ -370,7 +374,7 @@ function restoreDbUploadFile(name, raw) {
   try {
     fs.mkdirSync(UPLOAD_DIR, { recursive: true });
     const filePath = path.join(UPLOAD_DIR, path.basename(name));
-    if (filePath.startsWith(`${UPLOAD_DIR}${path.sep}`) && !fs.existsSync(filePath)) fs.writeFileSync(filePath, raw);
+    if (filePath.startsWith(`${UPLOAD_DIR}${path.sep}`) && (!fs.existsSync(filePath) || fs.statSync(filePath).size !== raw.length)) fs.writeFileSync(filePath, raw);
   } catch {}
 }
 
@@ -380,7 +384,10 @@ function sendDbUpload(db, res, pathname) {
   if (!file) return false;
   const raw = Buffer.from(file.data || '', 'base64');
   restoreDbUploadFile(name, raw);
-  res.writeHead(200, securityHeaders(file.mime || uploadMimeFromName(name) || 'application/octet-stream'));
+  res.writeHead(200, {
+    ...securityHeaders(file.mime || uploadMimeFromName(name) || 'application/octet-stream'),
+    'Content-Length': raw.length
+  });
   res.end(raw);
   return true;
 }
@@ -722,7 +729,7 @@ const server = http.createServer(async (req, res) => {
     }
     if (Object.prototype.hasOwnProperty.call(b, 'pinnedPostId')) me.pinnedPostId = b.pinnedPostId || null;
     if (Object.prototype.hasOwnProperty.call(b, 'pinnedRepostId')) me.pinnedRepostId = b.pinnedRepostId || null;
-    writeDb(db);
+    await writeDb(db);
     return sendJson(req, res, 200, { user: sanitizeUser(me) });
   }
 
@@ -763,7 +770,10 @@ const server = http.createServer(async (req, res) => {
     if (!me) return sendJson(req, res, 401, { error: 'Unauthorized' });
     const ctx = buildPostDtoContext(db, me.id);
     const limit = getListLimit(u.searchParams);
-    const posts = db.posts.slice().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, limit).map((p) => postDto(db, p, me.id, ctx));
+    const username = String(u.searchParams.get('user') || '').replace('@', '').trim().toLowerCase();
+    const author = username ? db.users.find((usr) => usr.username === username) : null;
+    const sourcePosts = username ? (author ? db.posts.filter((p) => p.authorId === author.id) : []) : db.posts;
+    const posts = sourcePosts.slice().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, limit).map((p) => postDto(db, p, me.id, ctx));
     return sendJson(req, res, 200, { posts });
   }
 
@@ -1073,7 +1083,7 @@ const server = http.createServer(async (req, res) => {
     const filename = `${me.id}_${kind}_${Date.now()}_${uid().slice(0,6)}.${ext}`;
     fs.writeFileSync(path.join(uploadDir, filename), raw);
     upsertDbUpload(db, filename, m[1].toLowerCase().replace('jpg', 'jpeg'), raw);
-    writeDb(db);
+    await writeDb(db);
     return sendJson(req, res, 201, { url: `/uploads/${filename}` });
   }
 
@@ -1096,7 +1106,7 @@ const server = http.createServer(async (req, res) => {
     const filename = `${me.id}_track_${Date.now()}_${uid().slice(0,6)}.${ext}`;
     fs.writeFileSync(path.join(uploadDir, filename), raw);
     upsertDbUpload(db, filename, ext === 'm4a' ? 'audio/mp4' : 'audio/mpeg', raw);
-    writeDb(db);
+    await writeDb(db);
     return sendJson(req, res, 201, { url: `/uploads/${filename}` });
   }
 
@@ -1128,7 +1138,8 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (u.pathname.startsWith('/api/')) return sendJson(req, res, 404, { error: 'Not found' });
-  if (!serveFile(req, res, u.pathname) && !(u.pathname.startsWith('/uploads/') && sendDbUpload(db, res, u.pathname))) sendJson(req, res, 404, { error: 'Not found' });
+  if (u.pathname.startsWith('/uploads/') && sendDbUpload(db, res, u.pathname)) return;
+  if (!serveFile(req, res, u.pathname)) sendJson(req, res, 404, { error: 'Not found' });
 });
 
 initializeDb()

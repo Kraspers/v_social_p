@@ -4726,6 +4726,7 @@
   let pendingHashtagRouteName = null;
   const pendingLikeOverrides = new Map();
   const pendingLikeOverrideTimers = new Map();
+  let emptyFeedTimer = null;
   let muteNavRouteUpdate = false;
   let commentOptsId = null;
   let editingCommentId = null;
@@ -5411,7 +5412,7 @@
     const feed = document.getElementById('feed');
     if (feed && !posts.length && !feed.children.length) feed.innerHTML = '<div style="text-align:center;color:rgba(255,255,255,0.45);padding:40px 20px;font-size:14px;">Загрузка...</div>';
     const r = await api(`/posts?limit=${FEED_POST_LIMIT}`);
-    posts = (r.posts || []).map((p) => {
+    const nextPosts = (r.posts || []).map((p) => {
       const override = pendingLikeOverrides.get(p.id);
       const next = {
         ...p,
@@ -5420,10 +5421,13 @@
       };
       return override ? { ...next, liked: override.liked, likes: override.likes } : next;
     });
+    if (!nextPosts.length && posts.length) return;
+    clearTimeout(emptyFeedTimer);
+    posts = nextPosts;
     renderPosts();
     if (document.getElementById('hashtag-tab')?.classList.contains('active')) renderHashtagFeed();
     const st = document.querySelectorAll('.stat-item .stat-number'); if (st[1]) st[1].textContent = posts.filter(p => p.isRepost).length;
-    if (feed && posts.length === 0) feed.innerHTML = '<div style="text-align:center;color:rgba(255,255,255,0.35);padding:40px 20px;font-size:14px;">Лента пуста</div>';
+    if (feed && posts.length === 0) emptyFeedTimer = setTimeout(() => { if (!posts.length) feed.innerHTML = '<div style="text-align:center;color:rgba(255,255,255,0.35);padding:40px 20px;font-size:14px;">Лента пуста</div>'; }, 6000);
   }
 
   let currentHashtag = '';
@@ -5865,9 +5869,12 @@
       requestAnimationFrame(()=>requestAnimationFrame(()=>modal.classList.add('visible')));
     }
     try {
-      const uRes = await api(`/users/${uname}`);
+      const [uRes, pRes] = await Promise.all([
+        api(`/users/${uname}`),
+        api(`/posts?user=${encodeURIComponent(uname)}&limit=${FEED_POST_LIMIT}`)
+      ]);
       const u = uRes.user;
-      const sourcePosts = posts.length ? posts : ((await api(`/posts?limit=${FEED_POST_LIMIT}`)).posts || []);
+      const sourcePosts = pRes.posts || [];
       const linked = sourcePosts.filter(p => String(p.username || '').toLowerCase() === `@${u.username}`.toLowerCase());
       const absAvatar = absoluteUrl(u.avatarUrl || '');
       const absBanner = absoluteUrl(u.bannerUrl || '');
