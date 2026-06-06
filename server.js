@@ -19,6 +19,7 @@ const DB_STATE_KEY = process.env.DB_STATE_KEY || 'default';
 let dbCache = null;
 let pgPool = null;
 let pendingDbPersist = Promise.resolve();
+let wrappedIndexCache = null;
 
 function normalizeDatabaseUrl(rawUrl) {
   if (!rawUrl) return '';
@@ -195,6 +196,7 @@ async function persistPostgresDb(db) {
 
 async function initializeDb() {
   dbCache = normalizeDb(DATABASE_URL ? await loadPostgresDb() : loadFileDb());
+  if (importDiskUploads(dbCache)) writeDb(dbCache);
   console.log(`Database storage: ${DATABASE_URL ? 'PostgreSQL/Supabase' : `encrypted file ${DB_PATH}`}`);
   return dbCache;
 }
@@ -331,12 +333,54 @@ function removeDbUpload(db, urlValue) {
   db.uploads = db.uploads.filter((f) => f.name !== name);
 }
 
+function uploadMimeFromName(name) {
+  const ext = path.extname(String(name || '')).toLowerCase();
+  return {
+    '.png': 'image/png',
+    '.jpg': 'image/jpeg',
+    '.jpeg': 'image/jpeg',
+    '.webp': 'image/webp',
+    '.mp3': 'audio/mpeg',
+    '.m4a': 'audio/mp4'
+  }[ext] || '';
+}
+
+function importDiskUploads(db) {
+  if (!fs.existsSync(UPLOAD_DIR)) return false;
+  db.uploads ||= [];
+  let changed = false;
+  const known = new Set(db.uploads.map((f) => f.name));
+  for (const entry of fs.readdirSync(UPLOAD_DIR, { withFileTypes: true })) {
+    if (!entry.isFile()) continue;
+    const name = path.basename(entry.name);
+    if (known.has(name)) continue;
+    const mime = uploadMimeFromName(name);
+    if (!mime) continue;
+    const filePath = path.join(UPLOAD_DIR, name);
+    const stat = fs.statSync(filePath);
+    if (stat.size > 25 * 1024 * 1024) continue;
+    upsertDbUpload(db, name, mime, fs.readFileSync(filePath));
+    known.add(name);
+    changed = true;
+  }
+  return changed;
+}
+
+function restoreDbUploadFile(name, raw) {
+  try {
+    fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+    const filePath = path.join(UPLOAD_DIR, path.basename(name));
+    if (filePath.startsWith(`${UPLOAD_DIR}${path.sep}`) && !fs.existsSync(filePath)) fs.writeFileSync(filePath, raw);
+  } catch {}
+}
+
 function sendDbUpload(db, res, pathname) {
   const name = path.basename(String(pathname || '').replace(/^\/uploads\//, ''));
   const file = Array.isArray(db.uploads) ? db.uploads.find((f) => f.name === name) : null;
   if (!file) return false;
   const raw = Buffer.from(file.data || '', 'base64');
-  res.writeHead(200, securityHeaders(file.mime || 'application/octet-stream'));
+  restoreDbUploadFile(name, raw);
+  res.writeHead(200, securityHeaders(file.mime || uploadMimeFromName(name) || 'application/octet-stream'));
   res.end(raw);
   return true;
 }
@@ -479,6 +523,20 @@ function securityHeaders(type) {
   };
 }
 
+function wrapProtectedHtml(html) {
+  const encoded = Buffer.from(html, 'utf8').toString('base64');
+  return `<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>VP 2.0</title></head><body><script>(()=>{const b='${encoded}';function decodeBase64Html(v){const bin=atob(v);if(window.TextDecoder){const bytes=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);return new TextDecoder('utf-8').decode(bytes)}let out='';for(let i=0;i<bin.length;i+=8192)out+=String.fromCharCode.apply(null,Array.prototype.map.call(bin.slice(i,i+8192),c=>c.charCodeAt(0)));return decodeURIComponent(escape(out))}document.open();document.write(decodeBase64Html(b));document.close();})();</script></body></html>`;
+}
+
+function getWrappedIndex(fp) {
+  const stat = fs.statSync(fp);
+  const key = `${stat.mtimeMs}:${stat.size}`;
+  if (!wrappedIndexCache || wrappedIndexCache.key !== key) {
+    wrappedIndexCache = { key, html: wrapProtectedHtml(fs.readFileSync(fp, 'utf8')) };
+  }
+  return wrappedIndexCache.html;
+}
+
 function serveFile(req, res, pathname) {
   const fp = publicFilePath(pathname);
   if (!fp || !fs.existsSync(fp) || fs.statSync(fp).isDirectory()) return false;
@@ -496,7 +554,7 @@ function serveFile(req, res, pathname) {
     '.m4a': 'audio/mp4'
   }[ext] || 'application/octet-stream';
   if (path.basename(fp) === 'index.html') {
-    return sendPayload(req, res, 200, securityHeaders(type), fs.readFileSync(fp));
+    return sendPayload(req, res, 200, securityHeaders(type), getWrappedIndex(fp));
   }
   res.writeHead(200, securityHeaders(type));
   fs.createReadStream(fp).pipe(res);
