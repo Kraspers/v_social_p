@@ -4713,7 +4713,8 @@
 (() => {
   const API_BASE = `${location.origin}/api`;
   const TOKEN_KEY = 'vp_token';
-  const FEED_POST_LIMIT = 120;
+  const FEED_POST_LIMIT = 300;
+  const POSTS_CACHE_KEY = 'vp_posts_cache';
   let me = null;
 
   const token = () => localStorage.getItem(TOKEN_KEY);
@@ -4859,6 +4860,21 @@
     }
   }
   window.api = api;
+
+  function readCachedPosts() {
+    try {
+      const cached = JSON.parse(localStorage.getItem(POSTS_CACHE_KEY) || '[]');
+      return Array.isArray(cached) ? cached : [];
+    } catch {
+      return [];
+    }
+  }
+
+  function cachePostsSnapshot(list) {
+    try {
+      if (Array.isArray(list) && list.length) localStorage.setItem(POSTS_CACHE_KEY, JSON.stringify(list.slice(0, FEED_POST_LIMIT)));
+    } catch {}
+  }
 
 
 
@@ -5410,8 +5426,22 @@
 
   async function syncPosts() {
     const feed = document.getElementById('feed');
-    if (feed && !posts.length && !feed.children.length) feed.innerHTML = '<div style="text-align:center;color:rgba(255,255,255,0.45);padding:40px 20px;font-size:14px;">Загрузка...</div>';
-    const r = await api(`/posts?limit=${FEED_POST_LIMIT}`);
+    if (!posts.length) {
+      const cachedPosts = readCachedPosts();
+      if (cachedPosts.length) {
+        posts = cachedPosts;
+        renderPosts();
+      } else if (feed && !feed.children.length) {
+        feed.innerHTML = '<div style="text-align:center;color:rgba(255,255,255,0.45);padding:40px 20px;font-size:14px;">Загрузка...</div>';
+      }
+    }
+    let r;
+    try {
+      r = await api(`/posts?limit=${FEED_POST_LIMIT}`, { timeout: 45000 });
+    } catch (err) {
+      setTimeout(() => { if (token()) syncPosts().catch(() => {}); }, 1200);
+      return;
+    }
     const nextPosts = (r.posts || []).map((p) => {
       const override = pendingLikeOverrides.get(p.id);
       const next = {
@@ -5424,6 +5454,7 @@
     if (!nextPosts.length && posts.length) return;
     clearTimeout(emptyFeedTimer);
     posts = nextPosts;
+    if (posts.length) cachePostsSnapshot(posts);
     renderPosts();
     if (document.getElementById('hashtag-tab')?.classList.contains('active')) renderHashtagFeed();
     const st = document.querySelectorAll('.stat-item .stat-number'); if (st[1]) st[1].textContent = posts.filter(p => p.isRepost).length;
