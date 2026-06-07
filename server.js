@@ -145,6 +145,17 @@ async function ensurePostgresSchema(pool) {
       updated_at timestamptz not null default now()
     )
   `);
+  await pool.query(`
+    create table if not exists app_uploads (
+      state_key text not null,
+      name text not null,
+      mime text not null,
+      data bytea not null,
+      size integer not null default 0,
+      created_at timestamptz not null default now(),
+      primary key (state_key, name)
+    )
+  `);
 }
 
 async function backupUnreadablePostgresState(pool, value, error) {
@@ -157,6 +168,56 @@ async function backupUnreadablePostgresState(pool, value, error) {
   console.warn(`WARNING: unreadable encrypted database state was backed up as app_state key ${backupKey}.`);
 }
 
+function dbWithoutUploads(db) {
+  return { ...db, uploads: [] };
+}
+
+async function loadPostgresUploads(pool) {
+  const result = await pool.query(
+    `select name, mime, encode(data, 'base64') as data, octet_length(data) as size, created_at
+     from app_uploads
+     where state_key = $1`,
+    [DB_STATE_KEY]
+  );
+  return result.rows.map((file) => ({
+    name: file.name,
+    mime: file.mime,
+    data: file.data,
+    size: Number(file.size || 0),
+    createdAt: file.created_at ? new Date(file.created_at).toISOString() : nowIso()
+  }));
+}
+
+async function persistPostgresUploadRecord(file) {
+  if (!DATABASE_URL || !file || !file.name || !file.data) return;
+  const pool = getPgPool();
+  await pool.query(
+    `insert into app_uploads (state_key, name, mime, data, size, created_at)
+     values ($1, $2, $3, decode($4, 'base64'), $5, coalesce($6::timestamptz, now()))
+     on conflict (state_key, name) do update set
+       mime = excluded.mime,
+       data = excluded.data,
+       size = excluded.size,
+       created_at = excluded.created_at`,
+    [DB_STATE_KEY, file.name, file.mime, file.data, file.size || 0, file.createdAt || null]
+  );
+}
+
+function queuePostgresUploadDelete(name) {
+  if (!DATABASE_URL || !name) return;
+  pendingDbPersist = pendingDbPersist
+    .catch(() => {})
+    .then(() => getPgPool().query('delete from app_uploads where state_key = $1 and name = $2', [DB_STATE_KEY, name]))
+    .catch((err) => console.error('Failed to delete upload from PostgreSQL:', err));
+}
+
+async function migratePostgresUploads(pool, db) {
+  if (!Array.isArray(db.uploads) || db.uploads.length === 0) return;
+  for (const file of db.uploads) await persistPostgresUploadRecord(file);
+  db.uploads = [];
+  await persistPostgresDb(db);
+}
+
 async function loadPostgresDb() {
   const pool = getPgPool();
   await ensurePostgresSchema(pool);
@@ -165,25 +226,30 @@ async function loadPostgresDb() {
     const value = result.rows[0].value;
     try {
       const db = normalizeDb(decryptDb(JSON.stringify(value)));
+      await migratePostgresUploads(pool, db);
+      db.uploads = await loadPostgresUploads(pool);
       await persistPostgresDb(db);
       return db;
     } catch (err) {
       console.error('Stored database state cannot be decrypted with the current DB_ENCRYPTION_KEY. Starting with an empty database state.');
       await backupUnreadablePostgresState(pool, value, err);
       const db = emptyDb();
+      db.uploads = await loadPostgresUploads(pool);
       await persistPostgresDb(db);
       return db;
     }
   }
 
   const db = fs.existsSync(DB_PATH) ? loadFileDb() : emptyDb();
+  await migratePostgresUploads(pool, db);
+  db.uploads = await loadPostgresUploads(pool);
   await persistPostgresDb(db);
   return db;
 }
 
 async function persistPostgresDb(db) {
   const pool = getPgPool();
-  const encrypted = JSON.parse(encryptDb(db));
+  const encrypted = JSON.parse(encryptDb(dbWithoutUploads(db)));
   await pool.query(
     `insert into app_state (key, value, updated_at)
      values ($1, $2::jsonb, now())
@@ -316,6 +382,7 @@ function removeDbUpload(db, urlValue) {
   const name = uploadNameFromUrl(urlValue);
   if (!name || !Array.isArray(db.uploads)) return;
   db.uploads = db.uploads.filter((f) => f.name !== name);
+  queuePostgresUploadDelete(name);
 }
 
 function sendDbUpload(db, res, pathname) {
@@ -926,7 +993,8 @@ const server = http.createServer(async (req, res) => {
     if (!me) return sendJson(res, 401, { error: 'Unauthorized' });
     const followedIds = db.follows.filter((f) => f.followerId === me.id).map((f) => f.followingId);
     const allowed = new Set([me.id, ...followedIds]);
-    const posts = db.posts.filter((p) => allowed.has(p.authorId)).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).map((p) => postDto(db, p, me.id));
+    const ctx = buildPostDtoContext(db, me.id);
+    const posts = db.posts.filter((p) => allowed.has(p.authorId)).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).map((p) => postDto(db, p, me.id, ctx));
     return sendJson(res, 200, { posts });
   }
 
@@ -999,6 +1067,7 @@ const server = http.createServer(async (req, res) => {
     const filename = `${me.id}_${kind}_${Date.now()}_${uid().slice(0,6)}.${ext}`;
     fs.writeFileSync(path.join(uploadDir, filename), raw);
     upsertDbUpload(db, filename, m[1].toLowerCase().replace('jpg', 'jpeg'), raw);
+    if (DATABASE_URL) await persistPostgresUploadRecord(db.uploads.find((file) => file.name === filename));
     writeDb(db);
     return sendJson(res, 201, { url: `/uploads/${filename}` });
   }
@@ -1022,6 +1091,7 @@ const server = http.createServer(async (req, res) => {
     const filename = `${me.id}_track_${Date.now()}_${uid().slice(0,6)}.${ext}`;
     fs.writeFileSync(path.join(uploadDir, filename), raw);
     upsertDbUpload(db, filename, ext === 'm4a' ? 'audio/mp4' : 'audio/mpeg', raw);
+    if (DATABASE_URL) await persistPostgresUploadRecord(db.uploads.find((file) => file.name === filename));
     writeDb(db);
     return sendJson(res, 201, { url: `/uploads/${filename}` });
   }
