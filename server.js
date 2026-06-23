@@ -327,12 +327,51 @@ function sendJson(res, code, data) {
   });
   res.end(JSON.stringify(data));
 }
+const MAX_JSON_BODY_BYTES = Number(process.env.MAX_JSON_BODY_BYTES || 35 * 1024 * 1024);
+
 function parseBody(req) {
-  return new Promise((resolve) => {
-    let raw = '';
-    req.on('data', (c) => { raw += c; if (raw.length > 2e7) req.destroy(); });
-    req.on('end', () => { try { resolve(raw ? JSON.parse(raw) : {}); } catch { resolve({}); } });
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    let size = 0;
+    let tooLarge = false;
+    req.on('data', (chunk) => {
+      size += chunk.length;
+      if (size > MAX_JSON_BODY_BYTES) {
+        tooLarge = true;
+        chunks.length = 0;
+        req.resume();
+        return;
+      }
+      chunks.push(chunk);
+    });
+    req.on('end', () => {
+      if (tooLarge) {
+        const err = new Error('Payload too large');
+        err.statusCode = 413;
+        reject(err);
+        return;
+      }
+      const raw = chunks.length ? Buffer.concat(chunks, size).toString('utf8') : '';
+      try {
+        resolve(raw ? JSON.parse(raw) : {});
+      } catch {
+        resolve({});
+      }
+    });
+    req.on('error', reject);
   });
+}
+
+async function parseJsonBody(req, res) {
+  try {
+    return await parseBody(req);
+  } catch (err) {
+    if (err && err.statusCode === 413) {
+      sendJson(res, 413, { error: `Файл слишком большой. Максимум ${Math.ceil(MAX_JSON_BODY_BYTES / 1024 / 1024)} MB с учётом base64.` });
+      return null;
+    }
+    throw err;
+  }
 }
 function authUser(req, db) {
   const auth = req.headers.authorization || '';
@@ -566,7 +605,8 @@ const server = http.createServer(async (req, res) => {
   if (u.pathname === '/api/health' && req.method === 'GET') return sendJson(res, 200, { ok: true, ts: nowIso() });
 
   if (u.pathname === '/api/auth/register' && req.method === 'POST') {
-    const b = await parseBody(req);
+    const b = await parseJsonBody(req, res);
+    if (!b) return;
     const username = String(b.username || '').trim().toLowerCase();
     const password = String(b.password || '');
     const displayName = String(b.displayName || '').trim();
@@ -602,7 +642,8 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (u.pathname === '/api/auth/login' && req.method === 'POST') {
-    const b = await parseBody(req);
+    const b = await parseJsonBody(req, res);
+    if (!b) return;
     const username = String(b.username || '').trim().toLowerCase();
     const password = String(b.password || '');
     const user = db.users.find((x) => x.username === username);
@@ -611,7 +652,8 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (u.pathname === '/api/auth/vpsc' && req.method === 'POST') {
-    const b = await parseBody(req);
+    const b = await parseJsonBody(req, res);
+    if (!b) return;
     const code = String(b.code || '').trim().toUpperCase();
     const ipKey = String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown').split(',')[0].trim();
     const limit = db.meta.vpscAttempts[ipKey] || { fails: 0, blockedUntil: 0 };
@@ -662,7 +704,8 @@ const server = http.createServer(async (req, res) => {
 
   if (u.pathname === '/api/me' && req.method === 'PATCH') {
     if (!me) return sendJson(res, 401, { error: 'Unauthorized' });
-    const b = await parseBody(req);
+    const b = await parseJsonBody(req, res);
+    if (!b) return;
     if (typeof b.displayName === 'string') {
       const display = b.displayName.trim();
       if (!display) return sendJson(res, 400, { error: 'Имя не может быть пустым' });
@@ -724,7 +767,8 @@ const server = http.createServer(async (req, res) => {
 
   if (u.pathname === '/api/me/password' && req.method === 'POST') {
     if (!me) return sendJson(res, 401, { error: 'Unauthorized' });
-    const b = await parseBody(req);
+    const b = await parseJsonBody(req, res);
+    if (!b) return;
     const oldPassword = String(b.oldPassword || '');
     const newPassword = String(b.newPassword || '');
     if (sha(oldPassword) !== me.passwordHash) return sendJson(res, 400, { error: 'Неверный старый пароль' });
@@ -736,7 +780,8 @@ const server = http.createServer(async (req, res) => {
 
   if (u.pathname === '/api/me/delete' && req.method === 'POST') {
     if (!me) return sendJson(res, 401, { error: 'Unauthorized' });
-    const b = await parseBody(req);
+    const b = await parseJsonBody(req, res);
+    if (!b) return;
     const pw = String(b.password || '');
     if (sha(pw) !== me.passwordHash) return sendJson(res, 400, { error: 'Неверный пароль' });
 
@@ -764,7 +809,8 @@ const server = http.createServer(async (req, res) => {
 
   if (u.pathname === '/api/posts' && req.method === 'POST') {
     if (!me) return sendJson(res, 401, { error: 'Unauthorized' });
-    const b = await parseBody(req);
+    const b = await parseJsonBody(req, res);
+    if (!b) return;
     const text = String(b.text || '');
     const media = Array.isArray(b.media) ? b.media.slice(0, 5) : [];
     if (!text.trim() && media.length === 0) return sendJson(res, 400, { error: 'text or media required' });
@@ -812,7 +858,8 @@ const server = http.createServer(async (req, res) => {
   if (mRepost && req.method === 'POST') {
     if (!me) return sendJson(res, 401, { error: 'Unauthorized' });
     const postId = Number(mRepost[1]);
-    const b = await parseBody(req);
+    const b = await parseJsonBody(req, res);
+    if (!b) return;
     const original = db.posts.find((p) => p.id === postId);
     if (!original) return sendJson(res, 404, { error: 'Post not found' });
     const existingIdx = db.posts.findIndex((p) => p.authorId === me.id && p.repostOf === postId);
@@ -867,7 +914,8 @@ const server = http.createServer(async (req, res) => {
   if (mCom && req.method === 'POST') {
     if (!me) return sendJson(res, 401, { error: 'Unauthorized' });
     const postId = Number(mCom[1]);
-    const b = await parseBody(req);
+    const b = await parseJsonBody(req, res);
+    if (!b) return;
     const text = String(b.text || '').trim();
     if (!text) return sendJson(res, 400, { error: 'text required' });
     if (!db.posts.find((p) => p.id === postId)) return sendJson(res, 404, { error: 'Post not found' });
@@ -896,7 +944,8 @@ const server = http.createServer(async (req, res) => {
     const comment = db.comments.find((c) => c.id === commentId);
     if (!comment || comment.authorId !== me.id) return sendJson(res, 404, { error: 'Comment not found' });
     if ((Date.now() - new Date(comment.createdAt).getTime()) > 24 * 60 * 60 * 1000) return sendJson(res, 403, { error: 'Срок редактирования истёк' });
-    const b = await parseBody(req);
+    const b = await parseJsonBody(req, res);
+    if (!b) return;
     const text = String(b.text || '').trim();
     if (!text) return sendJson(res, 400, { error: 'text required' });
     comment.text = text.slice(0, 2000);
@@ -936,7 +985,8 @@ const server = http.createServer(async (req, res) => {
     const id = Number(mPatch[1]);
     const post = db.posts.find((p) => p.id === id && p.authorId === me.id);
     if (!post) return sendJson(res, 404, { error: 'Post not found' });
-    const b = await parseBody(req);
+    const b = await parseJsonBody(req, res);
+    if (!b) return;
     const nextText = String(b.text || '');
     const nextMedia = Array.isArray(b.media) ? b.media.slice(0, 5) : [];
     if (!nextText.trim() && nextMedia.length === 0) return sendJson(res, 400, { error: 'text or media required' });
@@ -1026,7 +1076,8 @@ const server = http.createServer(async (req, res) => {
 
   if (u.pathname === '/api/stories' && req.method === 'POST') {
     if (!me) return sendJson(res, 401, { error: 'Unauthorized' });
-    const b = await parseBody(req);
+    const b = await parseJsonBody(req, res);
+    if (!b) return;
     const src = String(b.src || '');
     const mediaType = b.mediaType === 'video' ? 'video' : 'image';
     const caption = String(b.caption || '').slice(0, 280);
@@ -1052,7 +1103,8 @@ const server = http.createServer(async (req, res) => {
 
   if (u.pathname === '/api/upload' && req.method === 'POST') {
     if (!me) return sendJson(res, 401, { error: 'Unauthorized' });
-    const b = await parseBody(req);
+    const b = await parseJsonBody(req, res);
+    if (!b) return;
     const dataUrl = String(b.dataUrl || '');
     const kind = b.kind === 'banner' ? 'banner' : 'avatar';
     const m = dataUrl.match(/^data:(image\/(png|jpeg|jpg|webp));base64,(.+)$/i);
@@ -1077,7 +1129,8 @@ const server = http.createServer(async (req, res) => {
     if (!me) return sendJson(res, 401, { error: 'Unauthorized' });
     if (!Array.isArray(me.favoriteTracks)) me.favoriteTracks = [];
     if (me.favoriteTracks.length >= 30) return sendJson(res, 400, { error: 'Можно добавить максимум 30 треков' });
-    const b = await parseBody(req);
+    const b = await parseJsonBody(req, res);
+    if (!b) return;
     const dataUrl = String(b.dataUrl || '');
     const m = dataUrl.match(/^data:audio\/(mpeg|mp3|mp4|x-m4a);base64,(.+)$/i);
     if (!m) return sendJson(res, 400, { error: 'Можно загрузить только MP3 или M4A' });
