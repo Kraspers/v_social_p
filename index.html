@@ -10,6 +10,16 @@
         * { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
         /* Allow selection only in inputs/textareas */
         input, textarea { -webkit-user-select: text; user-select: text; }
+        /* Keep the app cursor inside the interface instead of falling back to the system cursor. */
+        :root {
+            --app-cursor: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMiIgaGVpZ2h0PSIzMiIgdmlld0JveD0iMCAwIDMyIDMyIj48cGF0aCBkPSJNNCAyLjUgMjUuNSAxN2wtMTAgMS43LTQuNyA5Ljh6IiBmaWxsPSIjZmZmIiBzdHJva2U9IiMwOTA5MGIiIHN0cm9rZS13aWR0aD0iMi41IiBzdHJva2UtbGluZWpvaW49InJvdW5kIi8+PC9zdmc+") 4 3, default;
+            --app-pointer-cursor: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMiIgaGVpZ2h0PSIzMiIgdmlld0JveD0iMCAwIDMyIDMyIj48cGF0aCBkPSJNMTIuMiAyOS41VjE2LjhsLTIuNi0yLjVhMyAzIDAgMCAxIDQuMi00LjNsMS41IDEuNFY1LjZhMyAzIDAgMCAxIDYgMHY0LjJhMyAzIDAgMCAxIDUuMiAyIDMgMyAwIDAgMSA0LjUgMi43djcuNGMwIDUtMy41IDguMS04LjQgOC4xeiIgZmlsbD0iI2ZmZiIgc3Ryb2tlPSIjMDkwOTBiIiBzdHJva2Utd2lkdGg9IjIuMyIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPjwvc3ZnPg==") 16 3, pointer;
+            --app-text-cursor: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMiIgaGVpZ2h0PSIzMiIgdmlld0JveD0iMCAwIDMyIDMyIj48cGF0aCBkPSJNMTAgNWgxMk0xNiA1djIyTTEwIDI3aDEyIiBmaWxsPSJub25lIiBzdHJva2U9IiNmZmYiIHN0cm9rZS13aWR0aD0iMi41IiBzdHJva2UtbGluZWNhcD0icm91bmQiLz48cGF0aCBkPSJNMTAgNWgxMk0xNiA1djIyTTEwIDI3aDEyIiBmaWxsPSJub25lIiBzdHJva2U9IiMwOTA5MGIiIHN0cm9rZS13aWR0aD0iNC41IiBzdHJva2UtbGluZWNhcD0icm91bmQiLz48cGF0aCBkPSJNMTAgNWgxMk0xNiA1djIyTTEwIDI3aDEyIiBmaWxsPSJub25lIiBzdHJva2U9IiNmZmYiIHN0cm9rZS13aWR0aD0iMi41IiBzdHJva2UtbGluZWNhcD0icm91bmQiLz48L3N2Zz4=") 16 16, text;
+        }
+        body, body * { cursor: var(--app-cursor) !important; }
+        input, textarea, [contenteditable="true"] { cursor: var(--app-text-cursor) !important; }
+        button:not(:disabled), [onclick], [data-app], [data-open-profile], [data-open-repost-id], .story-item, .story-nav, .trend-item, .notification-item, .hashtag, .mention, .creator-option, .crop-canvas-wrap { cursor: var(--app-pointer-cursor) !important; }
+        button:disabled, [disabled] { cursor: var(--app-cursor) !important; }
         /* Disable image drag */
         img { -webkit-user-drag: none; user-drag: none; pointer-events: auto; }
         body { font-family: sans-serif; background: #0b0b0d; color: #e6e6e9; }
