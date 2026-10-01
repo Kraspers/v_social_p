@@ -5854,7 +5854,10 @@
     try {
       const uRes = await api(`/users/${uname}`);
       const u = uRes.user;
-      const sourcePosts = posts.length ? posts : ((await api('/posts')).posts || []);
+      let sourcePosts = posts;
+      if (!sourcePosts.length) {
+        try { sourcePosts = (await api('/posts')).posts || []; } catch { sourcePosts = []; }
+      }
       const linked = sourcePosts.filter(p => String(p.username || '').toLowerCase() === `@${u.username}`.toLowerCase());
       const absAvatar = absoluteUrl(u.avatarUrl || '');
       const absBanner = absoluteUrl(u.bannerUrl || '');
