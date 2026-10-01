@@ -14,6 +14,7 @@ const VPSC_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789!@#$%&*';
 const DB_ENVELOPE_VERSION = 1;
 const RAW_DATABASE_URL = process.env.DATABASE_URL || process.env.POSTGRES_URL || '';
 const DATABASE_URL = normalizeDatabaseUrl(RAW_DATABASE_URL);
+let usePostgres = Boolean(DATABASE_URL);
 const DB_STATE_KEY = process.env.DB_STATE_KEY || 'default';
 let dbCache = null;
 let pgPool = null;
@@ -103,7 +104,18 @@ function persistFileDb(db) {
   fs.renameSync(tmp, DB_PATH);
 }
 
-function loadFileDb() {
+function migrateFileUploads(db) {
+  if (!Array.isArray(db.uploads) || db.uploads.length === 0) return false;
+  fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+  for (const file of db.uploads) {
+    const name = path.basename(file.name);
+    if (name) fs.writeFileSync(path.join(UPLOAD_DIR, name), Buffer.from(file.data, 'base64'));
+  }
+  db.uploads = [];
+  return true;
+}
+
+function loadFileDb({ extractUploads = true } = {}) {
   fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
   if (!fs.existsSync(DB_PATH)) {
     const db = emptyDb();
@@ -111,6 +123,7 @@ function loadFileDb() {
     return db;
   }
   const db = normalizeDb(decryptDb(fs.readFileSync(DB_PATH, 'utf8')));
+  if (extractUploads) migrateFileUploads(db);
   persistFileDb(db);
   return db;
 }
@@ -172,39 +185,37 @@ function dbWithoutUploads(db) {
   return { ...db, uploads: [] };
 }
 
-async function loadPostgresUploads(pool) {
-  const result = await pool.query(
-    `select name, mime, encode(data, 'base64') as data, octet_length(data) as size, created_at
-     from app_uploads
-     where state_key = $1`,
-    [DB_STATE_KEY]
-  );
-  return result.rows.map((file) => ({
-    name: file.name,
-    mime: file.mime,
-    data: file.data,
-    size: Number(file.size || 0),
-    createdAt: file.created_at ? new Date(file.created_at).toISOString() : nowIso()
-  }));
-}
-
 async function persistPostgresUploadRecord(file) {
-  if (!DATABASE_URL || !file || !file.name || !file.data) return;
+  if (!usePostgres || !file || !file.name || !file.data) return;
   const pool = getPgPool();
   await pool.query(
     `insert into app_uploads (state_key, name, mime, data, size, created_at)
-     values ($1, $2, $3, decode($4, 'base64'), $5, coalesce($6::timestamptz, now()))
+     values ($1, $2, $3, $4, $5, coalesce($6::timestamptz, now()))
      on conflict (state_key, name) do update set
        mime = excluded.mime,
        data = excluded.data,
        size = excluded.size,
        created_at = excluded.created_at`,
-    [DB_STATE_KEY, file.name, file.mime, file.data, file.size || 0, file.createdAt || null]
+    [DB_STATE_KEY, file.name, file.mime, Buffer.isBuffer(file.data) ? file.data : Buffer.from(file.data, 'base64'), file.size || 0, file.createdAt || null]
   );
 }
 
+async function sendPostgresUpload(res, pathname) {
+  if (!usePostgres) return false;
+  const name = path.basename(String(pathname || '').replace(/^\/uploads\//, ''));
+  const result = await getPgPool().query(
+    'select mime, data from app_uploads where state_key = $1 and name = $2',
+    [DB_STATE_KEY, name]
+  );
+  if (!result.rows.length) return false;
+  const file = result.rows[0];
+  res.writeHead(200, securityHeaders(file.mime || 'application/octet-stream'));
+  res.end(file.data);
+  return true;
+}
+
 function queuePostgresUploadDelete(name) {
-  if (!DATABASE_URL || !name) return;
+  if (!usePostgres || !name) return;
   pendingDbPersist = pendingDbPersist
     .catch(() => {})
     .then(() => getPgPool().query('delete from app_uploads where state_key = $1 and name = $2', [DB_STATE_KEY, name]))
@@ -227,22 +238,19 @@ async function loadPostgresDb() {
     try {
       const db = normalizeDb(decryptDb(JSON.stringify(value)));
       await migratePostgresUploads(pool, db);
-      db.uploads = await loadPostgresUploads(pool);
       await persistPostgresDb(db);
       return db;
     } catch (err) {
       console.error('Stored database state cannot be decrypted with the current DB_ENCRYPTION_KEY. Starting with an empty database state.');
       await backupUnreadablePostgresState(pool, value, err);
       const db = emptyDb();
-      db.uploads = await loadPostgresUploads(pool);
       await persistPostgresDb(db);
       return db;
     }
   }
 
-  const db = fs.existsSync(DB_PATH) ? loadFileDb() : emptyDb();
+  const db = fs.existsSync(DB_PATH) ? loadFileDb({ extractUploads: false }) : emptyDb();
   await migratePostgresUploads(pool, db);
-  db.uploads = await loadPostgresUploads(pool);
   await persistPostgresDb(db);
   return db;
 }
@@ -259,8 +267,16 @@ async function persistPostgresDb(db) {
 }
 
 async function initializeDb() {
-  dbCache = normalizeDb(DATABASE_URL ? await loadPostgresDb() : loadFileDb());
-  console.log(`Database storage: ${DATABASE_URL ? 'PostgreSQL/Supabase' : `encrypted file ${DB_PATH}`}`);
+  if (usePostgres) {
+    try {
+      dbCache = normalizeDb(await loadPostgresDb());
+    } catch (err) {
+      usePostgres = false;
+      console.error(`PostgreSQL is unavailable; using encrypted file storage instead: ${err.message}`);
+    }
+  }
+  if (!dbCache) dbCache = normalizeDb(loadFileDb());
+  console.log(`Database storage: ${usePostgres ? 'PostgreSQL/Supabase' : `encrypted file ${DB_PATH}`}`);
   return dbCache;
 }
 
@@ -270,7 +286,7 @@ function readDb() {
 }
 function writeDb(db) {
   dbCache = normalizeDb(db);
-  if (!DATABASE_URL) return persistFileDb(dbCache);
+  if (!usePostgres) return persistFileDb(dbCache);
   pendingDbPersist = pendingDbPersist
     .catch(() => {})
     .then(() => persistPostgresDb(dbCache))
@@ -407,31 +423,10 @@ function uploadNameFromUrl(urlValue) {
   return path.basename(normalized);
 }
 
-function upsertDbUpload(db, name, mime, raw) {
-  db.uploads ||= [];
-  const safeName = path.basename(String(name || ''));
-  if (!safeName) return;
-  const rec = { name: safeName, mime, data: raw.toString('base64'), size: raw.length, createdAt: nowIso() };
-  const idx = db.uploads.findIndex((f) => f.name === safeName);
-  if (idx >= 0) db.uploads[idx] = rec;
-  else db.uploads.push(rec);
-}
-
 function removeDbUpload(db, urlValue) {
   const name = uploadNameFromUrl(urlValue);
-  if (!name || !Array.isArray(db.uploads)) return;
-  db.uploads = db.uploads.filter((f) => f.name !== name);
+  if (!name) return;
   queuePostgresUploadDelete(name);
-}
-
-function sendDbUpload(db, res, pathname) {
-  const name = path.basename(String(pathname || '').replace(/^\/uploads\//, ''));
-  const file = Array.isArray(db.uploads) ? db.uploads.find((f) => f.name === name) : null;
-  if (!file) return false;
-  const raw = Buffer.from(file.data || '', 'base64');
-  res.writeHead(200, securityHeaders(file.mime || 'application/octet-stream'));
-  res.end(raw);
-  return true;
 }
 
 function removeUploadedFileIfLocal(db, urlValue) {
@@ -1117,9 +1112,8 @@ const server = http.createServer(async (req, res) => {
     const uploadDir = UPLOAD_DIR;
     if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
     const filename = `${me.id}_${kind}_${Date.now()}_${uid().slice(0,6)}.${ext}`;
-    fs.writeFileSync(path.join(uploadDir, filename), raw);
-    upsertDbUpload(db, filename, m[1].toLowerCase().replace('jpg', 'jpeg'), raw);
-    if (DATABASE_URL) await persistPostgresUploadRecord(db.uploads.find((file) => file.name === filename));
+    if (!usePostgres) fs.writeFileSync(path.join(uploadDir, filename), raw);
+    if (usePostgres) await persistPostgresUploadRecord({ name: filename, mime: m[1].toLowerCase().replace('jpg', 'jpeg'), data: raw, size: raw.length, createdAt: nowIso() });
     writeDb(db);
     return sendJson(res, 201, { url: `/uploads/${filename}` });
   }
@@ -1142,9 +1136,8 @@ const server = http.createServer(async (req, res) => {
     const uploadDir = UPLOAD_DIR;
     if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
     const filename = `${me.id}_track_${Date.now()}_${uid().slice(0,6)}.${ext}`;
-    fs.writeFileSync(path.join(uploadDir, filename), raw);
-    upsertDbUpload(db, filename, ext === 'm4a' ? 'audio/mp4' : 'audio/mpeg', raw);
-    if (DATABASE_URL) await persistPostgresUploadRecord(db.uploads.find((file) => file.name === filename));
+    if (!usePostgres) fs.writeFileSync(path.join(uploadDir, filename), raw);
+    if (usePostgres) await persistPostgresUploadRecord({ name: filename, mime: ext === 'm4a' ? 'audio/mp4' : 'audio/mpeg', data: raw, size: raw.length, createdAt: nowIso() });
     writeDb(db);
     return sendJson(res, 201, { url: `/uploads/${filename}` });
   }
@@ -1177,7 +1170,7 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (u.pathname.startsWith('/api/')) return sendJson(res, 404, { error: 'Not found' });
-  if (!serveFile(res, u.pathname) && !(u.pathname.startsWith('/uploads/') && sendDbUpload(db, res, u.pathname))) sendJson(res, 404, { error: 'Not found' });
+  if (!serveFile(res, u.pathname) && !(u.pathname.startsWith('/uploads/') && await sendPostgresUpload(res, u.pathname))) sendJson(res, 404, { error: 'Not found' });
 });
 
 initializeDb()
