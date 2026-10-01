@@ -14,6 +14,7 @@ const VPSC_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789!@#$%&*';
 const DB_ENVELOPE_VERSION = 1;
 const RAW_DATABASE_URL = process.env.DATABASE_URL || process.env.POSTGRES_URL || '';
 const DATABASE_URL = normalizeDatabaseUrl(RAW_DATABASE_URL);
+let usePostgres = Boolean(DATABASE_URL);
 const DB_STATE_KEY = process.env.DB_STATE_KEY || 'default';
 let dbCache = null;
 let pgPool = null;
@@ -185,7 +186,7 @@ function dbWithoutUploads(db) {
 }
 
 async function persistPostgresUploadRecord(file) {
-  if (!DATABASE_URL || !file || !file.name || !file.data) return;
+  if (!usePostgres || !file || !file.name || !file.data) return;
   const pool = getPgPool();
   await pool.query(
     `insert into app_uploads (state_key, name, mime, data, size, created_at)
@@ -200,7 +201,7 @@ async function persistPostgresUploadRecord(file) {
 }
 
 async function sendPostgresUpload(res, pathname) {
-  if (!DATABASE_URL) return false;
+  if (!usePostgres) return false;
   const name = path.basename(String(pathname || '').replace(/^\/uploads\//, ''));
   const result = await getPgPool().query(
     'select mime, data from app_uploads where state_key = $1 and name = $2',
@@ -214,7 +215,7 @@ async function sendPostgresUpload(res, pathname) {
 }
 
 function queuePostgresUploadDelete(name) {
-  if (!DATABASE_URL || !name) return;
+  if (!usePostgres || !name) return;
   pendingDbPersist = pendingDbPersist
     .catch(() => {})
     .then(() => getPgPool().query('delete from app_uploads where state_key = $1 and name = $2', [DB_STATE_KEY, name]))
@@ -266,8 +267,16 @@ async function persistPostgresDb(db) {
 }
 
 async function initializeDb() {
-  dbCache = normalizeDb(DATABASE_URL ? await loadPostgresDb() : loadFileDb());
-  console.log(`Database storage: ${DATABASE_URL ? 'PostgreSQL/Supabase' : `encrypted file ${DB_PATH}`}`);
+  if (usePostgres) {
+    try {
+      dbCache = normalizeDb(await loadPostgresDb());
+    } catch (err) {
+      usePostgres = false;
+      console.error(`PostgreSQL is unavailable; using encrypted file storage instead: ${err.message}`);
+    }
+  }
+  if (!dbCache) dbCache = normalizeDb(loadFileDb());
+  console.log(`Database storage: ${usePostgres ? 'PostgreSQL/Supabase' : `encrypted file ${DB_PATH}`}`);
   return dbCache;
 }
 
@@ -277,7 +286,7 @@ function readDb() {
 }
 function writeDb(db) {
   dbCache = normalizeDb(db);
-  if (!DATABASE_URL) return persistFileDb(dbCache);
+  if (!usePostgres) return persistFileDb(dbCache);
   pendingDbPersist = pendingDbPersist
     .catch(() => {})
     .then(() => persistPostgresDb(dbCache))
@@ -1103,8 +1112,8 @@ const server = http.createServer(async (req, res) => {
     const uploadDir = UPLOAD_DIR;
     if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
     const filename = `${me.id}_${kind}_${Date.now()}_${uid().slice(0,6)}.${ext}`;
-    if (!DATABASE_URL) fs.writeFileSync(path.join(uploadDir, filename), raw);
-    if (DATABASE_URL) await persistPostgresUploadRecord({ name: filename, mime: m[1].toLowerCase().replace('jpg', 'jpeg'), data: raw, size: raw.length, createdAt: nowIso() });
+    if (!usePostgres) fs.writeFileSync(path.join(uploadDir, filename), raw);
+    if (usePostgres) await persistPostgresUploadRecord({ name: filename, mime: m[1].toLowerCase().replace('jpg', 'jpeg'), data: raw, size: raw.length, createdAt: nowIso() });
     writeDb(db);
     return sendJson(res, 201, { url: `/uploads/${filename}` });
   }
@@ -1127,8 +1136,8 @@ const server = http.createServer(async (req, res) => {
     const uploadDir = UPLOAD_DIR;
     if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
     const filename = `${me.id}_track_${Date.now()}_${uid().slice(0,6)}.${ext}`;
-    if (!DATABASE_URL) fs.writeFileSync(path.join(uploadDir, filename), raw);
-    if (DATABASE_URL) await persistPostgresUploadRecord({ name: filename, mime: ext === 'm4a' ? 'audio/mp4' : 'audio/mpeg', data: raw, size: raw.length, createdAt: nowIso() });
+    if (!usePostgres) fs.writeFileSync(path.join(uploadDir, filename), raw);
+    if (usePostgres) await persistPostgresUploadRecord({ name: filename, mime: ext === 'm4a' ? 'audio/mp4' : 'audio/mpeg', data: raw, size: raw.length, createdAt: nowIso() });
     writeDb(db);
     return sendJson(res, 201, { url: `/uploads/${filename}` });
   }
